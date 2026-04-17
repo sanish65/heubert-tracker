@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.env.local
+.antigravity
+.gemini
+README.md
+Dockerfile
+.dockerignore
+package-lock.json

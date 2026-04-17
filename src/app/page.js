@@ -1,66 +1,269 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
+import Dashboard from "@/components/Dashboard";
+import EmployeeList from "@/components/EmployeeList";
+import FineTable from "@/components/FineTable";
+import LeavePage from "@/components/LeavePage";
+import AddEmployeeModal from "@/components/AddEmployeeModal";
+import AddFineModal from "@/components/AddFineModal";
+import AddLeaveModal from "@/components/AddLeaveModal";
+import AddStandupFineModal from "@/components/AddStandupFineModal";
+import EditEmployeeModal from "@/components/EditEmployeeModal";
+import StandupFineTable from "@/components/StandupFineTable";
 
 export default function Home() {
+  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut } = useApp();
+  const router = useRouter();
+
+  // Auth guard — redirect to /login if not signed in
+  useEffect(() => {
+    if (isLoaded && !user) {
+      router.replace("/login");
+    }
+  }, [isLoaded, user, router]);
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
+  const [showAddFine, setShowAddFine] = useState(false);
+  const [showAddLeave, setShowAddLeave] = useState(false);
+  const [showAddStandup, setShowAddStandup] = useState(false);
+  const [showEditEmployee, setShowEditEmployee] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  // Load active tab from localStorage on mount
+  useEffect(() => {
+    const savedTab = localStorage.getItem("heubert-active-tab");
+    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves"].includes(savedTab)) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  // Save active tab to localStorage when it changes
+  useEffect(() => {
+    if (activeTab) {
+      localStorage.setItem("heubert-active-tab", activeTab);
+    }
+  }, [activeTab]);
+
+  const handleEditEmployee = (emp) => {
+    setEditingEmployee(emp);
+    setShowEditEmployee(true);
+  };
+
+  if (!isLoaded || !user) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner" />
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="app-shell">
+      {/* Header */}
+      <header className="app-header">
+        <div className="header-left">
+          <div className="title-row">
+            <h1 className="app-title">
+              <span className="title-icon">⏰</span>
+              HTT
+            </h1>
+            {user && (
+              <div className="user-profile">
+                <div className="avatar-wrapper">
+                  <img 
+                    src={user.user_metadata?.avatar_url || "https://www.gravatar.com/avatar/?d=mp"} 
+                    alt={user.email} 
+                    className="user-avatar"
+                  />
+                  <div className="avatar-ring"></div>
+                </div>
+                <div className="user-details">
+                  <span className="user-name-label">Hi, {user.user_metadata?.full_name?.split(' ')[0] || user.email.split('@')[0]}</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <p className="app-subtitle">Internal Team Accountability & Record System</p>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="header-right-group">
+          <div className="header-actions">
+          {activeTab === "employees" && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowAddEmployee(true)}
+            >
+              <span>+</span> Add Employee
+            </button>
+          )}
+          {activeTab === "leaves" && (
+            <button
+              className="btn btn-accent"
+              onClick={() => setShowAddLeave(true)}
+            >
+              <span>+</span> Record Leave
+            </button>
+          )}
+          {activeTab === "standup" && (
+            <button
+              className="btn btn-secondary"
+              style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
+              onClick={() => setShowAddStandup(true)}
+            >
+              <span>+</span> Standup Fine
+            </button>
+          )}
+          {activeTab === "records" && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowAddFine(true)}
+            >
+              <span>+</span> Record Fine
+            </button>
+          )}
+          {activeTab === "dashboard" && (
+            <div className="dashboard-quick-actions">
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowAddEmployee(true)}
+              >
+                Add Employee
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowAddFine(true)}
+              >
+                Record Fine
+              </button>
+            </div>
+          )}
+          <button className="btn-logout-premium" onClick={signOut}>
+            <span className="logout-icon">󰗼</span>
+            Logout
+          </button>
         </div>
+      </div>
+    </header>
+
+      {/* Navigation Tabs */}
+      <nav className="nav-tabs">
+        <button
+          className={`nav-tab ${activeTab === "dashboard" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("dashboard")}
+        >
+          📊 Dashboard
+        </button>
+        <button
+          className={`nav-tab ${activeTab === "employees" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("employees")}
+        >
+          👥 Employees
+        </button>
+        <button
+          className={`nav-tab ${activeTab === "records" ? "nav-tab-active" : ""}`}
+          onClick={() => {
+            setActiveTab("records");
+            setSelectedEmployee(null);
+          }}
+        >
+          📋 All Records
+        </button>
+        <button
+          className={`nav-tab ${activeTab === "standup" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("standup")}
+        >
+          📝 Standup Fines
+        </button>
+        <button
+          className={`nav-tab ${activeTab === "leaves" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("leaves")}
+        >
+          🏖️ Leaves
+        </button>
+      </nav>
+
+      {/* Content */}
+      <main className="app-content">
+        {activeTab === "dashboard" && <Dashboard />}
+        {activeTab === "employees" && (
+          <EmployeeList
+            onEditEmployee={handleEditEmployee}
+            onSelectEmployee={(emp) => {
+              setSelectedEmployee(emp);
+              if (emp) setActiveTab("records");
+            }}
+            selectedEmployee={selectedEmployee}
+            onAddEmployee={() => setShowAddEmployee(true)}
+          />
+        )}
+        {activeTab === "records" && (
+          <FineTable 
+            selectedEmployee={selectedEmployee} 
+            onAddFine={() => setShowAddFine(true)}
+          />
+        )}
+        {activeTab === "standup" && (
+          <StandupFineTable 
+            selectedEmployee={selectedEmployee} 
+            onAddStandup={() => setShowAddStandup(true)}
+          />
+        )}
+        {activeTab === "leaves" && (
+          <LeavePage onAddLeave={() => setShowAddLeave(true)} />
+        )}
       </main>
+
+      {/* Footer */}
+      <footer className="app-footer">
+        <div className="footer-left">
+          <span>Heubert Tracker © 2026</span>
+          <span className="db-status">
+            <span className="pulse-dot"></span> Cloud Database Connected
+          </span>
+        </div>
+        <div className="footer-actions">
+          <button 
+            className={`btn btn-sm ${isSyncing ? 'btn-loading' : 'btn-secondary'}`} 
+            onClick={syncLocalToCloud}
+            disabled={isSyncing}
+          >
+            {isSyncing ? 'Syncing...' : '🔄 Sync Local Data'}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={resetData}>
+            Reset to Default Data
+          </button>
+        </div>
+      </footer>
+
+      {/* Modals */}
+      <AddEmployeeModal
+        isOpen={showAddEmployee}
+        onClose={() => setShowAddEmployee(false)}
+      />
+      <AddFineModal
+        isOpen={showAddFine}
+        onClose={() => setShowAddFine(false)}
+      />
+      <AddLeaveModal
+        isOpen={showAddLeave}
+        onClose={() => setShowAddLeave(false)}
+      />
+      <AddStandupFineModal
+        isOpen={showAddStandup}
+        onClose={() => setShowAddStandup(false)}
+      />
+      <EditEmployeeModal
+        isOpen={showEditEmployee}
+        onClose={() => {
+          setShowEditEmployee(false);
+          setEditingEmployee(null);
+        }}
+        employee={editingEmployee}
+      />
     </div>
   );
 }
