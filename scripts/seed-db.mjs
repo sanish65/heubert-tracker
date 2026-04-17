@@ -33,6 +33,8 @@ async function seed() {
     const emps = seedEmployees.map(e => ({
       name: e.name,
       work_email: e.email,
+      dob: e.dob,
+      joined_date: e.joinedDate,
       status: 'active'
     }));
 

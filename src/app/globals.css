@@ -1627,3 +1627,76 @@ body {
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
   100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
+
+/* ===== CELEBRATIONS & BIRTHDAYS ===== */
+.dashboard-extras-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-extras-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-extras-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.item-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.item-icon {
+  font-size: 1.25rem;
+}
+
+.item-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.celebration-detail {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.item-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.celebration-date {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-amber);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-wish {
+  background: var(--accent-indigo-soft) !important;
+  color: var(--accent-indigo) !important;
+  border: 1px solid var(--accent-indigo-soft) !important;
+  padding: 4px 10px !important;
+  font-size: 0.7rem !important;
+  border-radius: 6px !important;
+}
+
+.btn-wish:hover {
+  background: var(--accent-indigo) !important;
+  color: #fff !important;
+  box-shadow: 0 0 10px var(--accent-indigo-soft) !important;
+}
+
+.highlight-today {
+  border-color: var(--accent-amber) !important;
+  background: rgba(245, 158, 11, 0.05) !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.1) !important;
+}
