@@ -158,19 +158,13 @@ export default function Home() {
           📊 Dashboard
         </button>
         <button
-          className={`nav-tab ${activeTab === "employees" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("employees")}
-        >
-          👥 Employees
-        </button>
-        <button
           className={`nav-tab ${activeTab === "records" ? "nav-tab-active" : ""}`}
           onClick={() => {
             setActiveTab("records");
             setSelectedEmployee(null);
           }}
         >
-          📋 All Records
+          📋 Late Fines
         </button>
         <button
           className={`nav-tab ${activeTab === "standup" ? "nav-tab-active" : ""}`}
@@ -183,6 +177,12 @@ export default function Home() {
           onClick={() => setActiveTab("leaves")}
         >
           🏖️ Leaves
+        </button>
+        <button
+          className={`nav-tab ${activeTab === "employees" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("employees")}
+        >
+          👥 Employees
         </button>
       </nav>
 
@@ -226,16 +226,16 @@ export default function Home() {
           </span>
         </div>
         <div className="footer-actions">
-          <button 
+          {/* <button 
             className={`btn btn-sm ${isSyncing ? 'btn-loading' : 'btn-secondary'}`} 
             onClick={syncLocalToCloud}
             disabled={isSyncing}
           >
             {isSyncing ? 'Syncing...' : '🔄 Sync Local Data'}
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={resetData}>
+          </button> */}
+          {/* <button className="btn btn-ghost btn-sm" onClick={resetData}>
             Reset to Default Data
-          </button>
+          </button> */}
         </div>
       </footer>
 

@@ -4,7 +4,7 @@ import { useApp } from "@/context/AppContext";
 import StatsCard from "./StatsCard";
 
 export default function Dashboard() {
-  const { fines, standupFines, employees } = useApp();
+  const { fines, standupFines, employees, leaves } = useApp();
 
   // Late Fines
   const totalAmount = fines.reduce((s, f) => s + f.amount, 0);
@@ -17,6 +17,13 @@ export default function Dashboard() {
 
   // Standup Fines
   const standupUnpaid = standupFines.filter((f) => f.status === "unpaid");
+
+  // Upcoming Leaves
+  const today = new Date().toISOString().split('T')[0];
+  const upcomingLeaves = leaves
+    .filter((l) => l.end_date >= today)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date))
+    .slice(0, 5);
 
   // Per-employee breakdown for bar chart
   const empData = employees.map((emp) => {
@@ -90,6 +97,43 @@ export default function Dashboard() {
         <div className="chart-legend">
           <span className="legend-item"><span className="legend-dot paid" /> Paid</span>
           <span className="legend-item"><span className="legend-dot unpaid" /> Unpaid</span>
+        </div>
+      </div>
+      <div className="dashboard-extras-grid">
+        <div className="chart-container">
+          <h3 className="section-title">🕒 Pending Standups</h3>
+          <div className="compact-list">
+            {standupUnpaid.length > 0 ? (
+              standupUnpaid.slice(0, 5).map((f) => (
+                <div key={f.id} className="compact-item">
+                  <span className="item-name">{f.employee_name}</span>
+                  <span className="item-meta">{f.date}</span>
+                  <span className="status-badge unpaid">Pending</span>
+                </div>
+              ))
+            ) : (
+              <p className="empty-msg">All caught up! 🎉</p>
+            )}
+          </div>
+        </div>
+
+        <div className="chart-container">
+          <h3 className="section-title">🏖️ Upcoming Leaves</h3>
+          <div className="compact-list">
+            {upcomingLeaves.length > 0 ? (
+              upcomingLeaves.map((l) => (
+                <div key={l.id} className="compact-item">
+                  <span className="item-name">{l.employee_name}</span>
+                  <span className="item-meta">
+                    {l.start_date === l.end_date ? l.start_date : `${l.start_date} to ${l.end_date}`}
+                  </span>
+                  <span className="leave-type-tag">{l.type}</span>
+                </div>
+              ))
+            ) : (
+              <p className="empty-msg">No leaves planned soon.</p>
+            )}
+          </div>
         </div>
       </div>
     </section>

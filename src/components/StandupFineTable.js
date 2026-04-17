@@ -8,6 +8,7 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all"); // all, paid, unpaid
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "desc" });
+  const [celebration, setCelebration] = useState({ show: false, message: "" });
 
   const filteredFines = useMemo(() => {
     let list = [...standupFines];
@@ -61,6 +62,14 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
       key,
       direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
+  };
+
+  const handleToggle = async (fine) => {
+    if (fine.status === "unpaid") {
+      setCelebration({ show: true, message: `🎉 Thanks for the party, ${fine.employee_name.split(' ')[0]}!` });
+      setTimeout(() => setCelebration({ show: false, message: "" }), 3000);
+    }
+    await toggleStandupFineStatus(fine.id);
   };
 
   return (
@@ -139,7 +148,7 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
                   <td>
                     <span
                       className={`status-badge ${fine.status} ${!(isAdmin || isFineAdmin) ? 'status-static' : ''}`}
-                      onClick={() => (isAdmin || isFineAdmin) && toggleStandupFineStatus(fine.id)}
+                      onClick={() => (isAdmin || isFineAdmin) && handleToggle(fine)}
                     >
                       {fine.status === "paid" ? "contribution complete" : "pending contribution"}
                     </span>
@@ -160,6 +169,21 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
           </tbody>
         </table>
       </div>
+      {celebration.show && (
+        <div className="celebration-overlay">
+          <div className="party-popper">🎉</div>
+          <div className="celebration-msg">{celebration.message}</div>
+          <div className="confetti-container">
+            {[...Array(20)].map((_, i) => (
+              <div key={i} className={`confetti confetti-${i % 5}`} style={{ 
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`,
+                background: ['#ff0', '#f0f', '#0ff', '#0f0', '#6366f1'][i % 5]
+              }} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
