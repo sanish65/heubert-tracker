@@ -7,8 +7,8 @@ import LeaveCalendar from "./LeaveCalendar";
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
 
-export default function LeavePage({ onAddLeave }) {
-  const { leaves, employees, deleteLeave, isAdmin, currentEmployee } = useApp();
+export default function LeavePage({ onAddLeave, onAddHoliday }) {
+  const { leaves, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday } = useApp();
   const [filterEmployee, setFilterEmployee] = useState("");
 
   const calculateDays = (start, end, type) => {
@@ -51,7 +51,11 @@ export default function LeavePage({ onAddLeave }) {
       <div className="leave-layout">
         {/* Left: Calendar */}
         <div className="leave-calendar-col">
-          <LeaveCalendar leaves={leaves} selectedEmployee={filterEmployee || null} />
+          <LeaveCalendar 
+            leaves={leaves} 
+            selectedEmployee={filterEmployee || null} 
+            publicHolidays={publicHolidays}
+          />
         </div>
 
         {/* Right: Leave records + summary */}
@@ -90,9 +94,16 @@ export default function LeavePage({ onAddLeave }) {
                 Leave Records
                 <span className="leave-list-count">{filtered.length} records</span>
               </h4>
-              <button className="btn btn-accent btn-sm btn-leave-record" onClick={onAddLeave}>
-                <span>+</span> Record Leave
-              </button>
+              <div className="leave-list-actions">
+                {isAdmin && (
+                  <button className="btn btn-ghost btn-sm" onClick={onAddHoliday}>
+                    🌴 Add Holiday
+                  </button>
+                )}
+                <button className="btn btn-accent btn-sm btn-leave-record" onClick={onAddLeave}>
+                  <span>+</span> Record Leave
+                </button>
+              </div>
             </div>
             {filtered.length === 0 ? (
               <div className="leave-empty">

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { wordSeedSeasons, wordSeedWords } from "@/data/wordSeedData";
 
 const AppContext = createContext(null);
 
@@ -10,6 +11,10 @@ export function AppProvider({ children }) {
   const [employees, setEmployees] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [standupFines, setStandupFines] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [wordSeasons, setWordSeasons] = useState([]);
+  const [words, setWords] = useState([]);
+  const [publicHolidays, setPublicHolidays] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [user, setUser] = useState(null);
@@ -38,17 +43,28 @@ export function AppProvider({ children }) {
         { data: fineData },
         { data: leaveData },
         { data: standupData },
+        { data: withdrawalData },
+        { data: seasonData },
+        { data: wordData },
       ] = await Promise.all([
         supabase.from("employees").select("*").order("name"),
         supabase.from("fines").select("*").order("date", { ascending: false }),
         supabase.from("leaves").select("*").order("start_date", { ascending: false }),
         supabase.from("standup_records").select("*").order("date", { ascending: false }),
+        supabase.from("withdrawals").select("*").order("created_at", { ascending: false }),
+        supabase.from("word_seasons").select("*").order("created_at", { ascending: true }),
+        supabase.from("words").select("*").order("created_at", { ascending: false }),
+        supabase.from("public_holidays").select("*").order("date", { ascending: true }),
       ]);
 
       if (empData) setEmployees(empData);
       if (fineData) setFines(fineData);
       if (leaveData) setLeaves(leaveData);
       if (standupData) setStandupFines(standupData);
+      if (withdrawalData) setWithdrawals(withdrawalData);
+      if (seasonData) setWordSeasons(seasonData);
+      if (wordData) setWords(wordData);
+      if (holidayData) setPublicHolidays(holidayData);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -367,6 +383,108 @@ export function AppProvider({ children }) {
     if (!error) setStandupFines(prev => prev.filter(s => s.id !== id));
   };
 
+  const addWithdrawal = async (amount, reason) => {
+    const withdrawnBy = user?.user_metadata?.full_name || user?.email || "Admin";
+    const payload = { amount, reason, withdrawn_by: withdrawnBy };
+    const { data, error } = await supabase.from("withdrawals").insert([payload]).select();
+    if (error) throw error;
+    if (data) setWithdrawals(prev => [data[0], ...prev]);
+  };
+
+  const deleteWithdrawal = async (id) => {
+    const { error } = await supabase.from("withdrawals").delete().eq("id", id);
+    if (!error) setWithdrawals(prev => prev.filter(w => w.id !== id));
+  };
+
+  const addWordSeason = async (title) => {
+    const { data, error } = await supabase.from("word_seasons").insert([{ title, created_by: user?.email }]).select();
+    if (data) setWordSeasons(prev => [...prev, data[0]]);
+    return { data, error };
+  };
+
+  const deleteWordSeason = async (id) => {
+    const { error } = await supabase.from("word_seasons").delete().eq("id", id);
+    if (!error) {
+      setWordSeasons(prev => prev.filter(s => s.id !== id));
+      setWords(prev => prev.filter(w => w.season_id !== id));
+    }
+    return { error };
+  };
+
+  const addWord = async (wordData) => {
+    const payload = {
+      season_id: wordData.seasonId,
+      word: wordData.word,
+      phonetic: wordData.phonetic,
+      definition: wordData.definition,
+      example: wordData.example,
+      translation: wordData.translation,
+      created_by: user?.user_metadata?.full_name || user?.email,
+    };
+    const { data, error } = await supabase.from("words").insert([payload]).select();
+    if (data) setWords(prev => [data[0], ...prev]);
+    return { data, error };
+  };
+
+  const deleteWord = async (id) => {
+    const { error } = await supabase.from("words").delete().eq("id", id);
+    if (!error) setWords(prev => prev.filter(w => w.id !== id));
+    return { error };
+  };
+
+  const addPublicHoliday = async (date, title) => {
+    const { data, error } = await supabase.from("public_holidays").insert([{ date, title }]).select();
+    if (data) setPublicHolidays(prev => [...prev, data[0]]);
+    return { data, error };
+  };
+
+  const deletePublicHoliday = async (id) => {
+    const { error } = await supabase.from("public_holidays").delete().eq("id", id);
+    if (!error) setPublicHolidays(prev => prev.filter(h => h.id !== id));
+    return { error };
+  };
+  const seedWordsTable = async () => {
+    if (wordSeasons.length > 0) return;
+    
+    setIsSyncing(true);
+    try {
+      // 1. Insert Seasons
+      const { data: createdSeasons, error: sError } = await supabase
+        .from("word_seasons")
+        .insert(wordSeedSeasons)
+        .select();
+      
+      if (sError) throw sError;
+      setWordSeasons(createdSeasons);
+
+      // 2. Insert Words with correct season_id
+      const wordsToInsert = wordSeedWords.map(w => ({
+        season_id: createdSeasons[w.season_index].id,
+        word: w.word,
+        phonetic: w.phonetic,
+        definition: w.definition,
+        example: w.example,
+        translation: w.translation,
+        created_by: w.created_by
+      }));
+
+      const { data: createdWords, error: wError } = await supabase
+        .from("words")
+        .insert(wordsToInsert)
+        .select();
+      
+      if (wError) throw wError;
+      setWords(createdWords);
+      
+      alert("Word of the Day records seeded successfully! 🎉");
+    } catch (err) {
+      console.error("Seed error:", err);
+      alert("Failed to seed data. Check console.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const getEmployeeStats = useCallback(
     (name) => {
       const empFines = fines.filter((f) => f.employee_name === name);
@@ -379,6 +497,34 @@ export function AppProvider({ children }) {
     },
     [fines]
   );
+
+  const calculateCapacity = useCallback((employeeName, startDateStr, endDateStr) => {
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    let totalHours = 0;
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      const dayOfWeek = d.getDay(); // 0 = Sun, 6 = Sat
+
+      // Skip weekends
+      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+
+      // Skip public holidays
+      if (publicHolidays.some(h => h.date === dateStr)) continue;
+
+      // Skip if on leave
+      if (leaves.some(l => l.employee_name === employeeName && dateStr >= l.start_date && dateStr <= l.end_date)) continue;
+
+      // Calculate net hours
+      if (dayOfWeek === 5) {
+        totalHours += 5; // Friday: 8 - 2 break - 1 extra = 5
+      } else {
+        totalHours += 6; // Mon-Thu: 8 - 2 break = 6
+      }
+    }
+    return totalHours;
+  }, [publicHolidays, leaves]);
 
   const resetData = async () => {
     if (confirm("This will CLEAR CLOUD DATA and reset to seeds. Proceed?")) {
@@ -400,6 +546,10 @@ export function AppProvider({ children }) {
         employees,
         leaves,
         standupFines,
+        withdrawals,
+        wordSeasons,
+        words,
+        publicHolidays,
         isLoaded,
         isSyncing,
         addEmployee,
@@ -414,6 +564,16 @@ export function AppProvider({ children }) {
         addStandupFine,
         toggleStandupFineStatus,
         deleteStandupFine,
+        addWithdrawal,
+        deleteWithdrawal,
+        addWordSeason,
+        deleteWordSeason,
+        addWord,
+        deleteWord,
+        addPublicHoliday,
+        deletePublicHoliday,
+        calculateCapacity,
+        seedWordsTable,
         syncLocalToCloud,
         resetData,
         user,

@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
+import WithdrawalLog from "./WithdrawalLog";
 
-export default function FineTable({ selectedEmployee, onAddFine }) {
+export default function FineTable({ selectedEmployee, onAddFine, onWithdraw }) {
   const { fines, toggleFineStatus, deleteFine, isAdmin, isFineAdmin } = useApp();
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,110 +75,114 @@ export default function FineTable({ selectedEmployee, onAddFine }) {
   const totalFiltered = filtered.reduce((s, f) => s + f.amount, 0);
 
   return (
-    <section className="fine-section">
-      <div className="fine-header">
-        <div className="fine-title-group">
-          <h3 className="section-title">
-            Fine Records
-            {selectedEmployee && (
-              <span className="filter-badge">{selectedEmployee}</span>
-            )}
-          </h3>
-          <span className="fine-count">
-            {filtered.length} records · Rs. {totalFiltered.toLocaleString()}
-          </span>
+    <div className="fine-split-layout">
+      <section className="fine-section">
+        <div className="fine-header">
+          <div className="fine-title-group">
+            <h3 className="section-title">
+              Fine Records
+              {selectedEmployee && (
+                <span className="filter-badge">{selectedEmployee}</span>
+              )}
+            </h3>
+            <span className="fine-count">
+              {filtered.length} records · Rs. {totalFiltered.toLocaleString()}
+            </span>
+          </div>
+          <button className="btn btn-primary" onClick={onAddFine}>
+            <span>+</span> Record Fine
+          </button>
         </div>
-        <button className="btn btn-primary" onClick={onAddFine}>
-          <span>+</span> Record Fine
-        </button>
-      </div>
 
-      <div className="fine-filters">
-        <div className="search-box">
-          <span className="search-icon">🔍</span>
-          <input
-            type="text"
-            placeholder="Search by name, date, amount..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="fine-filters">
+          <div className="search-box">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="Search by name, date, amount..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="status-tabs">
+            {["all", "paid", "unpaid"].map((s) => (
+              <button
+                key={s}
+                className={`tab ${statusFilter === s ? "tab-active" : ""}`}
+                onClick={() => setStatusFilter(s)}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="status-tabs">
-          {["all", "paid", "unpaid"].map((s) => (
-            <button
-              key={s}
-              className={`tab ${statusFilter === s ? "tab-active" : ""}`}
-              onClick={() => setStatusFilter(s)}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      <div className="table-wrapper">
-        <table className="data-table fine-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleSort("date")}>
-                Date {sortIcon("date")}
-              </th>
-              <th onClick={() => handleSort("name")}>
-                Employee {sortIcon("name")}
-              </th>
-              <th onClick={() => handleSort("amount")}>
-                Amount {sortIcon("amount")}
-              </th>
-              <th onClick={() => handleSort("status")}>
-                Status {sortIcon("status")}
-              </th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
+        <div className="table-wrapper">
+          <table className="data-table fine-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="empty-row">
-                  No records found
-                </td>
+                <th onClick={() => handleSort("date")}>
+                  Date {sortIcon("date")}
+                </th>
+                <th onClick={() => handleSort("name")}>
+                  Employee {sortIcon("name")}
+                </th>
+                <th onClick={() => handleSort("amount")}>
+                  Amount {sortIcon("amount")}
+                </th>
+                <th onClick={() => handleSort("status")}>
+                  Status {sortIcon("status")}
+                </th>
+                <th>Actions</th>
               </tr>
-            ) : (
-              filtered.map((f) => (
-                <tr key={f.id}>
-                  <td className="date-cell">{formatDate(f.date)}</td>
-                  <td className="emp-name-cell">
-                    <span className="emp-avatar">
-                      {f.employee_name.charAt(0).toUpperCase()}
-                    </span>
-                    {f.employee_name}
-                  </td>
-                  <td className="amount-cell">Rs. {f.amount}</td>
-                  <td>
-                    <span
-                      className={`status-badge ${f.status} ${!(isAdmin || isFineAdmin) ? 'status-static' : ''}`}
-                      onClick={() => (isAdmin || isFineAdmin) && toggleFineStatus(f.id)}
-                      title={(isAdmin || isFineAdmin) ? "Click to toggle status" : ""}
-                    >
-                      {f.status}
-                    </span>
-                  </td>
-                  <td>
-                    {(isAdmin || isFineAdmin) && (
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => deleteFine(f.id)}
-                        title="Delete"
-                      >
-                        🗑
-                      </button>
-                    )}
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="empty-row">
+                    No records found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
+              ) : (
+                filtered.map((f) => (
+                  <tr key={f.id}>
+                    <td className="date-cell">{formatDate(f.date)}</td>
+                    <td className="emp-name-cell">
+                      <span className="emp-avatar">
+                        {f.employee_name.charAt(0).toUpperCase()}
+                      </span>
+                      {f.employee_name}
+                    </td>
+                    <td className="amount-cell">Rs. {f.amount}</td>
+                    <td>
+                      <span
+                        className={`status-badge ${f.status} ${!(isAdmin || isFineAdmin) ? 'status-static' : ''}`}
+                        onClick={() => (isAdmin || isFineAdmin) && toggleFineStatus(f.id)}
+                        title={(isAdmin || isFineAdmin) ? "Click to toggle status" : ""}
+                      >
+                        {f.status}
+                      </span>
+                    </td>
+                    <td>
+                      {(isAdmin || isFineAdmin) && (
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => deleteFine(f.id)}
+                          title="Delete"
+                        >
+                          🗑
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <WithdrawalLog onWithdraw={onWithdraw} />
+    </div>
   );
 }

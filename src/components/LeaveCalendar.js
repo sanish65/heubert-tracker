@@ -8,7 +8,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export default function LeaveCalendar({ leaves, selectedEmployee }) {
+export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays = [] }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -110,8 +110,13 @@ export default function LeaveCalendar({ leaves, selectedEmployee }) {
       viewMonth === now.getMonth() &&
       viewYear === now.getFullYear();
 
+    const isHoliday = publicHolidays.some(h => h.date === dateStr);
+    const holidayTitle = publicHolidays.find(h => h.date === dateStr)?.title;
+
     let cellClass = "cal-cell";
     if (isToday) cellClass += " cal-today";
+    if (isHoliday) cellClass += " holiday-day-cell";
+    
     if (dayLeaves.length > 0) {
       const hasHalf = dayLeaves.some((l) => l.type === "half");
       const hasEarly = dayLeaves.some((l) => l.type === "early");
@@ -122,7 +127,11 @@ export default function LeaveCalendar({ leaves, selectedEmployee }) {
     }
 
     cells.push(
-      <div key={day} className={cellClass} title={dayLeaves.map((l) => `${l.name} (${l.type})`).join(", ")}>
+      <div 
+        key={day} 
+        className={cellClass} 
+        title={`${isHoliday ? `Holiday: ${holidayTitle} | ` : ''}${dayLeaves.map((l) => `${l.name} (${l.type})`).join(", ")}`}
+      >
         <span className="cal-day-num">{day}</span>
         {dayLeaves.length > 0 && (
           <div className="cal-dots">
@@ -188,6 +197,9 @@ export default function LeaveCalendar({ leaves, selectedEmployee }) {
         </span>
         <span className="cal-legend-item">
           <span className="cal-legend-dot cal-dot-early" /> Early Leave
+        </span>
+        <span className="cal-legend-item">
+          <span className="cal-legend-dot" style={{ background: 'rgba(255, 122, 0, 0.2)', border: '1px solid var(--accent-orange)' }} /> Public Holiday
         </span>
       </div>
     </div>

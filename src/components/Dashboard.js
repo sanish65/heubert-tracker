@@ -3,7 +3,7 @@ import { useApp } from "@/context/AppContext";
 import StatsCard from "./StatsCard";
 
 export default function Dashboard() {
-  const { fines, standupFines, employees, leaves } = useApp();
+  const { fines, standupFines, employees, leaves, withdrawals } = useApp();
   const [sendingWish, setSendingWish] = useState(null); // empId
 
   // Late Fines
@@ -14,6 +14,10 @@ export default function Dashboard() {
   const unpaidAmount = fines
     .filter((f) => f.status === "unpaid")
     .reduce((s, f) => s + f.amount, 0);
+
+  // Withdrawals
+  const totalWithdrawn = withdrawals.reduce((s, w) => s + w.amount, 0);
+  const remaining = paidAmount - totalWithdrawn;
 
   // Standup Fines
   const standupUnpaid = standupFines.filter((f) => f.status === "unpaid");
@@ -131,6 +135,13 @@ export default function Dashboard() {
           value={employees.length}
           sub="active"
           color="#f59e0b"
+        />
+        <StatsCard
+          icon="💸"
+          label="Collected & Withdrawn"
+          value={`Rs. ${paidAmount.toLocaleString()}`}
+          sub={`Rs. ${totalWithdrawn.toLocaleString()} withdrawn · Rs. ${remaining >= 0 ? remaining.toLocaleString() : 0} remaining`}
+          color="#10b981"
         />
       </div>
 

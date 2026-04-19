@@ -13,6 +13,13 @@ import AddLeaveModal from "@/components/AddLeaveModal";
 import AddStandupFineModal from "@/components/AddStandupFineModal";
 import EditEmployeeModal from "@/components/EditEmployeeModal";
 import StandupFineTable from "@/components/StandupFineTable";
+import WithdrawModal from "@/components/WithdrawModal";
+import WordPage from "@/components/WordPage";
+import AddWordSeasonModal from "@/components/AddWordSeasonModal";
+import AddWordModal from "@/components/AddWordModal";
+import Link from "next/link";
+import CapacityPage from "@/components/CapacityPage";
+import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut } = useApp();
@@ -29,6 +36,11 @@ export default function Home() {
   const [showAddLeave, setShowAddLeave] = useState(false);
   const [showAddStandup, setShowAddStandup] = useState(false);
   const [showEditEmployee, setShowEditEmployee] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showAddSeason, setShowAddSeason] = useState(false);
+  const [showAddWord, setShowAddWord] = useState(false);
+  const [showAddHoliday, setShowAddHoliday] = useState(false);
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -36,7 +48,7 @@ export default function Home() {
   // Load active tab from localStorage on mount
   useEffect(() => {
     const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves"].includes(savedTab)) {
+    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "words", "capacity"].includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
@@ -53,11 +65,14 @@ export default function Home() {
     setShowEditEmployee(true);
   };
 
-  if (!isLoaded || !user) {
+  if (!isLoaded) {
     return (
-      <div className="loading-screen">
-        <div className="spinner" />
-        <p>Loading...</p>
+      <div className="loading-splash">
+        <div className="splash-logo">⏰</div>
+        <div className="splash-text">Heubert Tracker</div>
+        <div className="loader-bar-container">
+          <div className="loader-bar"></div>
+        </div>
       </div>
     );
   }
@@ -91,6 +106,9 @@ export default function Home() {
           <p className="app-subtitle">Internal Team Accountability & Record System</p>
         </div>
         <div className="header-right-group">
+          <Link href="/meeting" className="btn-start-meeting">
+            🚀 Start Meeting
+          </Link>
           <div className="header-actions">
           {activeTab === "employees" && (
             <button
@@ -179,7 +197,19 @@ export default function Home() {
           🏖️ Leaves
         </button>
         <button
-          className={`nav-tab ${activeTab === "employees" ? "nav-tab-active" : ""}`}
+          className={`nav-tab ${activeTab === "capacity" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("capacity")}
+        >
+          🏗️ Capacity
+        </button>
+        <button
+          className={`nav-tab ${activeTab === "words" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("words")}
+        >
+          📖 Words
+        </button>
+        <button
+          className={`nav-tab nav-tab-right ${activeTab === "employees" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("employees")}
         >
           👥 Employees
@@ -204,6 +234,7 @@ export default function Home() {
           <FineTable 
             selectedEmployee={selectedEmployee} 
             onAddFine={() => setShowAddFine(true)}
+            onWithdraw={() => setShowWithdraw(true)}
           />
         )}
         {activeTab === "standup" && (
@@ -213,7 +244,20 @@ export default function Home() {
           />
         )}
         {activeTab === "leaves" && (
-          <LeavePage onAddLeave={() => setShowAddLeave(true)} />
+          <LeavePage 
+            onAddLeave={() => setShowAddLeave(true)} 
+            onAddHoliday={() => setShowAddHoliday(true)}
+          />
+        )}
+        {activeTab === "capacity" && <CapacityPage />}
+        {activeTab === "words" && (
+          <WordPage 
+            onAddSeason={() => setShowAddSeason(true)} 
+            onAddWord={(sid) => {
+              setSelectedSeasonId(sid);
+              setShowAddWord(true);
+            }} 
+          />
         )}
       </main>
 
@@ -263,6 +307,23 @@ export default function Home() {
           setEditingEmployee(null);
         }}
         employee={editingEmployee}
+      />
+      <WithdrawModal
+        isOpen={showWithdraw}
+        onClose={() => setShowWithdraw(false)}
+      />
+      <AddWordSeasonModal
+        isOpen={showAddSeason}
+        onClose={() => setShowAddSeason(false)}
+      />
+      <AddWordModal
+        isOpen={showAddWord}
+        onClose={() => setShowAddWord(false)}
+        seasonId={selectedSeasonId}
+      />
+      <AddPublicHolidayModal
+        isOpen={showAddHoliday}
+        onClose={() => setShowAddHoliday(false)}
       />
     </div>
   );
