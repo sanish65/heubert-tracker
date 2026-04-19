@@ -166,6 +166,50 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
           </div>
         </div>
       </div>
+
+      {/* Public Holidays Section */}
+      <div className="public-holidays-section">
+        <div className="section-header-compact">
+          <h3 className="section-title-sm">🌴 Public Holidays</h3>
+          {isAdmin && (
+            <button className="btn btn-ghost btn-xs" onClick={onAddHoliday}>
+              + Add Holiday
+            </button>
+          )}
+        </div>
+        <div className="holiday-list-grid">
+          {publicHolidays.length === 0 ? (
+            <p className="empty-msg">No public holidays recorded.</p>
+          ) : (
+            publicHolidays.map((holiday) => (
+              <div key={holiday.id} className="holiday-list-item">
+                <div className="holiday-info">
+                  <span className="holiday-date">
+                    {new Date(holiday.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="holiday-title">{holiday.title}</span>
+                </div>
+                {isAdmin && (
+                  <button
+                    className="btn-delete-holiday"
+                    onClick={() => {
+                        if (confirm(`Delete holiday "${holiday.title}"?`)) {
+                            deletePublicHoliday(holiday.id);
+                        }
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

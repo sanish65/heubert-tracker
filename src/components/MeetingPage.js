@@ -17,7 +17,8 @@ export default function MeetingPage() {
     addLeave,
     employees,
     isAdmin,
-    isLoaded
+    isLoaded,
+    publicHolidays
   } = useApp();
 
   if (!isLoaded) {
@@ -33,6 +34,10 @@ export default function MeetingPage() {
   }
 
   const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const tomorrowHoliday = publicHolidays.find(h => h.date === tomorrowStr);
 
   // Today's Data
   const todaysFines = useMemo(() => fines.filter(f => f.date === today), [fines, today]);
@@ -52,6 +57,15 @@ export default function MeetingPage() {
 
   return (
     <div className="meeting-layout">
+      {tomorrowHoliday && (
+        <div className="holiday-alert-banner pulse-entry">
+          <span className="holiday-icon">🎉</span>
+          <div className="holiday-text">
+            <strong>Tomorrow is a Public Holiday!</strong>
+            <span>Enjoy your day off for {tomorrowHoliday.title}</span>
+          </div>
+        </div>
+      )}
       <header className="meeting-header">
         <div className="meeting-title-group">
           <Link href="/" className="exit-link">← Exit Meeting</Link>

@@ -3,7 +3,7 @@ import { useApp } from "@/context/AppContext";
 import StatsCard from "./StatsCard";
 
 export default function Dashboard() {
-  const { fines, standupFines, employees, leaves, withdrawals } = useApp();
+  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays } = useApp();
   const [sendingWish, setSendingWish] = useState(null); // empId
 
   // Late Fines
@@ -25,6 +25,9 @@ export default function Dashboard() {
   // Upcoming Leaves
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
   const upcomingLeaves = leaves
     .filter((l) => l.end_date >= todayStr)
     .sort((a, b) => a.start_date.localeCompare(b.start_date))
@@ -207,6 +210,32 @@ export default function Dashboard() {
               ))
             ) : (
               <p className="empty-msg">No leaves planned soon.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="chart-container">
+          <h3 className="section-title">🌴 Upcoming Holidays</h3>
+          <div className="compact-list">
+            {publicHolidays
+              .filter((h) => h.date >= todayStr)
+              .sort((a, b) => a.date.localeCompare(b.date))
+              .slice(0, 5)
+              .map((h) => (
+                <div key={h.id} className="compact-item holiday-item">
+                  <div className="item-info">
+                    <span className="item-icon">🚩</span>
+                    <div className="item-text">
+                      <span className="item-name">{h.title}</span>
+                      <span className="item-meta">{new Date(h.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                    </div>
+                  </div>
+                  {h.date === tomorrowStr && <span className="status-badge holiday">Tomorrow</span>}
+                </div>
+              ))
+            }
+            {publicHolidays.filter(h => h.date >= todayStr).length === 0 && (
+              <p className="empty-msg">No upcoming holidays.</p>
             )}
           </div>
         </div>

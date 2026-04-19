@@ -15,6 +15,8 @@ export function AppProvider({ children }) {
   const [wordSeasons, setWordSeasons] = useState([]);
   const [words, setWords] = useState([]);
   const [publicHolidays, setPublicHolidays] = useState([]);
+  const [sprints, setSprints] = useState([]);
+  const [activeSprint, setActiveSprint] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [user, setUser] = useState(null);
@@ -46,6 +48,8 @@ export function AppProvider({ children }) {
         { data: withdrawalData },
         { data: seasonData },
         { data: wordData },
+        { data: holidayData },
+        { data: sprintsData },
       ] = await Promise.all([
         supabase.from("employees").select("*").order("name"),
         supabase.from("fines").select("*").order("date", { ascending: false }),
@@ -55,6 +59,7 @@ export function AppProvider({ children }) {
         supabase.from("word_seasons").select("*").order("created_at", { ascending: true }),
         supabase.from("words").select("*").order("created_at", { ascending: false }),
         supabase.from("public_holidays").select("*").order("date", { ascending: true }),
+        supabase.from("sprints").select("*").order("created_at", { ascending: false }),
       ]);
 
       if (empData) setEmployees(empData);
@@ -65,6 +70,11 @@ export function AppProvider({ children }) {
       if (seasonData) setWordSeasons(seasonData);
       if (wordData) setWords(wordData);
       if (holidayData) setPublicHolidays(holidayData);
+      if (sprintsData) {
+        setSprints(sprintsData);
+        const active = sprintsData.find(s => s.is_active);
+        if (active) setActiveSprint(active);
+      }
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -526,6 +536,37 @@ export function AppProvider({ children }) {
     return totalHours;
   }, [publicHolidays, leaves]);
 
+  const calculateSprintRange = (startDateStr) => {
+    let date = new Date(startDateStr);
+    let workingDays = 1; 
+    while (workingDays < 10) {
+      date.setDate(date.getDate() + 1);
+      if (date.getDay() !== 0 && date.getDay() !== 6) {
+        workingDays++;
+      }
+    }
+    return {
+      start: startDateStr,
+      end: date.toISOString().split('T')[0]
+    };
+  };
+
+  const addSprint = async (startDate, title) => {
+    const { start, end } = calculateSprintRange(startDate);
+    await supabase.from("sprints").update({ is_active: false }).neq("id", 0);
+    const { data, error } = await supabase.from("sprints").insert([{ 
+      start_date: start, 
+      end_date: end, 
+      title,
+      is_active: true
+    }]).select();
+    if (data) {
+      setSprints(prev => [data[0], ...prev.map(s => ({ ...s, is_active: false }))]);
+      setActiveSprint(data[0]);
+    }
+    return { data, error };
+  };
+
   const resetData = async () => {
     if (confirm("This will CLEAR CLOUD DATA and reset to seeds. Proceed?")) {
         // Warning: This is a heavy operation
@@ -572,6 +613,9 @@ export function AppProvider({ children }) {
         deleteWord,
         addPublicHoliday,
         deletePublicHoliday,
+        sprints,
+        activeSprint,
+        addSprint,
         calculateCapacity,
         seedWordsTable,
         syncLocalToCloud,
