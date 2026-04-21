@@ -20,6 +20,7 @@ import AddWordModal from "@/components/AddWordModal";
 import Link from "next/link";
 import CapacityPage from "@/components/CapacityPage";
 import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
+import EditWordModal from "@/components/EditWordModal";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut } = useApp();
@@ -44,6 +45,8 @@ export default function Home() {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [showEditWord, setShowEditWord] = useState(false);
+  const [editingWord, setEditingWord] = useState(null);
 
   // Load active tab from localStorage on mount
   useEffect(() => {
@@ -63,6 +66,11 @@ export default function Home() {
   const handleEditEmployee = (emp) => {
     setEditingEmployee(emp);
     setShowEditEmployee(true);
+  };
+
+  const handleEditWord = (word) => {
+    setEditingWord(word);
+    setShowEditWord(true);
   };
 
   if (!isLoaded) {
@@ -257,6 +265,7 @@ export default function Home() {
               setSelectedSeasonId(sid);
               setShowAddWord(true);
             }} 
+            onEditWord={handleEditWord}
           />
         )}
       </main>
@@ -324,6 +333,14 @@ export default function Home() {
       <AddPublicHolidayModal
         isOpen={showAddHoliday}
         onClose={() => setShowAddHoliday(false)}
+      />
+      <EditWordModal
+        isOpen={showEditWord}
+        onClose={() => {
+          setShowEditWord(false);
+          setEditingWord(null);
+        }}
+        word={editingWord}
       />
     </div>
   );

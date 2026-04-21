@@ -77,7 +77,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
                 >
-                  <option value="unpaid">Pending contribution</option>
+                  <option value="unpaid">Contribution pending</option>
                   <option value="paid">Contribution complete</option>
                 </select>
               </div>

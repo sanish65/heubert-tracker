@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 
-export default function WordPage({ onAddSeason, onAddWord }) {
+export default function WordPage({ onAddSeason, onAddWord, onEditWord }) {
   const { wordSeasons, words, deleteWord, deleteWordSeason, seedWordsTable, isAdmin } = useApp();
   const [activeSeasonId, setActiveSeasonId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -123,14 +123,24 @@ export default function WordPage({ onAddSeason, onAddWord }) {
                     {w.phonetic && <span className="phonetic">({w.phonetic})</span>}
                   </div>
                   {isAdmin && (
-                    <button 
-                      className="btn-delete-card" 
-                      onClick={() => {
-                        if (confirm("Delete this word?")) deleteWord(w.id);
-                      }}
-                    >
-                      🗑
-                    </button>
+                    <div className="card-actions">
+                      <button 
+                        className="btn-edit-card" 
+                        onClick={() => onEditWord(w)}
+                        title="Edit word"
+                      >
+                        📝
+                      </button>
+                      <button 
+                        className="btn-delete-card" 
+                        onClick={() => {
+                          if (confirm("Delete this word?")) deleteWord(w.id);
+                        }}
+                        title="Delete word"
+                      >
+                        🗑
+                      </button>
+                    </div>
                   )}
                 </div>
                 

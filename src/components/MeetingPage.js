@@ -3,6 +3,9 @@
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import Link from "next/link";
+import EditFineModal from "@/components/EditFineModal";
+import EditStandupModal from "@/components/EditStandupModal";
+import EditWordModal from "@/components/EditWordModal";
 
 export default function MeetingPage() {
   const { 
@@ -15,24 +18,17 @@ export default function MeetingPage() {
     addStandupFine,
     addWord, 
     addLeave,
+    deleteFine,
+    deleteStandupFine,
+    deleteWord,
+    updateFine,
+    updateStandupFine,
+    updateWord,
     employees,
     isAdmin,
     isLoaded,
     publicHolidays
   } = useApp();
-
-  if (!isLoaded) {
-    return (
-      <div className="loading-splash">
-        <div className="splash-logo">⏰</div>
-        <div className="splash-text">Heubert Tracker</div>
-        <div className="loader-bar-container">
-          <div className="loader-bar"></div>
-        </div>
-      </div>
-    );
-  }
-
   const today = new Date().toISOString().split('T')[0];
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -54,6 +50,25 @@ export default function MeetingPage() {
   const [showAddStandup, setShowAddStandup] = useState(false);
   const [showAddWord, setShowAddWord] = useState(false);
   const [showAddLeave, setShowAddLeave] = useState(false);
+
+  const [showEditFine, setShowEditFine] = useState(false);
+  const [editingFine, setEditingFine] = useState(null);
+  const [showEditStandup, setShowEditStandup] = useState(false);
+  const [editingStandup, setEditingStandup] = useState(null);
+  const [showEditWord, setShowEditWord] = useState(false);
+  const [editingWord, setEditingWord] = useState(null);
+
+  if (!isLoaded) {
+    return (
+      <div className="loading-splash">
+        <div className="splash-logo">⏰</div>
+        <div className="splash-text">Heubert Tracker</div>
+        <div className="loader-bar-container">
+          <div className="loader-bar"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="meeting-layout">
@@ -90,10 +105,16 @@ export default function MeetingPage() {
               <p className="empty-msg">All on time today! ☀️</p>
             ) : (
               todaysFines.map(f => (
-                <div key={f.id} className="meeting-item">
+                <div key={f.id} className="meeting-item group">
                   <span className="item-name">{f.employee_name}</span>
                   <span className="item-value">Rs. {f.amount}</span>
                   <span className={`status-badge ${f.status}`}>{f.status}</span>
+                  {isAdmin && (
+                    <div className="item-actions">
+                      <button onClick={() => { setEditingFine(f); setShowEditFine(true); }} title="Edit">✏️</button>
+                      <button onClick={() => { if(confirm("Delete fine?")) deleteFine(f.id); }} title="Delete">🗑</button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -108,9 +129,15 @@ export default function MeetingPage() {
               <p className="empty-msg">No standup fines yet.</p>
             ) : (
               todaysStandups.map(s => (
-                <div key={s.id} className="meeting-item">
+                <div key={s.id} className="meeting-item group">
                   <span className="item-name">{s.employee_name}</span>
                   <span className={`status-badge ${s.status}`}>{s.status}</span>
+                  {isAdmin && (
+                    <div className="item-actions">
+                      <button onClick={() => { setEditingStandup(s); setShowEditStandup(true); }} title="Edit">✏️</button>
+                      <button onClick={() => { if(confirm("Delete record?")) deleteStandupFine(s.id); }} title="Delete">🗑</button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -140,8 +167,14 @@ export default function MeetingPage() {
           {todaysWord ? (
             <div className="meeting-word-display pulse-entry">
               <div className="word-main">
-                <span className="word-text">{todaysWord.word}</span>
+                <h3 className="word-text">{todaysWord.word}</h3>
                 {todaysWord.phonetic && <span className="phonetic">({todaysWord.phonetic})</span>}
+                {isAdmin && (
+                  <div className="word-actions-inline">
+                    <button onClick={() => { setEditingWord(todaysWord); setShowEditWord(true); }} title="Edit Word">✏️</button>
+                    <button onClick={() => { if(confirm("Delete word?")) deleteWord(todaysWord.id); }} title="Delete Word">🗑</button>
+                  </div>
+                )}
               </div>
               {todaysWord.translation && (
                 <p className="translation">Translation: <strong>{todaysWord.translation}</strong></p>
@@ -184,6 +217,25 @@ export default function MeetingPage() {
           today={today}
         />
       )}
+
+      <EditFineModal 
+        isOpen={showEditFine} 
+        onClose={() => { setShowEditFine(false); setEditingFine(null); }} 
+        fine={editingFine}
+      />
+
+      <EditStandupModal
+        isOpen={showEditStandup}
+        onClose={() => { setShowEditStandup(false); setEditingStandup(null); }}
+        record={editingStandup}
+      />
+
+      <EditWordModal
+        isOpen={showEditWord}
+        onClose={() => { setShowEditWord(false); setEditingWord(null); }}
+        word={editingWord}
+      />
+
       {showAddWord && (
         <QuickAddWordModal 
           isOpen={showAddWord} 

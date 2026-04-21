@@ -2410,6 +2410,108 @@ body {
   color: var(--primary-color);
 }
 
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transform: translateX(10px);
+  transition: all 0.3s ease;
+}
+
+.word-card:hover .card-actions {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.btn-edit-card, .btn-delete-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+}
+
+.btn-edit-card:hover {
+  background: var(--primary-light);
+  border-color: var(--primary-color);
+  transform: scale(1.1);
+}
+
+.btn-delete-card:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+  transform: scale(1.1);
+}
+
+.item-actions {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%) translateX(10px);
+  display: flex;
+  gap: 0.4rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--bg-card);
+  padding: 4px 6px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+
+.meeting-item:hover .item-actions {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateY(-50%) translateX(0);
+}
+
+.item-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 1.1rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.item-actions button:hover {
+  background: var(--bg-subtle);
+}
+
+.word-actions-inline {
+  display: flex;
+  gap: 0.8rem;
+  margin-left: 1rem;
+}
+
+.word-actions-inline button {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.1rem;
+}
+
+.word-actions-inline button:hover {
+  transform: scale(1.1);
+  background: var(--primary-light);
+}
+
 .btn-icon-add {
   background: var(--primary-color);
   color: white;
@@ -2716,6 +2818,8 @@ body {
   background: var(--bg-subtle);
   border-radius: var(--radius-md);
   font-weight: 500;
+  position: relative;
+  overflow: hidden;
 }
 
 .item-name {
@@ -2791,10 +2895,9 @@ body {
 }
 
 .meeting-word-display .example-box {
-  background: white;
-  padding: 1rem 1.5rem;
-  border-radius: var(--radius-md);
-  border-left: 4px solid var(--primary-light);
+  margin-top: 0.5rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--border-color);
 }
 
 .meeting-word-display .example-box p {

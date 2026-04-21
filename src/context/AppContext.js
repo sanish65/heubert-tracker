@@ -27,11 +27,13 @@ export function AppProvider({ children }) {
     "sanish@heubert.com",
     "nikhil@heubert.com",
     "pranay@heubert.com",
-    "pratisha@heubert.com"
+    "pratisha@heubert.com",
+    "developers@heubert.com"
   ];
 
   const fineAdminEmails = [
-    "sanish@heubert.com"
+    "sanish@heubert.com",
+    "developers@heubert.com"
   ];
 
   const isAdmin = user ? adminEmails.includes(user.email.toLowerCase()) : false;
@@ -353,6 +355,22 @@ export function AppProvider({ children }) {
     if (!error) setFines(prev => prev.filter(f => f.id !== id));
   };
 
+  const updateFine = async (id, updatedData) => {
+    const { data, error } = await supabase
+      .from("fines")
+      .update({
+        amount: updatedData.amount,
+        status: updatedData.status
+      })
+      .eq("id", id)
+      .select();
+
+    if (data) {
+      setFines(prev => prev.map(f => f.id === id ? data[0] : f));
+    }
+    return { data, error };
+  };
+
   const addLeave = async (leave) => {
     const payload = {
         employee_name: leave.name,
@@ -391,6 +409,22 @@ export function AppProvider({ children }) {
   const deleteStandupFine = async (id) => {
     const { error } = await supabase.from("standup_records").delete().eq("id", id);
     if (!error) setStandupFines(prev => prev.filter(s => s.id !== id));
+    return { error };
+  };
+
+  const updateStandupFine = async (id, updatedData) => {
+    const { data, error } = await supabase
+      .from("standup_records")
+      .update({
+        status: updatedData.status
+      })
+      .eq("id", id)
+      .select();
+
+    if (data) {
+      setStandupFines(prev => prev.map(s => s.id === id ? data[0] : s));
+    }
+    return { data, error };
   };
 
   const addWithdrawal = async (amount, reason) => {
@@ -440,6 +474,27 @@ export function AppProvider({ children }) {
     const { error } = await supabase.from("words").delete().eq("id", id);
     if (!error) setWords(prev => prev.filter(w => w.id !== id));
     return { error };
+  };
+
+  const updateWord = async (id, updatedData) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from("words")
+      .update({
+        word: updatedData.word,
+        phonetic: updatedData.phonetic,
+        definition: updatedData.definition,
+        example: updatedData.example,
+        translation: updatedData.translation,
+        // You might want to update updated_at if you have such a column
+      })
+      .eq("id", id)
+      .select();
+
+    if (data) {
+      setWords(prev => prev.map(w => w.id === id ? data[0] : w));
+    }
+    return { data, error };
   };
 
   const addPublicHoliday = async (date, title) => {
@@ -599,25 +654,28 @@ export function AppProvider({ children }) {
         addFine,
         toggleFineStatus,
         deleteFine,
+        updateFine,
         getEmployeeStats,
         addLeave,
         deleteLeave,
         addStandupFine,
         toggleStandupFineStatus,
         deleteStandupFine,
+        updateStandupFine,
         addWithdrawal,
         deleteWithdrawal,
         addWordSeason,
         deleteWordSeason,
         addWord,
         deleteWord,
+        updateWord,
+        seedWordsTable,
         addPublicHoliday,
         deletePublicHoliday,
         sprints,
         activeSprint,
         addSprint,
         calculateCapacity,
-        seedWordsTable,
         syncLocalToCloud,
         resetData,
         user,
