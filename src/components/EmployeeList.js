@@ -83,9 +83,12 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
                           </button>
                           <button
                             className="btn btn-sm btn-danger-ghost"
-                            onClick={() => {
+                            onClick={async () => {
                               if (confirm(`Are you sure you want to delete ${emp.name}?`)) {
-                                removeEmployee(emp.id);
+                                const { error } = await removeEmployee(emp.id);
+                                if (error) {
+                                  alert(`Error deleting employee: ${error.message || 'Check connection'}`);
+                                }
                               }
                             }}
                           >

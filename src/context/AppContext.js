@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseStandup } from "@/lib/supabase";
 import { wordSeedSeasons, wordSeedWords } from "@/data/wordSeedData";
 
 const AppContext = createContext(null);
@@ -22,6 +22,8 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState(null);
+  const [standupSubmissions, setStandupSubmissions] = useState([]);
+  const [standupQuestions, setStandupQuestions] = useState([]);
 
   const adminEmails = [
     "sanish@heubert.com",
@@ -52,6 +54,8 @@ export function AppProvider({ children }) {
         { data: wordData },
         { data: holidayData },
         { data: sprintsData },
+        { data: standupSubData },
+        { data: standupQuestData },
       ] = await Promise.all([
         supabase.from("employees").select("*").order("name"),
         supabase.from("fines").select("*").order("date", { ascending: false }),
@@ -62,6 +66,8 @@ export function AppProvider({ children }) {
         supabase.from("words").select("*").order("created_at", { ascending: false }),
         supabase.from("public_holidays").select("*").order("date", { ascending: true }),
         supabase.from("sprints").select("*").order("created_at", { ascending: false }),
+        supabaseStandup.from("standup_responses").select("*").order("date", { ascending: false }),
+        supabaseStandup.from("questions").select("*").order("sort_order", { ascending: true }),
       ]);
 
       if (empData) setEmployees(empData);
@@ -77,6 +83,8 @@ export function AppProvider({ children }) {
         const active = sprintsData.find(s => s.is_active);
         if (active) setActiveSprint(active);
       }
+      if (standupSubData) setStandupSubmissions(standupSubData);
+      if (standupQuestData) setStandupQuestions(standupQuestData);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -642,6 +650,8 @@ export function AppProvider({ children }) {
         employees,
         leaves,
         standupFines,
+        standupSubmissions,
+        standupQuestions,
         withdrawals,
         wordSeasons,
         words,

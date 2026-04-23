@@ -33,44 +33,57 @@ export default function Dashboard() {
     .sort((a, b) => a.start_date.localeCompare(b.start_date))
     .slice(0, 5);
 
-  // Celebrations: Birthdays and Anniversaries
-  const currentMonth = today.getMonth(); // 0-11
+  // Celebrations: Birthdays and Anniversaries (15-day window)
+  const windowMs = 15 * 24 * 60 * 60 * 1000;
   const celebrations = employees.flatMap(emp => {
     const list = [];
-    if (emp.dob) {
-      const bday = new Date(emp.dob);
-      if (bday.getMonth() === currentMonth) {
-        list.push({ 
-          type: 'birthday', 
-          date: `${bday.toLocaleString('default', { month: 'short' })} ${bday.getDate()}`,
-          name: emp.name,
-          email: emp.work_email || emp.personal_email,
-          empName: emp.name,
-          isToday: bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth()
-        });
-      }
-    }
-    if (emp.joined_date) {
-      const jday = new Date(emp.joined_date);
-      if (jday.getMonth() === currentMonth) {
-        const years = today.getFullYear() - jday.getFullYear();
-        if (years > 0) {
-          list.push({ 
-            type: 'anniversary', 
-            date: `${jday.toLocaleString('default', { month: 'short' })} ${jday.getDate()}`,
-            name: `${years} Year${years > 1 ? 's' : ''} at Heubert!`,
-            empName: emp.name,
-            isToday: jday.getDate() === today.getDate() && jday.getMonth() === today.getMonth()
-          });
+    const todayNoTime = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    const getCelebrationsForDate = (originalDate, type) => {
+      const d = new Date(originalDate);
+      const yearsToCheck = [today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1];
+      
+      yearsToCheck.forEach(y => {
+        const occurrence = new Date(y, d.getMonth(), d.getDate());
+        const diffDays = (occurrence - todayNoTime) / (1000 * 60 * 60 * 24);
+        
+        if (Math.abs(diffDays) <= 15) {
+          const isToday = occurrence.toDateString() === today.toDateString();
+          
+          if (type === 'birthday') {
+            list.push({
+              type: 'birthday',
+              date: occurrence,
+              displayDate: `${occurrence.toLocaleString('default', { month: 'short' })} ${occurrence.getDate()}`,
+              name: 'Birthday',
+              email: emp.work_email || emp.personal_email,
+              empName: emp.name,
+              isToday
+            });
+          } else {
+            const years = y - d.getFullYear();
+            if (years > 0) {
+              list.push({
+                type: 'anniversary',
+                date: occurrence,
+                displayDate: `${occurrence.toLocaleString('default', { month: 'short' })} ${occurrence.getDate()}`,
+                name: `${years} Year${years > 1 ? 's' : ''} at Heubert!`,
+                email: emp.work_email || emp.personal_email,
+                empName: emp.name,
+                years: years,
+                isToday
+              });
+            }
+          }
         }
-      }
-    }
+      });
+    };
+
+    if (emp.dob) getCelebrationsForDate(emp.dob, 'birthday');
+    if (emp.joined_date) getCelebrationsForDate(emp.joined_date, 'anniversary');
+    
     return list;
-  }).sort((a, b) => {
-    const dayA = parseInt(a.date.split(' ')[1]);
-    const dayB = parseInt(b.date.split(' ')[1]);
-    return dayA - dayB;
-  });
+  }).sort((a, b) => a.date - b.date);
 
   const handleWish = async (celebration) => {
     setSendingWish(celebration.empName);
@@ -80,12 +93,14 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: celebration.email, 
-          name: celebration.empName 
+          name: celebration.empName,
+          type: celebration.type,
+          years: celebration.years
         }),
       });
       const data = await res.json();
       if (data.success) {
-        alert(`✨ Birthday wish sent to ${celebration.empName}!`);
+        alert(`✨ ${celebration.type === 'birthday' ? 'Birthday' : 'Anniversary'} wish sent to ${celebration.empName}!`);
       } else {
         alert(`❌ Error: ${data.error || 'Failed to send wish'}`);
       }
@@ -253,13 +268,13 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="item-actions">
-                    <span className="celebration-date">{c.date}</span>
-                    {c.type === 'birthday' && (
+                    <span className="celebration-date">{c.displayDate}</span>
+                    {c.isToday && (
                       <button 
                         className={`btn btn-sm btn-wish ${sendingWish === c.empName ? 'btn-loading' : ''}`} 
                         onClick={() => !sendingWish && handleWish(c)}
                         disabled={!!sendingWish}
-                        title="Send birthday wish"
+                        title={`Send ${c.type} wish`}
                       >
                         {sendingWish === c.empName ? 'Sending...' : 'Send Wish'}
                       </button>
@@ -268,7 +283,7 @@ export default function Dashboard() {
                 </div>
               ))
             ) : (
-              <p className="empty-msg">No celebrations this month.</p>
+              <p className="empty-msg">No celebrations within 15 days.</p>
             )}
           </div>
         </div>

@@ -23,12 +23,12 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
     if (employee) {
       setForm({
         name: employee.name || "",
-        empNo: employee.empNo || "",
+        empNo: employee.emp_no || "",
         dob: employee.dob || "",
-        joinedDate: employee.joinedDate || "",
-        leftDate: employee.leftDate || "",
-        workEmail: employee.workEmail || "",
-        personalEmail: employee.personalEmail || "",
+        joinedDate: employee.joined_date || "",
+        leftDate: employee.left_date || "",
+        workEmail: employee.work_email || "",
+        personalEmail: employee.personal_email || "",
         phone: employee.phone || "",
         address: employee.address || "",
         status: employee.status || "active",

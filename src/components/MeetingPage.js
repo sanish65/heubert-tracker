@@ -27,9 +27,56 @@ export default function MeetingPage() {
     employees,
     isAdmin,
     isLoaded,
-    publicHolidays
+    publicHolidays,
+    standupSubmissions,
+    standupQuestions
   } = useApp();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+  const [viewDate, setViewDate] = useState(today);
+  const [isEnlarged, setIsEnlarged] = useState(false);
+
+  // Helper to format text with Jira links
+  const formatText = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    
+    // Regex for Jira URLs (assumed structure)
+    const jiraRegex = /(https?:\/\/[^\s]+?\/browse\/([A-Z]+-\d+))/g;
+    
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = jiraRegex.exec(text)) !== null) {
+      // Add text before match
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+      
+      // Add the Jira link
+      const url = match[1];
+      const jiraId = match[2];
+      parts.push(
+        <a 
+          key={match.index} 
+          href={url} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="jira-inline-link"
+        >
+          {jiraId}
+        </a>
+      );
+      
+      lastIndex = jiraRegex.lastIndex;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : text;
+  };
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split('T')[0];
@@ -39,6 +86,96 @@ export default function MeetingPage() {
   const todaysFines = useMemo(() => fines.filter(f => f.date === today), [fines, today]);
   const todaysStandups = useMemo(() => standupFines.filter(f => f.date === today), [standupFines, today]);
   const activeLeaves = useMemo(() => leaves.filter(l => today >= l.start_date && today <= l.end_date), [leaves, today]);
+  // Shared/system emails — never expected to submit standups
+  const nonStandupEmails = new Set([
+    "developers@heubert.com",
+  ]);
+
+  // Employees (by first name, lowercase) who don't fill standups
+  const nonStandupFirstNames = new Set([
+    "sameer",
+  ]);
+
+  const allSubmissions = useMemo(() => {
+    // 1. Get actual submissions for the date
+    const actualSubmissions = standupSubmissions.filter(s => s.date === viewDate);
+
+    const submittedEmails = new Set(
+      actualSubmissions
+        .filter(s => s.email)
+        .map(s => s.email.trim().toLowerCase())
+    );
+
+    // Also build a set of first names from submissions for name-based fallback matching.
+    // This handles cases like:
+    //   "Pranay" (employee) ↔ "Pranay Lama Pakhrin" (standup)
+    //   "Nitesh"  (employee) ↔ "Nitesh Tuladhar"    (standup)
+    const submittedFirstNames = new Set(
+      actualSubmissions
+        .filter(s => s.name)
+        .map(s => s.name.trim().split(/\s+/)[0].toLowerCase())
+    );
+
+    // 2. Find employees who have NOT submitted yet
+    const missingSubmissions = (employees || [])
+      .filter(emp => {
+        // Skip inactive/resigned employees (e.g. Bhoomi)
+        if (emp.status && emp.status !== "active") return false;
+
+        const workEmail = emp.work_email?.trim().toLowerCase();
+        const personalEmail = emp.personal_email?.trim().toLowerCase();
+        const empFirstName = emp.name?.trim().split(/\s+/)[0].toLowerCase();
+
+        // Skip shared accounts (e.g. developers@heubert.com)
+        if (workEmail && nonStandupEmails.has(workEmail)) return false;
+        if (personalEmail && nonStandupEmails.has(personalEmail)) return false;
+
+        // Skip employees excluded by first name (e.g. Sameer)
+        if (empFirstName && nonStandupFirstNames.has(empFirstName)) return false;
+
+        // Primary match: by email
+        if (submittedEmails.has(workEmail) || submittedEmails.has(personalEmail)) return false;
+
+        // Fallback match: by first name (catches full-name vs. short-name discrepancies)
+        if (empFirstName && submittedFirstNames.has(empFirstName)) return false;
+
+        return true;
+      })
+      .map(emp => ({
+        id: `missing-${emp.id}`,
+        name: emp.name,
+        email: emp.work_email || emp.personal_email,
+        date: viewDate,
+        isMissing: true,
+        answers: {},
+        jira_tickets: []
+      }));
+
+    // 3. Combine: Missing ones first, then actual ones (sorted by responded_at)
+    const sortedActual = [...actualSubmissions].sort((a, b) =>
+      new Date(b.responded_at) - new Date(a.responded_at)
+    );
+
+    return [...missingSubmissions, ...sortedActual];
+  }, [standupSubmissions, viewDate, employees]);
+
+  const stats = useMemo(() => {
+    const total = allSubmissions.length;
+    const submitted = allSubmissions.filter(s => !s.isMissing).length;
+    return { total, submitted, missing: total - submitted };
+  }, [allSubmissions]);
+
+  const handlePrevDate = () => {
+    const d = new Date(viewDate);
+    d.setDate(d.getDate() - 1);
+    setViewDate(d.toLocaleDateString('en-CA'));
+  };
+
+  const handleNextDate = () => {
+    const d = new Date(viewDate);
+    d.setDate(d.getDate() + 1);
+    setViewDate(d.toLocaleDateString('en-CA'));
+  };
   
   // Word created TODAY specifically
   const todaysWord = useMemo(() => {
@@ -157,6 +294,104 @@ export default function MeetingPage() {
                   <span className="leave-type-tag">{l.type}</span>
                 </div>
               ))
+            )}
+          </div>
+        </section>
+
+        {/* STANDUP SUBMISSIONS (FROM SECONDARY DB) */}
+        <section className={`meeting-card submissions-card ${isEnlarged ? 'enlarged' : ''}`}>
+          <div className="card-header-with-actions">
+            <h2 className="card-title">✅ Daily Submissions</h2>
+            <div className="card-header-tools">
+              <span className="standup-stats">
+                {stats.submitted}/{stats.total} Submitted
+              </span>
+              <div className="date-navigator">
+                <button className="btn-nav" onClick={handlePrevDate}>◀</button>
+                <span className="view-date-label">
+                  {viewDate === today ? "Today" : new Date(viewDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+                <button className="btn-nav" onClick={handleNextDate} disabled={viewDate >= today}>▶</button>
+              </div>
+              <button 
+                className="btn-enlarge" 
+                onClick={() => setIsEnlarged(!isEnlarged)}
+                title={isEnlarged ? "Minimize" : "Enlarge"}
+              >
+                {isEnlarged ? "✕" : "⛶"}
+              </button>
+            </div>
+          </div>
+          <div className="submissions-list">
+            {allSubmissions.length > 0 ? (
+              allSubmissions.map((s) => (
+                <div key={s.id} className={`submission-item ${s.isMissing ? 'missing' : ''}`}>
+                  <div className="submission-header">
+                    <span className="submission-user">
+                      {s.name} {s.isMissing && <span className="missing-badge">NOT SUBMITTED</span>}
+                    </span>
+                    {!s.isMissing && s.responded_at && (
+                      <span className="submission-time">
+                        {new Date(s.responded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="submission-content">
+                    {s.isMissing ? (
+                      <div className="missing-state-content">
+                        <p className="ans-text italic text-muted">No standup update received for this date.</p>
+                      </div>
+                    ) : (
+                      <>
+                        {standupQuestions.length > 0 ? (
+                          standupQuestions.map((q) => {
+                            // Try mapping by prepending 'question_' to ID (as seen in user data), or raw ID, Question Text, Sort Order
+                            const answers = s.answers || {};
+                            const answer = answers[`question_${q.id}`] || 
+                                         answers[q.id] || 
+                                         answers[q.question] || 
+                                         answers[q.sort_order] || 
+                                         answers[q.sort_order.toString()];
+                            
+                            return (
+                              <div key={q.id} className="submission-qa">
+                                <label className="qa-label">{q.question}</label>
+                                <div className="ans-text">
+                                  {answer && String(answer).trim() ? (
+                                    typeof answer === 'object' ? JSON.stringify(answer) : formatText(String(answer))
+                                  ) : (
+                                    <span className="text-muted italic">No answer provided</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          // If no questions fetched, show raw answers
+                          Object.entries(s.answers || {}).map(([key, value], idx) => (
+                            <div key={idx} className="submission-qa">
+                              <label className="qa-label">{key}</label>
+                              <div className="ans-text">
+                                {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                        {s.jira_tickets && s.jira_tickets.length > 0 && (
+                          <div className="jira-section">
+                            <label className="qa-label">Jira Tickets</label>
+                            <div className="jira-tags">
+                              {s.jira_tickets.map(t => <span key={t} className="jira-tag">{t}</span>)}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="empty-msg">No submissions for this date. 📥</p>
             )}
           </div>
         </section>
