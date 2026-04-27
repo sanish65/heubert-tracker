@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import Link from "next/link";
 import EditFineModal from "@/components/EditFineModal";
@@ -31,9 +31,20 @@ export default function MeetingPage() {
     standupSubmissions,
     standupQuestions
   } = useApp();
-  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
-  const [viewDate, setViewDate] = useState(today);
+  const [viewDate, setViewDate] = useState("");
   const [isEnlarged, setIsEnlarged] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    setViewDate(todayStr);
+  }, []);
+
+  const today = useMemo(() => {
+    if (!isClient) return "";
+    return new Date().toLocaleDateString('en-CA');
+  }, [isClient]);
 
   // Helper to format text with Jira links
   const formatText = (text) => {
@@ -77,10 +88,13 @@ export default function MeetingPage() {
 
     return parts.length > 0 ? parts : text;
   };
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-  const tomorrowHoliday = publicHolidays.find(h => h.date === tomorrowStr);
+  const tomorrowHoliday = useMemo(() => {
+    if (!isClient) return null;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    return publicHolidays.find(h => h.date === tomorrowStr);
+  }, [isClient, publicHolidays]);
 
   // Today's Data
   const todaysFines = useMemo(() => fines.filter(f => f.date === today), [fines, today]);
@@ -141,8 +155,8 @@ export default function MeetingPage() {
 
         return true;
       })
-      .map(emp => ({
-        id: `missing-${emp.id}`,
+      .map((emp, idx) => ({
+        id: `missing-${emp.id || idx}`,
         name: emp.name,
         email: emp.work_email || emp.personal_email,
         date: viewDate,
@@ -157,7 +171,7 @@ export default function MeetingPage() {
     );
 
     return [...missingSubmissions, ...sortedActual];
-  }, [standupSubmissions, viewDate, employees]);
+  }, [standupSubmissions, viewDate, employees, isClient]);
 
   const stats = useMemo(() => {
     const total = allSubmissions.length;
@@ -195,7 +209,7 @@ export default function MeetingPage() {
   const [showEditWord, setShowEditWord] = useState(false);
   const [editingWord, setEditingWord] = useState(null);
 
-  if (!isLoaded) {
+  if (!isClient || !isLoaded) {
     return (
       <div className="loading-splash">
         <div className="splash-logo">⏰</div>
@@ -221,7 +235,9 @@ export default function MeetingPage() {
       <header className="meeting-header">
         <div className="meeting-title-group">
           <Link href="/" className="exit-link">← Exit Meeting</Link>
-          <h1 className="meeting-title">Daily Sync: {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</h1>
+          <h1 className="meeting-title">
+            Daily Sync: {isClient ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : "..."}
+          </h1>
         </div>
         <div className="meeting-actions">
           <button className="btn btn-primary" onClick={() => setShowAddFine(true)}>+ Late Fine</button>
@@ -241,8 +257,8 @@ export default function MeetingPage() {
             {todaysFines.length === 0 ? (
               <p className="empty-msg">All on time today! ☀️</p>
             ) : (
-              todaysFines.map(f => (
-                <div key={f.id} className="meeting-item group">
+              todaysFines.map((f, index) => (
+                <div key={`fine-item-${index}`} className="meeting-item group">
                   <span className="item-name">{f.employee_name}</span>
                   <span className="item-value">Rs. {f.amount}</span>
                   <span className={`status-badge ${f.status}`}>{f.status}</span>
@@ -265,8 +281,8 @@ export default function MeetingPage() {
             {todaysStandups.length === 0 ? (
               <p className="empty-msg">No standup fines yet.</p>
             ) : (
-              todaysStandups.map(s => (
-                <div key={s.id} className="meeting-item group">
+              todaysStandups.map((s, index) => (
+                <div key={`standup-item-${index}`} className="meeting-item group">
                   <span className="item-name">{s.employee_name}</span>
                   <span className={`status-badge ${s.status}`}>{s.status}</span>
                   {isAdmin && (
@@ -288,8 +304,8 @@ export default function MeetingPage() {
             {activeLeaves.length === 0 ? (
               <p className="empty-msg">Full strength today! 💪</p>
             ) : (
-              activeLeaves.map(l => (
-                <div key={l.id} className="meeting-item">
+              activeLeaves.map((l, index) => (
+                <div key={`leave-item-${index}`} className="meeting-item group">
                   <span className="item-name">{l.employee_name}</span>
                   <span className="leave-type-tag">{l.type}</span>
                 </div>
@@ -309,7 +325,7 @@ export default function MeetingPage() {
               <div className="date-navigator">
                 <button className="btn-nav" onClick={handlePrevDate}>◀</button>
                 <span className="view-date-label">
-                  {viewDate === today ? "Today" : new Date(viewDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {viewDate === today ? "Today" : (viewDate ? new Date(viewDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "...")}
                 </span>
                 <button className="btn-nav" onClick={handleNextDate} disabled={viewDate >= today}>▶</button>
               </div>
@@ -324,8 +340,8 @@ export default function MeetingPage() {
           </div>
           <div className="submissions-list">
             {allSubmissions.length > 0 ? (
-              allSubmissions.map((s) => (
-                <div key={s.id} className={`submission-item ${s.isMissing ? 'missing' : ''}`}>
+              allSubmissions.map((s, index) => (
+                <div key={`submission-row-${index}`} className={`submission-item ${s.isMissing ? 'missing' : ''}`}>
                   <div className="submission-header">
                     <span className="submission-user">
                       {s.name} {s.isMissing && <span className="missing-badge">NOT SUBMITTED</span>}
@@ -344,17 +360,16 @@ export default function MeetingPage() {
                     ) : (
                       <>
                         {standupQuestions.length > 0 ? (
-                          standupQuestions.map((q) => {
-                            // Try mapping by prepending 'question_' to ID (as seen in user data), or raw ID, Question Text, Sort Order
+                          standupQuestions.map((q, qIndex) => {
                             const answers = s.answers || {};
                             const answer = answers[`question_${q.id}`] || 
                                          answers[q.id] || 
                                          answers[q.question] || 
                                          answers[q.sort_order] || 
-                                         answers[q.sort_order.toString()];
+                                         (q.sort_order ? answers[q.sort_order.toString()] : null);
                             
                             return (
-                              <div key={q.id} className="submission-qa">
+                              <div key={`submission-${index}-q-${qIndex}`} className="submission-qa">
                                 <label className="qa-label">{q.question}</label>
                                 <div className="ans-text">
                                   {answer && String(answer).trim() ? (
@@ -368,8 +383,8 @@ export default function MeetingPage() {
                           })
                         ) : (
                           // If no questions fetched, show raw answers
-                          Object.entries(s.answers || {}).map(([key, value], idx) => (
-                            <div key={idx} className="submission-qa">
+                          Object.entries(s.answers || {}).map(([key, value], ansIdx) => (
+                            <div key={`submission-${index}-ans-${ansIdx}`} className="submission-qa">
                               <label className="qa-label">{key}</label>
                               <div className="ans-text">
                                 {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
@@ -381,7 +396,18 @@ export default function MeetingPage() {
                           <div className="jira-section">
                             <label className="qa-label">Jira Tickets</label>
                             <div className="jira-tags">
-                              {s.jira_tickets.map(t => <span key={t} className="jira-tag">{t}</span>)}
+                                {s.jira_tickets.map((t, tIdx) => {
+                                  const ticketLabel = typeof t === 'object' ? (t.key || t.summary || "Ticket") : t;
+                                  return (
+                                    <span key={`jira-${index}-${tIdx}`} className="jira-tag">
+                                      {typeof t === 'object' && t.url ? (
+                                        <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                          {ticketLabel}
+                                        </a>
+                                      ) : ticketLabel}
+                                    </span>
+                                  );
+                                })}
                             </div>
                           </div>
                         )}

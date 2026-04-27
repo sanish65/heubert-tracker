@@ -44,19 +44,7 @@ export function AppProvider({ children }) {
   // Initial load from Supabase
   const fetchData = useCallback(async () => {
     try {
-      const [
-        { data: empData },
-        { data: fineData },
-        { data: leaveData },
-        { data: standupData },
-        { data: withdrawalData },
-        { data: seasonData },
-        { data: wordData },
-        { data: holidayData },
-        { data: sprintsData },
-        { data: standupSubData },
-        { data: standupQuestData },
-      ] = await Promise.all([
+      const results = await Promise.all([
         supabase.from("employees").select("*").order("name"),
         supabase.from("fines").select("*").order("date", { ascending: false }),
         supabase.from("leaves").select("*").order("start_date", { ascending: false }),
@@ -69,6 +57,20 @@ export function AppProvider({ children }) {
         supabaseStandup.from("standup_responses").select("*").order("date", { ascending: false }),
         supabaseStandup.from("questions").select("*").order("sort_order", { ascending: true }),
       ]);
+
+      const [
+        { data: empData },
+        { data: fineData },
+        { data: leaveData },
+        { data: standupData },
+        { data: withdrawalData },
+        { data: seasonData },
+        { data: wordData },
+        { data: holidayData },
+        { data: sprintsData },
+        { data: standupSubData },
+        { data: standupQuestData },
+      ] = results;
 
       if (empData) setEmployees(empData);
       if (fineData) setFines(fineData);
@@ -125,7 +127,7 @@ export function AppProvider({ children }) {
       const { data: existing, error } = await supabase
         .from("employees")
         .select("*")
-        .or(`work_email.ilike."${u.email}",personal_email.ilike."${u.email}"`);
+        .or(`work_email.ilike.${u.email},personal_email.ilike.${u.email}`);
 
       if (error) {
         console.error("Error checking employee by email:", error);
