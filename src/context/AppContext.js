@@ -24,6 +24,7 @@ export function AppProvider({ children }) {
   const [currentEmployee, setCurrentEmployee] = useState(null);
   const [standupSubmissions, setStandupSubmissions] = useState([]);
   const [standupQuestions, setStandupQuestions] = useState([]);
+  const [theme, setTheme] = useState("dark");
 
   const adminEmails = [
     "sanish@heubert.com",
@@ -93,6 +94,23 @@ export function AppProvider({ children }) {
       setIsLoaded(true);
     }
   }, []);
+
+  // Theme: read from localStorage on mount, apply to <html>
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("heubert-theme") : null;
+    const initial = saved === "light" ? "light" : "dark";
+    setTheme(initial);
+    document.documentElement.setAttribute("data-theme", initial);
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === "dark" ? "light" : "dark";
+      localStorage.setItem("heubert-theme", next);
+      document.documentElement.setAttribute("data-theme", next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchData();
@@ -696,6 +714,8 @@ export function AppProvider({ children }) {
         currentEmployee,
         isAdmin,
         isFineAdmin,
+        theme,
+        toggleTheme,
       }}
     >
       {children}

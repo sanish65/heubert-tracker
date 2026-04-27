@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import Dashboard from "@/components/Dashboard";
@@ -21,10 +21,13 @@ import Link from "next/link";
 import CapacityPage from "@/components/CapacityPage";
 import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
 import EditWordModal from "@/components/EditWordModal";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut } = useApp();
   const router = useRouter();
+  const [showSettings, setShowSettings] = useState(false);
+  const settingsRef = useRef(null);
 
   // Auth guard — redirect to /login if not signed in
   useEffect(() => {
@@ -32,6 +35,20 @@ export default function Home() {
       router.replace("/login");
     }
   }, [isLoaded, user, router]);
+
+  // Close settings dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target)) {
+        setShowSettings(false);
+      }
+    };
+    if (showSettings) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showSettings]);
+
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [showAddFine, setShowAddFine] = useState(false);
   const [showAddLeave, setShowAddLeave] = useState(false);
@@ -96,18 +113,31 @@ export default function Home() {
               HTT
             </h1>
             {user && (
-              <div className="user-profile">
-                <div className="avatar-wrapper">
-                  <img 
-                    src={user.user_metadata?.avatar_url || "https://www.gravatar.com/avatar/?d=mp"} 
-                    alt={user.email} 
-                    className="user-avatar"
-                  />
-                  <div className="avatar-ring"></div>
+              <div className="user-profile-wrapper" ref={settingsRef}>
+                <div
+                  className="user-profile user-profile-clickable"
+                  onClick={() => setShowSettings(s => !s)}
+                  title="Settings"
+                >
+                  <div className="avatar-wrapper">
+                    <img 
+                      src={user.user_metadata?.avatar_url || "https://www.gravatar.com/avatar/?d=mp"} 
+                      alt={user.email} 
+                      className="user-avatar"
+                    />
+                    <div className="avatar-ring"></div>
+                  </div>
+                  <div className="user-details">
+                    <span className="user-name-label">Hi, {user.user_metadata?.full_name?.split(' ')[0] || user.email.split('@')[0]}</span>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 2 }}>⚙️</span>
                 </div>
-                <div className="user-details">
-                  <span className="user-name-label">Hi, {user.user_metadata?.full_name?.split(' ')[0] || user.email.split('@')[0]}</span>
-                </div>
+                {showSettings && (
+                  <div className="settings-dropdown">
+                    <div className="settings-dropdown-title">Preferences</div>
+                    <ThemeToggle />
+                  </div>
+                )}
               </div>
             )}
           </div>
