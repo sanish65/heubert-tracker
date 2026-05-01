@@ -119,7 +119,7 @@ export function AppProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        checkAndCreateEmployee(session.user);
+        verifyEmployeeAccess(session.user);
       }
       setIsAuthReady(true);
     });
@@ -130,14 +130,14 @@ export function AppProvider({ children }) {
       setUser(currentUser);
       
       if (event === "SIGNED_IN" && currentUser) {
-        checkAndCreateEmployee(currentUser);
+        verifyEmployeeAccess(currentUser);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [fetchData]);
 
-  const checkAndCreateEmployee = async (u) => {
+  const verifyEmployeeAccess = async (u) => {
     if (!u.email) return;
 
     try {
@@ -148,69 +148,25 @@ export function AppProvider({ children }) {
         .or(`work_email.ilike.${u.email},personal_email.ilike.${u.email}`);
 
       if (error) {
-        console.error("Error checking employee by email:", error);
+        console.error("Error checking employee access:", error);
+        await supabase.auth.signOut();
         return;
       }
 
-      // If already exists, ignore
-      if (existing && existing.length > 0) {
-        console.log("Employee already exists for email:", u.email);
+      // If not exists or not active, sign them out
+      const isActiveEmployee = existing && existing.some(e => e.status === "active");
+
+      if (!isActiveEmployee) {
+        console.log("Unauthorized access attempt. User is not an active employee:", u.email);
+        await supabase.auth.signOut();
+        window.location.href = "/login?error=unauthorized";
         return;
       }
 
-      // 2. If not found, prepare to create
-      console.log("Auto-creating employee record for:", u.email);
-      const fullName = u.user_metadata?.full_name;
-      const emailPrefix = u.email.split("@")[0];
-      
-      // Handle potential name UNIQUE constraint conflict
-      let nameToUse = fullName || emailPrefix;
-      
-      // Keep checking until we find a unique name
-      let isUnique = false;
-      let attempt = 0;
-      let finalName = nameToUse;
-
-      while (!isUnique && attempt < 5) {
-        const { data: nameCheck, error: checkError } = await supabase
-          .from("employees")
-          .select("name")
-          .ilike("name", finalName);
-
-        if (checkError) {
-          console.error("Error checking name uniqueness:", checkError);
-          break; 
-        }
-
-        if (nameCheck && nameCheck.length > 0) {
-          // Name is taken, modify and try again
-          attempt++;
-          if (attempt === 1) {
-            finalName = `${nameToUse} (${u.email})`;
-          } else {
-            finalName = `${nameToUse} (${u.email}) ${attempt}`;
-          }
-        } else {
-          isUnique = true;
-        }
-      }
-
-      const { error: insertError } = await addEmployee({
-        name: finalName,
-        workEmail: u.email,
-        status: "active",
-        empNo: `G-${Math.floor(1000 + Math.random() * 9000)}`
-      });
-
-      if (!insertError) {
-        console.log("Employee record created successfully:", finalName);
-        // Refresh data to show the new employee immediately
-        fetchData();
-      } else {
-        console.error("Error inserting new employee:", insertError);
-      }
+      console.log("Employee verified:", u.email);
     } catch (err) {
-      console.error("Error in auto-employee creation:", err);
+      console.error("Error in verifyEmployeeAccess:", err);
+      await supabase.auth.signOut();
     }
   };
 

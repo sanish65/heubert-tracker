@@ -26,17 +26,19 @@ import ThemeToggle from "@/components/ThemeToggle";
 import HumanLoader from "@/components/HumanLoader";
 
 export default function Home() {
-  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut } = useApp();
+  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady } = useApp();
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef(null);
 
+  const isAuthorized = user && currentEmployee && currentEmployee.status === "active";
+
   // Auth guard — redirect to /login if not signed in
   useEffect(() => {
-    if (isLoaded && !user) {
+    if (isLoaded && isAuthReady && !user) {
       router.replace("/login");
     }
-  }, [isLoaded, user, router]);
+  }, [isLoaded, isAuthReady, user, router]);
 
   // Close settings dropdown when clicking outside
   useEffect(() => {
@@ -99,7 +101,7 @@ export default function Home() {
     setShowEditSeason(true);
   };
 
-  if (!isLoaded) {
+  if (!isLoaded || !isAuthReady || (user && !isAuthorized)) {
     return <HumanLoader />;
   }
 

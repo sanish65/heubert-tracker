@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import EditFineModal from "@/components/EditFineModal";
 import EditStandupModal from "@/components/EditStandupModal";
 import EditWordModal from "@/components/EditWordModal";
@@ -30,8 +31,12 @@ export default function MeetingPage() {
     isLoaded,
     publicHolidays,
     standupSubmissions,
-    standupQuestions
+    standupQuestions,
+    user,
+    currentEmployee,
+    isAuthReady
   } = useApp();
+  const router = useRouter();
   const [viewDate, setViewDate] = useState("");
   const [isEnlarged, setIsEnlarged] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -41,6 +46,14 @@ export default function MeetingPage() {
     const todayStr = new Date().toLocaleDateString('en-CA');
     setViewDate(todayStr);
   }, []);
+
+  const isAuthorized = user && currentEmployee && currentEmployee.status === "active";
+
+  useEffect(() => {
+    if (isLoaded && isAuthReady && !user) {
+      router.replace("/login");
+    }
+  }, [isLoaded, isAuthReady, user, router]);
 
   const today = useMemo(() => {
     if (!isClient) return "";
@@ -210,7 +223,7 @@ export default function MeetingPage() {
   const [showEditWord, setShowEditWord] = useState(false);
   const [editingWord, setEditingWord] = useState(null);
 
-  if (!isClient || !isLoaded) {
+  if (!isClient || !isLoaded || !isAuthReady || (user && !isAuthorized)) {
     return <HumanLoader />;
   }
 
@@ -350,7 +363,7 @@ export default function MeetingPage() {
                     </span>
                     {!s.isMissing && s.responded_at && (
                       <span className="submission-time">
-                        {new Date(s.responded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(s.responded_at).toLocaleTimeString("en-US", { timeZone: "Asia/Kathmandu", hour: '2-digit', minute: '2-digit' })}
                       </span>
                     )}
                   </div>

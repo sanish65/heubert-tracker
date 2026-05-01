@@ -9,6 +9,17 @@ export default function LoginPage() {
   const buttonRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "unauthorized") {
+        setErrorMsg("You are unauthorized to access this page.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // If already signed in, redirect to app
@@ -258,6 +269,17 @@ export default function LoginPage() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
+
+        .login-error {
+          background-color: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #fca5a5;
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-size: 0.88rem;
+          margin-bottom: 24px;
+          animation: cardIn 0.3s ease-out;
+        }
       `}</style>
 
       <div className="login-page">
@@ -279,6 +301,12 @@ export default function LoginPage() {
             Internal Team Accountability &amp; Record System.<br />
             Sign in with your Google account to continue.
           </p>
+
+          {errorMsg && (
+            <div className="login-error">
+              {errorMsg}
+            </div>
+          )}
 
           {signingIn ? (
             <div className="login-signing-in">
