@@ -2575,6 +2575,7 @@ body {
   font-weight: 800;
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.25rem;
 }
@@ -3015,7 +3016,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: var(--bg-main);
+  background: radial-gradient(circle at center, #111827 0%, #0b0e14 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3024,43 +3025,56 @@ body {
   overflow: hidden;
 }
 
-.splash-logo {
-  font-size: 5rem;
-  margin-bottom: 2rem;
-  position: relative;
-  animation: float 3s ease-in-out infinite;
-}
-
-.splash-logo::after {
+.loading-splash::before {
   content: '';
   position: absolute;
-  top: -10px;
-  left: -10px;
-  right: -10px;
-  bottom: -10px;
-  border: 4px solid var(--primary-light);
-  border-radius: 50%;
-  animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+  width: 200%;
+  height: 200%;
+  background-image: radial-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: bg-move 60s linear infinite;
+  opacity: 0.3;
+}
+
+@keyframes bg-move {
+  from { transform: translate(-25%, -25%); }
+  to { transform: translate(0, 0); }
+}
+
+.splash-logo {
+  position: relative;
+  margin-bottom: 3rem;
+  z-index: 2;
 }
 
 .splash-text {
   font-size: 1.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: 0.1em;
+  letter-spacing: 4px;
   text-transform: uppercase;
+  background: linear-gradient(to right, #7C3AED, #2563EB, #DB2777);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-top: 1rem;
+  opacity: 0.9;
+  animation: text-pulse 2s ease-in-out infinite;
+}
+
+@keyframes text-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.3)); }
 }
 
 .loader-bar-container {
   width: 200px;
   height: 4px;
-  background: var(--bg-subtle);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   margin-top: 1.5rem;
   overflow: hidden;
   position: relative;
+  z-index: 2;
 }
 
 .loader-bar {
