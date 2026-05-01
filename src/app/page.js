@@ -17,6 +17,7 @@ import WithdrawModal from "@/components/WithdrawModal";
 import WordPage from "@/components/WordPage";
 import AddWordSeasonModal from "@/components/AddWordSeasonModal";
 import AddWordModal from "@/components/AddWordModal";
+import EditWordSeasonModal from "@/components/EditWordSeasonModal";
 import Link from "next/link";
 import CapacityPage from "@/components/CapacityPage";
 import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
@@ -64,6 +65,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showEditWord, setShowEditWord] = useState(false);
   const [editingWord, setEditingWord] = useState(null);
+  const [showEditSeason, setShowEditSeason] = useState(false);
+  const [editingSeason, setEditingSeason] = useState(null);
 
   // Load active tab from localStorage on mount
   useEffect(() => {
@@ -88,6 +91,11 @@ export default function Home() {
   const handleEditWord = (word) => {
     setEditingWord(word);
     setShowEditWord(true);
+  };
+
+  const handleEditSeason = (season) => {
+    setEditingSeason(season);
+    setShowEditSeason(true);
   };
 
   if (!isLoaded) {
@@ -291,6 +299,7 @@ export default function Home() {
         {activeTab === "words" && (
           <WordPage 
             onAddSeason={() => setShowAddSeason(true)} 
+            onEditSeason={handleEditSeason}
             onAddWord={(sid) => {
               setSelectedSeasonId(sid);
               setShowAddWord(true);
@@ -363,6 +372,14 @@ export default function Home() {
       <AddPublicHolidayModal
         isOpen={showAddHoliday}
         onClose={() => setShowAddHoliday(false)}
+      />
+      <EditWordSeasonModal
+        isOpen={showEditSeason}
+        onClose={() => {
+          setShowEditSeason(false);
+          setEditingSeason(null);
+        }}
+        season={editingSeason}
       />
       <EditWordModal
         isOpen={showEditWord}

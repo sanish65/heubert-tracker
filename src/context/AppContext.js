@@ -483,6 +483,12 @@ export function AppProvider({ children }) {
     return { error };
   };
 
+  const updateWordSeason = async (id, title) => {
+    const { data, error } = await supabase.from("word_seasons").update({ title }).eq("id", id).select();
+    if (data) setWordSeasons(prev => prev.map(s => s.id === id ? data[0] : s));
+    return { data, error };
+  };
+
   const addWord = async (wordData) => {
     const payload = {
       season_id: wordData.seasonId,
@@ -696,6 +702,7 @@ export function AppProvider({ children }) {
         deleteWithdrawal,
         addWordSeason,
         deleteWordSeason,
+        updateWordSeason,
         addWord,
         deleteWord,
         updateWord,
