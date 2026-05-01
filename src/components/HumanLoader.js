@@ -6,13 +6,12 @@ import { useApp } from "@/context/AppContext";
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
 
 // Known categorizations
-const knownBoys = ["sanish", "jesnish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "sairose"];
+const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "sairose"];
 const knownGirls = ["isha", "pratisha", "merisha", "prativa"];
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
 }
-
 
 const defaultNames = [...knownBoys, ...knownGirls];
 
@@ -67,7 +66,7 @@ export default function HumanLoader() {
 
   const hairParam = isGirl ? girlHair : boyHair;
 
-  const wearsGlasses = ["sanish", "bikesh", "merisha", "jesnish", "jenish", "nikhil", "pratisha", "prativa"].includes(nameKey);
+  const wearsGlasses = ["sanish", "bikesh", "merisha", "jenish", "nikhil", "pratisha", "prativa"].includes(nameKey);
   const glassesParam = wearsGlasses ? "&glassesProbability=100" : "&glassesProbability=0";
   
   const hasBeard = ["sanish"].includes(nameKey);
