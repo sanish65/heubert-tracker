@@ -23,6 +23,7 @@ import CapacityPage from "@/components/CapacityPage";
 import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
 import EditWordModal from "@/components/EditWordModal";
 import ThemeToggle from "@/components/ThemeToggle";
+import HumanLoader from "@/components/HumanLoader";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut } = useApp();
@@ -99,15 +100,7 @@ export default function Home() {
   };
 
   if (!isLoaded) {
-    return (
-      <div className="loading-splash">
-        <div className="splash-logo">⏰</div>
-        <div className="splash-text">Heubert Tracker</div>
-        <div className="loader-bar-container">
-          <div className="loader-bar"></div>
-        </div>
-      </div>
-    );
+    return <HumanLoader />;
   }
 
   return (

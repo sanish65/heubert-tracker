@@ -6,6 +6,7 @@ import Link from "next/link";
 import EditFineModal from "@/components/EditFineModal";
 import EditStandupModal from "@/components/EditStandupModal";
 import EditWordModal from "@/components/EditWordModal";
+import HumanLoader from "@/components/HumanLoader";
 
 export default function MeetingPage() {
   const { 
@@ -210,15 +211,7 @@ export default function MeetingPage() {
   const [editingWord, setEditingWord] = useState(null);
 
   if (!isClient || !isLoaded) {
-    return (
-      <div className="loading-splash">
-        <div className="splash-logo">⏰</div>
-        <div className="splash-text">Heubert Tracker</div>
-        <div className="loader-bar-container">
-          <div className="loader-bar"></div>
-        </div>
-      </div>
-    );
+    return <HumanLoader />;
   }
 
   return (
