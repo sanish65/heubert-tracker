@@ -119,7 +119,8 @@ export default function Dashboard() {
       paid: empFines.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0),
       unpaid: empFines.filter((f) => f.status === "unpaid").reduce((s, f) => s + f.amount, 0),
     };
-  }).sort((a, b) => (b.paid + b.unpaid) - (a.paid + a.unpaid));
+  }).sort((a, b) => (b.paid + b.unpaid) - (a.paid + a.unpaid))
+  .filter(e => e.name !== 'Developers');
 
   const maxTotal = Math.max(...empData.map((e) => e.paid + e.unpaid), 1);
 
