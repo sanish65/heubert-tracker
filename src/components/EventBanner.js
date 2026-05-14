@@ -29,7 +29,7 @@ export default function EventBanner() {
           diff,
           type: "event",
           title: ev.title,
-          icon: "📅",
+          icon: "📢",
           className: "banner-event",
         });
       }

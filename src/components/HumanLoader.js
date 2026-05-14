@@ -76,18 +76,18 @@ export default function HumanLoader() {
   const baseColorParam = "ffffff";
 
   let displayGreeting = greetings[greetingIndex];
-  if (nameKey === "dinesh") displayGreeting = "One egg a day!";
-  else if (nameKey === "jenish") displayGreeting = "Time to hit the gym!";
-  else if (nameKey === "nitesh") displayGreeting = "Let's make some noise!";
-  else if (nameKey === "bikesh") displayGreeting = "Riding my way!";
-  else if (nameKey === "pranay") displayGreeting = "Inner peace...";
-  else if (nameKey === "sanish") displayGreeting = "Listen to my flute!";
-  else if (nameKey === "aashish") displayGreeting = "Time for a solo!";
-  else if (nameKey === "nikhil") displayGreeting = "I want to break free 🎵";
-  else if (nameKey === "prativa") displayGreeting = "Talk me about data!";
-  else if (nameKey === "pratisha") displayGreeting = "Let's review the metrics!";
-  else if (nameKey === "isha") displayGreeting = "testinggg... !!!";
-  else if (nameKey === "merisha") displayGreeting = "Greetings from Ishaz!";
+  if (nameKey === "dinesh") displayGreeting = "Danny mera naam!";
+  else if (nameKey === "jenish") displayGreeting = "Jenny is here!";
+  else if (nameKey === "nitesh") displayGreeting = "Hi, Its me Nitesh!";
+  else if (nameKey === "bikesh") displayGreeting = "They call me Don! Biiku Don!";
+  else if (nameKey === "pranay") displayGreeting = "I'm Pranay! not Aamir Khan!";
+  else if (nameKey === "sanish") displayGreeting = "Uno again? Oh no!";
+  else if (nameKey === "aashish") displayGreeting = "Finland Firiri......";
+  else if (nameKey === "nikhil") displayGreeting = "Team spirit guys , and a large coffee!";
+  else if (nameKey === "prativa") displayGreeting = "Data is my game";
+  else if (nameKey === "pratisha") displayGreeting = "Oi Hoi!";
+  else if (nameKey === "isha") displayGreeting = "I am a dancing spirit!";
+  else if (nameKey === "merisha") displayGreeting = "I am a fashionista!";
 
   if (!isMounted) {
     return (
