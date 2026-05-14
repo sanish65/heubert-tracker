@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
+import VacationAnimation from "./VacationAnimation";
 
 export default function EventBanner() {
   const { publicHolidays, companyEvents, employees } = useApp();
+  const [closedBanners, setClosedBanners] = useState({});
 
   const activeBanners = useMemo(() => {
     const banners = [];
@@ -103,6 +105,8 @@ export default function EventBanner() {
   return (
     <div className="event-banners-container">
       {activeBanners.map((b) => {
+        if (closedBanners[b.id]) return null;
+
         let text = "";
         let subtext = "";
 
@@ -118,12 +122,24 @@ export default function EventBanner() {
         }
 
         return (
-          <div key={b.id} className={`holiday-alert-banner countdown-banner ${b.className} pulse-entry`}>
-            <span className="holiday-icon">{b.icon}</span>
-            <div className="holiday-text">
-              <strong>{text}</strong>
-              <span>{subtext}</span>
+          <div key={b.id} className="banner-wrapper" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <div className={`holiday-alert-banner countdown-banner ${b.className} pulse-entry`} style={{ paddingRight: '40px' }}>
+              <button 
+                onClick={() => setClosedBanners(prev => ({ ...prev, [b.id]: true }))}
+                style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '1.2rem', zIndex: 10 }}
+                title="Dismiss"
+              >
+                ✕
+              </button>
+              <span className="holiday-icon">{b.icon}</span>
+              <div className="holiday-text">
+                <strong>{text}</strong>
+                <span>{subtext}</span>
+              </div>
             </div>
+            {b.title.toLowerCase().includes("trip to rsr") && (
+              <VacationAnimation />
+            )}
           </div>
         );
       })}
