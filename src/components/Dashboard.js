@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import StatsCard from "./StatsCard";
+import EventBanner from "@/components/EventBanner";
 
 export default function Dashboard() {
-  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays } = useApp();
+  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents } = useApp();
   const [sendingWish, setSendingWish] = useState(null); // empId
 
   // Late Fines
@@ -26,7 +27,6 @@ export default function Dashboard() {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split('T')[0];
   const upcomingLeaves = leaves
     .filter((l) => l.end_date >= todayStr)
@@ -126,6 +126,9 @@ export default function Dashboard() {
 
   return (
     <section className="dashboard">
+      <div style={{ marginBottom: "20px" }}>
+        <EventBanner />
+      </div>
       <div className="stats-grid">
         <StatsCard
           icon="💰"

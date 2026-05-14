@@ -15,6 +15,7 @@ export function AppProvider({ children }) {
   const [wordSeasons, setWordSeasons] = useState([]);
   const [words, setWords] = useState([]);
   const [publicHolidays, setPublicHolidays] = useState([]);
+  const [companyEvents, setCompanyEvents] = useState([]);
   const [sprints, setSprints] = useState([]);
   const [activeSprint, setActiveSprint] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -54,6 +55,7 @@ export function AppProvider({ children }) {
         supabase.from("word_seasons").select("*").order("created_at", { ascending: true }),
         supabase.from("words").select("*").order("created_at", { ascending: false }),
         supabase.from("public_holidays").select("*").order("date", { ascending: true }),
+        supabase.from("company_events").select("*").order("date", { ascending: true }),
         supabase.from("sprints").select("*").order("created_at", { ascending: false }),
         supabaseStandup.from("standup_responses").select("*").order("date", { ascending: false }),
         supabaseStandup.from("questions").select("*").order("sort_order", { ascending: true }),
@@ -68,6 +70,7 @@ export function AppProvider({ children }) {
         { data: seasonData },
         { data: wordData },
         { data: holidayData },
+        { data: eventsData },
         { data: sprintsData },
         { data: standupSubData },
         { data: standupQuestData },
@@ -81,6 +84,7 @@ export function AppProvider({ children }) {
       if (seasonData) setWordSeasons(seasonData);
       if (wordData) setWords(wordData);
       if (holidayData) setPublicHolidays(holidayData);
+      if (eventsData) setCompanyEvents(eventsData);
       if (sprintsData) {
         setSprints(sprintsData);
         const active = sprintsData.find(s => s.is_active);
@@ -498,6 +502,24 @@ export function AppProvider({ children }) {
     if (!error) setPublicHolidays(prev => prev.filter(h => h.id !== id));
     return { error };
   };
+
+  const addCompanyEvent = async (date, title) => {
+    const { data, error } = await supabase.from("company_events").insert([{ date, title }]).select();
+    if (data) setCompanyEvents(prev => [...prev, data[0]]);
+    return { data, error };
+  };
+
+  const deleteCompanyEvent = async (id) => {
+    const { error } = await supabase.from("company_events").delete().eq("id", id);
+    if (!error) setCompanyEvents(prev => prev.filter(e => e.id !== id));
+    return { error };
+  };
+
+  const updateCompanyEvent = async (id, date, title) => {
+    const { data, error } = await supabase.from("company_events").update({ date, title }).eq("id", id).select();
+    if (data) setCompanyEvents(prev => prev.map(e => e.id === id ? data[0] : e));
+    return { data, error };
+  };
   const seedWordsTable = async () => {
     if (wordSeasons.length > 0) return;
     
@@ -638,6 +660,7 @@ export function AppProvider({ children }) {
         wordSeasons,
         words,
         publicHolidays,
+        companyEvents,
         isLoaded,
         isSyncing,
         addEmployee,
@@ -665,6 +688,9 @@ export function AppProvider({ children }) {
         seedWordsTable,
         addPublicHoliday,
         deletePublicHoliday,
+        addCompanyEvent,
+        deleteCompanyEvent,
+        updateCompanyEvent,
         sprints,
         activeSprint,
         addSprint,

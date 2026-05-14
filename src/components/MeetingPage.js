@@ -8,6 +8,7 @@ import EditFineModal from "@/components/EditFineModal";
 import EditStandupModal from "@/components/EditStandupModal";
 import EditWordModal from "@/components/EditWordModal";
 import HumanLoader from "@/components/HumanLoader";
+import EventBanner from "@/components/EventBanner";
 
 export default function MeetingPage() {
   const { 
@@ -30,6 +31,7 @@ export default function MeetingPage() {
     isAdmin,
     isLoaded,
     publicHolidays,
+    companyEvents,
     standupSubmissions,
     standupQuestions,
     user,
@@ -102,13 +104,6 @@ export default function MeetingPage() {
 
     return parts.length > 0 ? parts : text;
   };
-  const tomorrowHoliday = useMemo(() => {
-    if (!isClient) return null;
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    return publicHolidays.find(h => h.date === tomorrowStr);
-  }, [isClient, publicHolidays]);
 
   // Today's Data
   const todaysFines = useMemo(() => fines.filter(f => f.date === today), [fines, today]);
@@ -229,15 +224,7 @@ export default function MeetingPage() {
 
   return (
     <div className="meeting-layout">
-      {tomorrowHoliday && (
-        <div className="holiday-alert-banner pulse-entry">
-          <span className="holiday-icon">🎉</span>
-          <div className="holiday-text">
-            <strong>Tomorrow is a Public Holiday!</strong>
-            <span>Enjoy your day off for {tomorrowHoliday.title}</span>
-          </div>
-        </div>
-      )}
+      <EventBanner />
       <header className="meeting-header">
         <div className="meeting-title-group">
           <Link href="/" className="exit-link">← Exit Meeting</Link>

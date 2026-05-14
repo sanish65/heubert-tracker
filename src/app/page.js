@@ -24,6 +24,9 @@ import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
 import EditWordModal from "@/components/EditWordModal";
 import ThemeToggle from "@/components/ThemeToggle";
 import HumanLoader from "@/components/HumanLoader";
+import EventsPage from "@/components/EventsPage";
+import AddCompanyEventModal from "@/components/AddCompanyEventModal";
+import EditCompanyEventModal from "@/components/EditCompanyEventModal";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady } = useApp();
@@ -62,6 +65,7 @@ export default function Home() {
   const [showAddSeason, setShowAddSeason] = useState(false);
   const [showAddWord, setShowAddWord] = useState(false);
   const [showAddHoliday, setShowAddHoliday] = useState(false);
+  const [showAddEvent, setShowAddEvent] = useState(false);
   const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -70,11 +74,13 @@ export default function Home() {
   const [editingWord, setEditingWord] = useState(null);
   const [showEditSeason, setShowEditSeason] = useState(false);
   const [editingSeason, setEditingSeason] = useState(null);
+  const [showEditEvent, setShowEditEvent] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
 
   // Load active tab from localStorage on mount
   useEffect(() => {
     const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "words", "capacity"].includes(savedTab)) {
+    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "words", "capacity", "events"].includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
@@ -99,6 +105,11 @@ export default function Home() {
   const handleEditSeason = (season) => {
     setEditingSeason(season);
     setShowEditSeason(true);
+  };
+
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setShowEditEvent(true);
   };
 
   if (!isLoaded || !isAuthReady || (user && !isAuthorized)) {
@@ -250,6 +261,12 @@ export default function Home() {
           📖 Words
         </button>
         <button
+          className={`nav-tab ${activeTab === "events" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("events")}
+        >
+          📅 Events
+        </button>
+        <button
           className={`nav-tab nav-tab-right ${activeTab === "employees" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("employees")}
         >
@@ -300,6 +317,12 @@ export default function Home() {
               setShowAddWord(true);
             }} 
             onEditWord={handleEditWord}
+          />
+        )}
+        {activeTab === "events" && (
+          <EventsPage 
+            onAddEvent={() => setShowAddEvent(true)}
+            onEditEvent={handleEditEvent}
           />
         )}
       </main>
@@ -367,6 +390,18 @@ export default function Home() {
       <AddPublicHolidayModal
         isOpen={showAddHoliday}
         onClose={() => setShowAddHoliday(false)}
+      />
+      <AddCompanyEventModal
+        isOpen={showAddEvent}
+        onClose={() => setShowAddEvent(false)}
+      />
+      <EditCompanyEventModal
+        isOpen={showEditEvent}
+        onClose={() => {
+          setShowEditEvent(false);
+          setEditingEvent(null);
+        }}
+        event={editingEvent}
       />
       <EditWordSeasonModal
         isOpen={showEditSeason}
