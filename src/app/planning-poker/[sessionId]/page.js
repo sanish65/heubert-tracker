@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useApp } from "@/context/AppContext";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
 
 export default function PokerSessionPage() {
   const { sessionId } = useParams();
+  const { user, currentEmployee } = useApp();
   const [session, setSession] = useState(null);
   const [votes, setVotes] = useState([]);
   const [myVote, setMyVote] = useState(null);
@@ -41,11 +43,36 @@ export default function PokerSessionPage() {
     return () => clearInterval(pollRef.current);
   }, [fetchSession]);
 
+  // Restore name from localStorage or Auth
+  useEffect(() => {
+    if (nameEntered) return;
+    const savedName = localStorage.getItem("heubert_collab_name");
+    if (savedName) {
+      setParticipantName(savedName);
+      setNameEntered(true);
+      fetch("/api/poker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "join",
+          sessionId,
+          participantName: savedName,
+        }),
+      });
+    } else if (user) {
+      const authName = currentEmployee?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || "";
+      if (authName) {
+        setParticipantName(authName);
+      }
+    }
+  }, [user, currentEmployee, nameEntered, sessionId]);
+
   const handleJoin = () => {
     if (!participantName.trim()) return;
     const existing = votes.find((v) => v.participant_name === participantName.trim());
     if (existing) setMyVote(existing.vote);
     setNameEntered(true);
+    localStorage.setItem("heubert_collab_name", participantName.trim());
 
     // Call join API to register the participant in the list immediately
     fetch("/api/poker", {
@@ -62,7 +89,13 @@ export default function PokerSessionPage() {
   // ── Cast vote ─────────────────────────────────────────
   const handleVote = async (value) => {
     if (!session || session.revealed) return;
-    setMyVote(value);
+    
+    // Toggle off if clicking the already selected vote
+    const isCurrentlyVoted = myVote === value || myVoteInSession?.vote === String(value);
+    const newVote = isCurrentlyVoted ? 'waiting' : String(value);
+    
+    setMyVote(isCurrentlyVoted ? null : value);
+    
     try {
       await fetch("/api/poker", {
         method: "POST",
@@ -71,7 +104,7 @@ export default function PokerSessionPage() {
           action: "vote",
           sessionId,
           participantName: participantName.trim(),
-          vote: String(value),
+          vote: newVote,
         }),
       });
     } catch (_) {}

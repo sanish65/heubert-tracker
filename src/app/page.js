@@ -114,7 +114,10 @@ export default function Home() {
     setShowEditEvent(true);
   };
 
-  if (!isLoaded || !isAuthReady || (user && !isAuthorized)) {
+  const abc = true
+
+
+  if (abc) {
     return <HumanLoader />;
   }
 
