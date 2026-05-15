@@ -28,6 +28,7 @@ import EventsPage from "@/components/EventsPage";
 import AddCompanyEventModal from "@/components/AddCompanyEventModal";
 import EditCompanyEventModal from "@/components/EditCompanyEventModal";
 import PlanningPokerPage from "@/components/PlanningPokerPage";
+import RetrospectivePage from "@/components/RetrospectivePage";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady } = useApp();
@@ -81,7 +82,7 @@ export default function Home() {
   // Load active tab from localStorage on mount
   useEffect(() => {
     const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "words", "capacity", "events", "poker"].includes(savedTab)) {
+    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "words", "capacity", "events", "poker", "retro"].includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
@@ -274,6 +275,12 @@ export default function Home() {
           🃏 Planning Poker
         </button>
         <button
+          className={`nav-tab ${activeTab === "retro" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("retro")}
+        >
+          🗂️ Retrospective
+        </button>
+        <button
           className={`nav-tab nav-tab-right ${activeTab === "employees" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("employees")}
         >
@@ -333,6 +340,7 @@ export default function Home() {
           />
         )}
         {activeTab === "poker" && <PlanningPokerPage />}
+        {activeTab === "retro" && <RetrospectivePage />}
       </main>
 
       {/* Footer */}

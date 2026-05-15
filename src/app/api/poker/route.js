@@ -74,6 +74,22 @@ export async function POST(request) {
     return NextResponse.json({ vote: data });
   }
 
+  // Join session (add name to votes table without a real vote yet)
+  if (body.action === 'join') {
+    const { sessionId, participantName } = body;
+    const { data, error } = await supabase
+      .from('poker_votes')
+      .upsert(
+        { session_id: sessionId, participant_name: participantName, vote: 'waiting' },
+        { onConflict: 'session_id,participant_name' }
+      )
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ vote: data });
+  }
+
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }
 

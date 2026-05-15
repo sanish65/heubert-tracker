@@ -77,6 +77,17 @@ export default function PlanningPokerPage() {
       setShareUrl(url);
       setView("host");
       startPolling(data.session.id);
+
+      // Also "join" the session so the host appears in the participant list
+      await fetch("/api/poker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "join",
+          sessionId: data.session.id,
+          participantName: creatorName.trim(),
+        }),
+      });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -106,6 +117,17 @@ export default function PlanningPokerPage() {
       setMyVote(myExisting ? myExisting.vote : null);
       setView("host");
       startPolling(joinSessionId.trim());
+
+      // Ensure we are in the participants list
+      await fetch("/api/poker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "join",
+          sessionId: joinSessionId.trim(),
+          participantName: joinName.trim(),
+        }),
+      });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -495,9 +517,13 @@ export default function PlanningPokerPage() {
                   </div>
                   <span className="poker-participant-name">{v.participant_name}</span>
                   {session.revealed ? (
-                    <span className="poker-participant-vote revealed">{v.vote}</span>
+                    <span className="poker-participant-vote revealed">
+                      {v.vote === 'waiting' ? '—' : v.vote}
+                    </span>
                   ) : (
-                    <span className="poker-participant-vote hidden">✓</span>
+                    <span className={`poker-participant-vote ${v.vote === 'waiting' ? 'waiting' : 'hidden'}`}>
+                      {v.vote === 'waiting' ? '...' : '✓'}
+                    </span>
                   )}
                 </div>
               ))}

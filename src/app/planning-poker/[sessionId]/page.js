@@ -41,12 +41,22 @@ export default function PokerSessionPage() {
     return () => clearInterval(pollRef.current);
   }, [fetchSession]);
 
-  // ── Join with name ────────────────────────────────────
   const handleJoin = () => {
     if (!participantName.trim()) return;
     const existing = votes.find((v) => v.participant_name === participantName.trim());
     if (existing) setMyVote(existing.vote);
     setNameEntered(true);
+
+    // Call join API to register the participant in the list immediately
+    fetch("/api/poker", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "join",
+        sessionId,
+        participantName: participantName.trim(),
+      }),
+    });
   };
 
   // ── Cast vote ─────────────────────────────────────────
@@ -235,9 +245,13 @@ export default function PokerSessionPage() {
                   </div>
                   <span className="poker-participant-name">{v.participant_name}</span>
                   {session.revealed ? (
-                    <span className="poker-participant-vote revealed">{v.vote}</span>
+                    <span className="poker-participant-vote revealed">
+                      {v.vote === 'waiting' ? '—' : v.vote}
+                    </span>
                   ) : (
-                    <span className="poker-participant-vote hidden">✓</span>
+                    <span className={`poker-participant-vote ${v.vote === 'waiting' ? 'waiting' : 'hidden'}`}>
+                      {v.vote === 'waiting' ? '...' : '✓'}
+                    </span>
                   )}
                 </div>
               ))}
