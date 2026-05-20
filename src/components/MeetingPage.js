@@ -650,12 +650,25 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
 
 function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
   const [name, setName] = useState("");
-  const [type, setType] = useState("Casual");
-  
+  const [duration, setDuration] = useState("full");   // full | half | early
+  const [category, setCategory] = useState("Casual"); // Casual | Sick | Project Holiday
+
+  const DURATION_OPTS = [
+    { value: "full",  label: "Full Day",     icon: "📅" },
+    { value: "half",  label: "Half Day",     icon: "🌗" },
+    { value: "early", label: "Early Leave",  icon: "🚪" },
+  ];
+
   const hSubmit = (e) => {
     e.preventDefault();
     if (!name) return;
-    addLeave({ name, type, startDate: today, endDate: today, reason: "Meeting entry" });
+    addLeave({
+      name,
+      type: duration,          // "full" | "half" | "early" → stored in leaves.type
+      startDate: today,
+      endDate: today,
+      reason: category,        // "Casual" | "Sick" | "Project Holiday" → stored in leaves.reason
+    });
     onClose();
   };
 
@@ -671,14 +684,36 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
           </div>
+
           <div className="form-group-interactive">
-            <label>Type</label>
-            <select value={type} onChange={e => setType(e.target.value)}>
+            <label>Duration</label>
+            <div className="leave-type-options">
+              {DURATION_OPTS.map(opt => (
+                <label
+                  key={opt.value}
+                  className={`leave-type-chip ${duration === opt.value ? "active" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="quickLeaveDuration"
+                    value={opt.value}
+                    checked={duration === opt.value}
+                    onChange={() => setDuration(opt.value)}
+                  />
+                  <span>{opt.icon} {opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group-interactive">
+            <label>Category</label>
+            <select value={category} onChange={e => setCategory(e.target.value)}>
               <option>Casual</option>
               <option>Sick</option>
-              <option>Project Holiday</option>
             </select>
           </div>
+
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-accent">Save Leave</button>
