@@ -42,6 +42,8 @@ export default function MeetingPage() {
   const [viewDate, setViewDate] = useState("");
   const [isEnlarged, setIsEnlarged] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  // Must be declared before the allSubmissions useMemo that depends on it
+  const [sortNewestFirst, setSortNewestFirst] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -174,13 +176,15 @@ export default function MeetingPage() {
         jira_tickets: []
       }));
 
-    // 3. Combine: Missing ones first, then actual ones (sorted by responded_at)
+    // 3. Combine: Missing ones first (always), then actual ones sorted by responded_at
     const sortedActual = [...actualSubmissions].sort((a, b) =>
-      new Date(b.responded_at) - new Date(a.responded_at)
+      sortNewestFirst
+        ? new Date(b.responded_at) - new Date(a.responded_at)   // newest first
+        : new Date(a.responded_at) - new Date(b.responded_at)   // oldest first (default)
     );
 
     return [...missingSubmissions, ...sortedActual];
-  }, [standupSubmissions, viewDate, employees, isClient]);
+  }, [standupSubmissions, viewDate, employees, isClient, sortNewestFirst]);
 
   const stats = useMemo(() => {
     const total = allSubmissions.length;
@@ -331,6 +335,13 @@ export default function MeetingPage() {
                 </span>
                 <button className="btn-nav" onClick={handleNextDate} disabled={viewDate >= today}>▶</button>
               </div>
+              <button
+                className="btn-sort-toggle"
+                onClick={() => setSortNewestFirst(p => !p)}
+                title={sortNewestFirst ? "Showing: Last submitted first" : "Showing: First submitted first"}
+              >
+                {sortNewestFirst ? "↓ Latest" : "↑ Earliest"}
+              </button>
               <button 
                 className="btn-enlarge" 
                 onClick={() => setIsEnlarged(!isEnlarged)}
@@ -398,15 +409,38 @@ export default function MeetingPage() {
                           <div className="jira-section">
                             <label className="qa-label">Jira Tickets</label>
                             <div className="jira-tags">
-                                {s.jira_tickets.map((t, tIdx) => {
-                                  const ticketLabel = typeof t === 'object' ? (t.key || t.summary || "Ticket") : t;
+                                {[...s.jira_tickets].sort((a, b) => {
+                                  const priority = {
+                                    'blocked':     0,
+                                    'in progress': 1,
+                                    'in review':   2,
+                                    'to do':       3,
+                                    'on hold':     4,
+                                    'done':        5,
+                                    'closed':      6,
+                                  };
+                                  const aStatus = (typeof a === 'object' ? a.status : null)?.toLowerCase() ?? '';
+                                  const bStatus = (typeof b === 'object' ? b.status : null)?.toLowerCase() ?? '';
+                                  return (priority[aStatus] ?? 99) - (priority[bStatus] ?? 99);
+                                }).map((t, tIdx) => {
+                                  const ticketKey = typeof t === 'object' ? (t.key || t.summary || "Ticket") : t;
+                                  const ticketStatus = typeof t === 'object' ? (t.status || null) : null;
+                                  const ticketUrl = typeof t === 'object' ? t.url : null;
+                                  const statusClass = ticketStatus
+                                    ? `jira-status jira-status--${ticketStatus.toLowerCase().replace(/\s+/g, '-')}`
+                                    : null;
                                   return (
-                                    <span key={`jira-${index}-${tIdx}`} className="jira-tag">
-                                      {typeof t === 'object' && t.url ? (
-                                        <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                                          {ticketLabel}
+                                    <span key={`jira-${index}-${tIdx}`} className="jira-tag" title={typeof t === 'object' && t.summary ? t.summary : ticketKey}>
+                                      {ticketUrl ? (
+                                        <a href={ticketUrl} target="_blank" rel="noopener noreferrer" className="jira-tag-key">
+                                          {ticketKey}
                                         </a>
-                                      ) : ticketLabel}
+                                      ) : (
+                                        <span className="jira-tag-key">{ticketKey}</span>
+                                      )}
+                                      {ticketStatus && (
+                                        <span className={statusClass}>{ticketStatus}</span>
+                                      )}
                                     </span>
                                   );
                                 })}
