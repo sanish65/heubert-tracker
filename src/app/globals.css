@@ -1365,6 +1365,15 @@ body {
   gap: 12px;
 }
 
+.submission-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative; /* For absolutely positioned inner elements like the walking nudge */
+}
+
 .leave-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -3514,6 +3523,10 @@ body {
 }
 
 /* Left panel — person info */
+.submissions-card.enlarged .submission-item {
+  overflow: visible; /* Prevents clipping the tall animation */
+}
+
 .submissions-card.enlarged .submission-header {
   flex: 0 0 220px;
   flex-direction: column;
@@ -3524,11 +3537,14 @@ body {
   background: rgba(255,255,255,0.06);
   border-bottom: none;
   border-right: 1px solid var(--border-color);
+  border-top-left-radius: var(--radius-lg); /* Preserve corners without overflow: hidden */
+  border-bottom-left-radius: var(--radius-lg);
 }
 
 /* Right panel — Q&A */
 .submissions-card.enlarged .submission-content {
   flex: 1;
+  overflow: visible; /* Prevents scroll clipping of absolute children */
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
@@ -4018,6 +4034,133 @@ a.jira-tag-key:hover {
 
 .theme-switch-off .theme-switch-thumb {
   transform: translateX(0);
+}
+
+
+/* ===== IDLE NUDGE ANIMATION ===== */
+.walking-nudge-container {
+  position: absolute;
+  bottom: calc(100% - 1px); /* Sit precisely on top of the container's borderline */
+  left: -120px; /* Start off-screen */
+  pointer-events: none; /* Let users click through to the submission */
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  animation: walkInLeftToRight 30s linear forwards; /* Very slow stroll */
+}
+
+.nudge-speech-bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 20px; /* Rounder for thought bubble */
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 12px; /* Space for the thought dots */
+  opacity: 0;
+  position: relative;
+  animation: popSpeech 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation-delay: 2s; 
+}
+
+/* Small thinking dot */
+.nudge-speech-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 20%;
+  width: 8px;
+  height: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+}
+
+/* Tiny thinking dot */
+.nudge-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -14px;
+  left: 15%;
+  width: 4px;
+  height: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+}
+
+/* Light mode specific adjustment */
+[data-theme="light"] .nudge-speech-bubble {
+  background: #fff;
+  color: var(--accent-indigo);
+  border-color: rgba(99,102,241,0.3);
+}
+[data-theme="light"] .nudge-speech-bubble::before,
+[data-theme="light"] .nudge-speech-bubble::after {
+  background: #fff;
+  border-color: rgba(99,102,241,0.3);
+}
+
+.nudge-figure-wrapper {
+  /* No absolute positioning needed anymore since we are using flex box column-end */
+  display: flex;
+  justify-content: center;
+}
+
+/* The SVG character parts for literal walking */
+.nudge-character {
+  width: 56px;  /* Wider viewBox portrait */
+  height: 78px;
+}
+
+/* Right leg swings forward */
+.nudge-leg-right {
+  animation: walkLegForward 1.2s ease-in-out infinite alternate;
+}
+
+/* Left leg swings backward */
+.nudge-leg-left {
+  animation: walkLegForward 1.2s ease-in-out infinite alternate-reverse;
+}
+
+/* Right arm swings backward (opposite leg) */
+.nudge-arm-right {
+  animation: walkArmBack 1.2s ease-in-out infinite alternate;
+}
+
+/* Left arm swings forward (opposite leg) */
+.nudge-arm-left {
+  animation: walkArmBack 1.2s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes walkInLeftToRight {
+  0% { left: -120px; }
+  100% { left: calc(100% + 120px); }
+}
+
+@keyframes popSpeech {
+  0% { opacity: 0; transform: scale(0.6) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes walkLeg {
+  0% { transform: rotate(-30deg); }
+  100% { transform: rotate(30deg); }
+}
+
+@keyframes walkArm {
+  0% { transform: rotate(20deg); }
+  100% { transform: rotate(-20deg); }
+}
+
+@keyframes headBob {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-2px); }
 }
 
 

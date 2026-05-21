@@ -44,6 +44,10 @@ export default function MeetingPage() {
   const [isClient, setIsClient] = useState(false);
   // Must be declared before the allSubmissions useMemo that depends on it
   const [sortNewestFirst, setSortNewestFirst] = useState(false);
+  
+  // Idle Animation State
+  const [idleSubmissionId, setIdleSubmissionId] = useState(null);
+  const idleTimerRef = useState(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -58,6 +62,59 @@ export default function MeetingPage() {
       router.replace("/login");
     }
   }, [isLoaded, isAuthReady, user, router]);
+
+  // Handle Idle Nudge Logic in Enlarged mode
+  useEffect(() => {
+    if (!isEnlarged) {
+      setIdleSubmissionId(null);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      return;
+    }
+
+    const startIdleTimer = () => {
+      setIdleSubmissionId(null); // Hide immediately on activity
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      
+      idleTimerRef.current = setTimeout(() => {
+        // Find topmost fully visible submission
+        const listEl = document.querySelector('.submissions-list');
+        if (!listEl) return;
+        
+        const items = Array.from(listEl.querySelectorAll('.submission-item:not(.missing)'));
+        const listRect = listEl.getBoundingClientRect();
+        
+        let topmostId = null;
+        let minTopOffset = Infinity;
+
+        for (const item of items) {
+          const rect = item.getBoundingClientRect();
+          // Check if item is within the visible bounds of the list
+          if (rect.top >= listRect.top && rect.bottom <= listRect.bottom) {
+            if (rect.top < minTopOffset) {
+              minTopOffset = rect.top;
+              topmostId = item.getAttribute('data-submission-id');
+            }
+          }
+        }
+        
+        if (topmostId) {
+          setIdleSubmissionId(topmostId);
+        }
+      }, 5000); // 5 seconds idle
+    };
+
+    // Attach listeners to reset timer
+    const events = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, startIdleTimer));
+    
+    // Initial start
+    startIdleTimer();
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, startIdleTimer));
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [isEnlarged]);
 
   const today = useMemo(() => {
     if (!isClient) return "";
@@ -226,6 +283,16 @@ export default function MeetingPage() {
     return <HumanLoader />;
   }
 
+  // Nudge phrases
+  const nudgePhrases = [
+    "There is so much work left today",
+    "Gotta finish these tasks ASAP today",
+    "Time to lock in and code! 💻",
+    "Let's crush these tickets! 🚀",
+    "Focus mode activated ⚡",
+    "Still got a lot on my plate! 🍽️"
+  ];
+
   return (
     <div className="meeting-layout">
       <EventBanner />
@@ -351,60 +418,68 @@ export default function MeetingPage() {
               </button>
             </div>
           </div>
-          <div className="submissions-list">
+          <div className="submissions-list" onScroll={() => window.dispatchEvent(new Event('mousemove'))}>
             {allSubmissions.length > 0 ? (
-              allSubmissions.map((s, index) => (
-                <div key={`submission-row-${index}`} className={`submission-item ${s.isMissing ? 'missing' : ''}`}>
-                  <div className="submission-header">
-                    <span className="submission-user">
-                      {s.name} {s.isMissing && <span className="missing-badge">NOT SUBMITTED</span>}
-                    </span>
-                    {!s.isMissing && s.responded_at && (
-                      <span className="submission-time">
-                        {new Date(s.responded_at).toLocaleTimeString("en-US", { timeZone: "Asia/Kathmandu", hour: '2-digit', minute: '2-digit' })}
+              allSubmissions.map((s, index) => {
+                const subId = s.id || `sub-${index}`;
+                const isIdleTarget = idleSubmissionId === subId;
+                
+                return (
+                  <div key={`submission-row-${index}`} data-submission-id={subId} className={`submission-item ${s.isMissing ? 'missing' : ''}`}>
+                    <div className="submission-header">
+                      <span className="submission-user">
+                        {s.name} {s.isMissing && <span className="missing-badge">NOT SUBMITTED</span>}
                       </span>
-                    )}
-                  </div>
-                  <div className="submission-content">
-                    {s.isMissing ? (
-                      <div className="missing-state-content">
-                        <p className="ans-text italic text-muted">No standup update received for this date.</p>
-                      </div>
-                    ) : (
-                      <>
-                        {standupQuestions.length > 0 ? (
-                          standupQuestions.map((q, qIndex) => {
-                            const answers = s.answers || {};
-                            const answer = answers[`question_${q.id}`] || 
-                                         answers[q.id] || 
-                                         answers[q.question] || 
-                                         answers[q.sort_order] || 
-                                         (q.sort_order ? answers[q.sort_order.toString()] : null);
-                            
-                            return (
-                              <div key={`submission-${index}-q-${qIndex}`} className="submission-qa">
-                                <label className="qa-label">{q.question}</label>
-                                <div className="ans-text">
-                                  {answer && String(answer).trim() ? (
-                                    typeof answer === 'object' ? JSON.stringify(answer) : formatText(String(answer))
-                                  ) : (
-                                    <span className="text-muted italic">No answer provided</span>
-                                  )}
+                      {!s.isMissing && s.responded_at && (
+                        <span className="submission-time">
+                          {new Date(s.responded_at).toLocaleTimeString("en-US", { timeZone: "Asia/Kathmandu", hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="submission-content">
+                      {s.isMissing ? (
+                        <div className="missing-state-content">
+                          <p className="ans-text italic text-muted">No standup update received for this date.</p>
+                        </div>
+                      ) : (
+                        <>
+                          {standupQuestions.length > 0 ? (
+                            standupQuestions.map((q, qIndex) => {
+                              const answers = s.answers || {};
+                              const answer = answers[`question_${q.id}`] || 
+                                           answers[q.id] || 
+                                           answers[q.question] || 
+                                           answers[q.sort_order] || 
+                                           (q.sort_order ? answers[q.sort_order.toString()] : null);
+                              
+                              return (
+                                <div key={`submission-${index}-q-${qIndex}`} className="submission-qa">
+                                  <label className="qa-label">{q.question}</label>
+                                  <div className="ans-text position-relative">
+                                    {/* Idle Nudge Animation triggers internally on the first QA block */}
+                                    {isIdleTarget && qIndex === 0 && <IdleNudge phrases={nudgePhrases} />}
+
+                                    {answer && String(answer).trim() ? (
+                                      typeof answer === 'object' ? JSON.stringify(answer) : formatText(String(answer))
+                                    ) : (
+                                      <span className="text-muted italic">No answer provided</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            // If no questions fetched, show raw answers
+                            Object.entries(s.answers || {}).map(([key, value], ansIdx) => (
+                              <div key={`submission-${index}-ans-${ansIdx}`} className="submission-qa">
+                                <label className="qa-label">{key}</label>
+                                <div className="ans-text position-relative">
+                                  {isIdleTarget && ansIdx === 0 && <IdleNudge phrases={nudgePhrases} />}
+                                  {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
                                 </div>
                               </div>
-                            );
-                          })
-                        ) : (
-                          // If no questions fetched, show raw answers
-                          Object.entries(s.answers || {}).map(([key, value], ansIdx) => (
-                            <div key={`submission-${index}-ans-${ansIdx}`} className="submission-qa">
-                              <label className="qa-label">{key}</label>
-                              <div className="ans-text">
-                                {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
-                              </div>
-                            </div>
-                          ))
-                        )}
+                            ))
+                          )}
                         {s.jira_tickets && s.jira_tickets.length > 0 && (
                           <div className="jira-section">
                             <label className="qa-label">Jira Tickets</label>
@@ -451,7 +526,8 @@ export default function MeetingPage() {
                     )}
                   </div>
                 </div>
-              ))
+                );
+              })
             ) : (
               <p className="empty-msg">No submissions for this date. 📥</p>
             )}
@@ -643,6 +719,52 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
             <button type="submit" className="btn btn-primary">Save Word</button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function IdleNudge({ phrases }) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    // Randomize initial text
+    setIndex(Math.floor(Math.random() * phrases.length));
+    
+    // Change text every 5 seconds as it walks (so it's easily readable)
+    const interval = setInterval(() => {
+      setIndex(current => (current + 1) % phrases.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [phrases]);
+
+  return (
+    <div className="idle-nudge-walk">
+      <div className="nudge-thought-bubble">{phrases[index]}</div>
+      <div className="nudge-figure-wrapper">
+        <svg viewBox="0 0 60 130" className="nudge-character" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="8" rx="10" ry="5" fill="#6366f1" />
+          <circle cx="30" cy="17" r="11" fill="#f4c18e" />
+          <rect x="27" y="26" width="6" height="6" rx="2" fill="#f4c18e" />
+          <rect x="18" y="32" width="24" height="26" rx="4" fill="var(--accent-indigo)" />
+          <g className="nudge-arm-left" style={{ transformOrigin: '20px 35px' }}>
+            <rect x="11" y="34" width="9" height="20" rx="4" fill="#818cf8" />
+            <circle cx="15.5" cy="56" r="4" fill="#f4c18e" />
+          </g>
+          <g className="nudge-arm-right" style={{ transformOrigin: '40px 35px' }}>
+            <rect x="40" y="34" width="9" height="20" rx="4" fill="#818cf8" />
+            <circle cx="44.5" cy="56" r="4" fill="#f4c18e" />
+          </g>
+          <rect x="19" y="56" width="22" height="8" rx="3" fill="#4f46e5" />
+          <g className="nudge-leg-left" style={{ transformOrigin: '25px 64px' }}>
+            <rect x="20" y="62" width="10" height="28" rx="4" fill="#312e81" />
+            <ellipse cx="25" cy="91" rx="8" ry="4" fill="#1e1b4b" />
+          </g>
+          <g className="nudge-leg-right" style={{ transformOrigin: '35px 64px' }}>
+            <rect x="30" y="62" width="10" height="28" rx="4" fill="#3730a3" />
+            <ellipse cx="35" cy="91" rx="8" ry="4" fill="#1e1b4b" />
+          </g>
+        </svg>
       </div>
     </div>
   );

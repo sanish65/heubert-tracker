@@ -76,18 +76,18 @@ export default function HumanLoader() {
   const baseColorParam = "ffffff";
 
   let displayGreeting = greetings[greetingIndex];
-  if (nameKey === "dinesh") displayGreeting = "Danny mera naam!";
+  if (nameKey === "dinesh") displayGreeting = "Mero ghar ma dell ko monitor cha!";
   else if (nameKey === "jenish") displayGreeting = "Jenny is here!";
   else if (nameKey === "nitesh") displayGreeting = "Hi, Its me Nitesh!";
   else if (nameKey === "bikesh") displayGreeting = "They call me Don! Biiku Don!";
-  else if (nameKey === "pranay") displayGreeting = "I'm Pranay! not Aamir Khan!";
-  else if (nameKey === "sanish") displayGreeting = "Uno again? Oh no!";
-  else if (nameKey === "aashish") displayGreeting = "Finland Firiri......";
+  else if (nameKey === "pranay") displayGreeting = "Pranam from Pranay!";
+  else if (nameKey === "sanish") displayGreeting = "AC kholam ?";
+  else if (nameKey === "aashish") displayGreeting = "Netherland Firiri......";
   else if (nameKey === "nikhil") displayGreeting = "Team spirit guys , and a large coffee!";
   else if (nameKey === "prativa") displayGreeting = "Data is my game";
   else if (nameKey === "pratisha") displayGreeting = "Oi Hoi!";
   else if (nameKey === "isha") displayGreeting = "I am a dancing spirit!";
-  else if (nameKey === "merisha") displayGreeting = "I am a fashionista!";
+  else if (nameKey === "merisha") displayGreeting = "Jindagi sarara scooter ma!";
 
   if (!isMounted) {
     return (
