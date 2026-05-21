@@ -513,6 +513,9 @@ export default function MeetingPage() {
                                       ) : (
                                         <span className="jira-tag-key">{ticketKey}</span>
                                       )}
+                                      {typeof t === 'object' && t.summary && (
+                                        <span className="jira-summary">{t.summary}</span>
+                                      )}
                                       {ticketStatus && (
                                         <span className={statusClass}>{ticketStatus}</span>
                                       )}

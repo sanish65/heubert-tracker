@@ -3671,27 +3671,30 @@ body {
 
 .jira-tags {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 8px;
 }
 
 .jira-tag {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  gap: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
   border-radius: 6px;
-  padding: 3px 6px 3px 8px;
-  font-size: 0.75rem;
+  padding: 6px 10px;
+  font-size: 0.78rem;
   font-weight: 700;
+  width: 100%;
 }
 
 .jira-tag-key {
   color: #818cf8;
   text-decoration: none;
   font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: color 0.15s;
 }
 
@@ -3699,6 +3702,18 @@ a.jira-tag-key:hover {
   color: #a5b4fc;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.jira-summary {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 400;
+  flex: 1 1 auto;
+  white-space: normal;
+  line-height: 1.4;
+  opacity: 0.9;
+  word-break: break-word;
+  padding-right: 8px;
 }
 
 /* Status badge inside a jira-tag */
@@ -3711,6 +3726,8 @@ a.jira-tag-key:hover {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Status colour variants */
