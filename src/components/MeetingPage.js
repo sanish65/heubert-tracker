@@ -100,7 +100,7 @@ export default function MeetingPage() {
         if (topmostId) {
           setIdleSubmissionId(topmostId);
         }
-      }, 5000); // 5 seconds idle
+      }, 12000); // 5 seconds idle
     };
 
     // Attach listeners to reset timer
@@ -740,7 +740,7 @@ function IdleNudge({ phrases }) {
     // Change text every 5 seconds as it walks (so it's easily readable)
     const interval = setInterval(() => {
       setIndex(current => (current + 1) % phrases.length);
-    }, 120000);
+    }, 6000);
     return () => clearInterval(interval);
   }, [phrases]);
 
