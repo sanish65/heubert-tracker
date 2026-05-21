@@ -23,6 +23,7 @@ import CapacityPage from "@/components/CapacityPage";
 import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
 import EditWordModal from "@/components/EditWordModal";
 import ThemeToggle from "@/components/ThemeToggle";
+import AnimationToggle from "@/components/AnimationToggle";
 import HumanLoader from "@/components/HumanLoader";
 import EventsPage from "@/components/EventsPage";
 import AddCompanyEventModal from "@/components/AddCompanyEventModal";
@@ -152,6 +153,7 @@ export default function Home() {
                   <div className="settings-dropdown">
                     <div className="settings-dropdown-title">Preferences</div>
                     <ThemeToggle />
+                    <AnimationToggle />
                   </div>
                 )}
               </div>

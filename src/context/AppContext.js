@@ -26,6 +26,7 @@ export function AppProvider({ children }) {
   const [standupSubmissions, setStandupSubmissions] = useState([]);
   const [standupQuestions, setStandupQuestions] = useState([]);
   const [theme, setTheme] = useState("dark");
+  const [animationsEnabled, setAnimationsEnabled] = useState(true);
 
   const adminEmails = [
     "sanish@heubert.com",
@@ -99,12 +100,19 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Theme: read from localStorage on mount, apply to <html>
+  // Settings: read from localStorage on mount
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem("heubert-theme") : null;
-    const initial = saved === "light" ? "light" : "dark";
-    setTheme(initial);
-    document.documentElement.setAttribute("data-theme", initial);
+    // Theme
+    const savedTheme = typeof window !== "undefined" ? localStorage.getItem("heubert-theme") : null;
+    const initialTheme = savedTheme === "light" ? "light" : "dark";
+    setTheme(initialTheme);
+    document.documentElement.setAttribute("data-theme", initialTheme);
+
+    // Animations
+    const savedAnimations = typeof window !== "undefined" ? localStorage.getItem("heubert-animations") : null;
+    if (savedAnimations !== null) {
+      setAnimationsEnabled(savedAnimations === "true");
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -112,6 +120,14 @@ export function AppProvider({ children }) {
       const next = prev === "dark" ? "light" : "dark";
       localStorage.setItem("heubert-theme", next);
       document.documentElement.setAttribute("data-theme", next);
+      return next;
+    });
+  };
+
+  const toggleAnimations = () => {
+    setAnimationsEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem("heubert-animations", next.toString());
       return next;
     });
   };
@@ -705,6 +721,8 @@ export function AppProvider({ children }) {
         isFineAdmin,
         theme,
         toggleTheme,
+        animationsEnabled,
+        toggleAnimations,
       }}
     >
       {children}

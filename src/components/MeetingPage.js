@@ -36,7 +36,8 @@ export default function MeetingPage() {
     standupQuestions,
     user,
     currentEmployee,
-    isAuthReady
+    isAuthReady,
+    animationsEnabled
   } = useApp();
   const router = useRouter();
   const [viewDate, setViewDate] = useState("");
@@ -71,7 +72,7 @@ export default function MeetingPage() {
 
   // Handle Idle Nudge Logic in Enlarged mode (bug walking on submission cards)
   useEffect(() => {
-    if (!isEnlarged) {
+    if (!isEnlarged || !animationsEnabled) {
       setIdleSubmissionId(null);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       return;
@@ -108,14 +109,14 @@ export default function MeetingPage() {
       events.forEach(e => window.removeEventListener(e, startIdleTimer));
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [isEnlarged]);
+  }, [isEnlarged, animationsEnabled]);
 
   // Confused Human overlay — appears after 4 mins idle in enlarged view,
   // but ONLY if the user hasn't already scrolled through all submissions
   useEffect(() => {
     hasScrolledToBottomRef.current = false; // reset every time enlarged toggles
 
-    if (!isEnlarged) {
+    if (!isEnlarged || !animationsEnabled) {
       setShowEnlargedIdle(false);
       if (enlargedIdleRef.current) clearTimeout(enlargedIdleRef.current);
       return;
@@ -161,7 +162,7 @@ export default function MeetingPage() {
       clearTimeout(attachTimer);
       if (listEl) listEl.removeEventListener('scroll', checkScrollBottom);
     };
-  }, [isEnlarged]);
+  }, [isEnlarged, animationsEnabled]);
 
   const today = useMemo(() => {
     if (!isClient) return "";

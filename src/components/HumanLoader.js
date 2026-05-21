@@ -16,7 +16,7 @@ function shuffle(arr) {
 const defaultNames = [...knownBoys, ...knownGirls];
 
 export default function HumanLoader() {
-  const { employees } = useApp() || { employees: [] };
+  const { employees, animationsEnabled } = useApp() || { employees: [], animationsEnabled: true };
   const [index, setIndex] = useState(0);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [shuffledDefaults, setShuffledDefaults] = useState([]);
@@ -89,7 +89,7 @@ export default function HumanLoader() {
   else if (nameKey === "isha") displayGreeting = "I am a dancing spirit!";
   else if (nameKey === "merisha") displayGreeting = "Jindagi sarara scooter ma!";
 
-  if (!isMounted) {
+  if (!isMounted || animationsEnabled === false) {
     return (
       <div className="loading-splash">
         <div 
@@ -104,6 +104,31 @@ export default function HumanLoader() {
             transformOrigin: 'center center'
           }}
         >
+          {animationsEnabled === false && (
+            <div style={{ marginBottom: '1.5rem', opacity: 0.7 }}>
+              <svg 
+                className="basic-spinner" 
+                viewBox="0 0 50 50" 
+                style={{
+                  width: '50px',
+                  height: '50px',
+                  animation: 'spin 1s linear infinite'
+                }}
+              >
+                <circle 
+                  cx="25" cy="25" r="20" 
+                  fill="none" 
+                  stroke="var(--text-primary)" 
+                  strokeWidth="4"
+                  strokeDasharray="90,150"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <style dangerouslySetInnerHTML={{__html: `
+                @keyframes spin { 100% { transform: rotate(360deg); } }
+              `}} />
+            </div>
+          )}
           <div className="splash-text">Heubert Tracker</div>
           <div className="loader-bar-container" style={{ marginTop: '1rem' }}>
             <div className="loader-bar"></div>
