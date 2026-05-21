@@ -740,7 +740,7 @@ function IdleNudge({ phrases }) {
     // Change text every 5 seconds as it walks (so it's easily readable)
     const interval = setInterval(() => {
       setIndex(current => (current + 1) % phrases.length);
-    }, 5000);
+    }, 120000);
     return () => clearInterval(interval);
   }, [phrases]);
 
