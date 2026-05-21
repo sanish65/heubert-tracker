@@ -100,7 +100,7 @@ export default function MeetingPage() {
         if (topmostId) {
           setIdleSubmissionId(topmostId);
         }
-      }, 12000); // 5 seconds idle
+      }, 120000); // 5 seconds idle
     };
 
     // Attach listeners to reset timer
