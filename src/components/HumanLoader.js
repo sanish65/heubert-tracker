@@ -157,16 +157,18 @@ export default function HumanLoader() {
             filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))',
           }}
         >
-          <img 
-            src={`https://api.dicebear.com/7.x/micah/svg?seed=${nameKey}&hair=${hairParam}&hairProbability=100&mouth=${mouthParam}${glassesParam}&baseColor=${baseColorParam}${facialHairParamString}`}
-            alt={`${currentName}'s avatar`}
-            width="100"
-            height="100"
-            style={{ 
-              background: 'transparent',
-              filter: 'grayscale(100%) brightness(1.1) contrast(1.1)' 
-            }}
-          />
+          <div className="walking-figure">
+            <img 
+              src={`https://api.dicebear.com/7.x/micah/svg?seed=${nameKey}&hair=${hairParam}&hairProbability=100&mouth=${mouthParam}${glassesParam}&baseColor=${baseColorParam}${facialHairParamString}`}
+              alt={`${currentName}'s avatar`}
+              width="100"
+              height="100"
+              style={{ 
+                background: 'transparent',
+                filter: 'grayscale(100%) brightness(1.1) contrast(1.1)' 
+              }}
+            />
+          </div>
           {nameKey === "aashish" && (
             <>
               <style dangerouslySetInnerHTML={{__html: `

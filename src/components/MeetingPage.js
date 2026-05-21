@@ -426,6 +426,7 @@ export default function MeetingPage() {
                 
                 return (
                   <div key={`submission-row-${index}`} data-submission-id={subId} className={`submission-item ${s.isMissing ? 'missing' : ''}`}>
+                    {isIdleTarget && <IdleNudge phrases={nudgePhrases} />}
                     <div className="submission-header">
                       <span className="submission-user">
                         {s.name} {s.isMissing && <span className="missing-badge">NOT SUBMITTED</span>}
@@ -456,9 +457,6 @@ export default function MeetingPage() {
                                 <div key={`submission-${index}-q-${qIndex}`} className="submission-qa">
                                   <label className="qa-label">{q.question}</label>
                                   <div className="ans-text position-relative">
-                                    {/* Idle Nudge Animation triggers internally on the first QA block */}
-                                    {isIdleTarget && qIndex === 0 && <IdleNudge phrases={nudgePhrases} />}
-
                                     {answer && String(answer).trim() ? (
                                       typeof answer === 'object' ? JSON.stringify(answer) : formatText(String(answer))
                                     ) : (
@@ -474,7 +472,7 @@ export default function MeetingPage() {
                               <div key={`submission-${index}-ans-${ansIdx}`} className="submission-qa">
                                 <label className="qa-label">{key}</label>
                                 <div className="ans-text position-relative">
-                                  {isIdleTarget && ansIdx === 0 && <IdleNudge phrases={nudgePhrases} />}
+                                  {/* Idle Nudge removed from here */}
                                   {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
                                 </div>
                               </div>
@@ -729,8 +727,13 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
 
 function IdleNudge({ phrases }) {
   const [index, setIndex] = useState(0);
+  const [bugType, setBugType] = useState('ladybug');
 
   useEffect(() => {
+    // Randomize initial bug
+    const bugs = ['ladybug', 'ant', 'spider'];
+    setBugType(bugs[Math.floor(Math.random() * bugs.length)]);
+    
     // Randomize initial text
     setIndex(Math.floor(Math.random() * phrases.length));
     
@@ -741,33 +744,70 @@ function IdleNudge({ phrases }) {
     return () => clearInterval(interval);
   }, [phrases]);
 
+  const renderLadybug = () => (
+    <svg viewBox="0 0 50 30" className="bug-character" xmlns="http://www.w3.org/2000/svg">
+      <g className="bug-leg-1" style={{ transformOrigin: '12px 20px' }}>
+        <path d="M 12 20 Q 8 28 4 30" stroke="var(--text-primary)" fill="none" strokeWidth="2" strokeLinecap="round" />
+      </g>
+      <g className="bug-leg-2" style={{ transformOrigin: '25px 22px' }}>
+        <path d="M 25 22 Q 25 28 23 30" stroke="var(--text-primary)" fill="none" strokeWidth="2" strokeLinecap="round" />
+      </g>
+      <g className="bug-leg-3" style={{ transformOrigin: '38px 20px' }}>
+        <path d="M 38 20 Q 44 28 48 30" stroke="var(--text-primary)" fill="none" strokeWidth="2" strokeLinecap="round" />
+      </g>
+      <circle cx="42" cy="18" r="5" fill="var(--text-primary)" />
+      <path d="M 45 15 Q 48 10 50 12" stroke="var(--text-primary)" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M 43 14 Q 45 8 48 9" stroke="var(--text-primary)" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M 5 22 C 5 8, 40 8, 40 22 Z" fill="#ef4444" />
+      <path d="M 5 22 Q 22 20 40 22" stroke="#b91c1c" fill="none" strokeWidth="1" />
+      <circle cx="15" cy="15" r="2.5" fill="#0f172a" />
+      <circle cx="28" cy="12" r="3" fill="#0f172a" />
+      <circle cx="22" cy="18" r="2" fill="#0f172a" />
+      <circle cx="35" cy="17" r="2.5" fill="#0f172a" />
+    </svg>
+  );
+
+  const renderAnt = () => (
+    <svg viewBox="0 0 50 30" className="bug-character" xmlns="http://www.w3.org/2000/svg">
+      <g className="bug-leg-1" style={{ transformOrigin: '15px 22px' }}>
+        <path d="M 15 22 Q 10 28 8 30" stroke="#000000" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+      </g>
+      <g className="bug-leg-2" style={{ transformOrigin: '25px 22px' }}>
+        <path d="M 25 22 Q 25 28 25 30" stroke="#000000" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+      </g>
+      <g className="bug-leg-3" style={{ transformOrigin: '35px 22px' }}>
+        <path d="M 35 22 Q 40 28 42 30" stroke="#000000" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+      </g>
+      <ellipse cx="14" cy="18" rx="8" ry="5" fill="#000000" />
+      <ellipse cx="27" cy="18" rx="5" ry="3" fill="#000000" />
+      <circle cx="38" cy="16" r="4" fill="#000000" />
+      <path d="M 40 14 Q 45 10 47 12" stroke="#000000" fill="none" strokeWidth="1" strokeLinecap="round" />
+      <path d="M 39 13 Q 44 8 46 9" stroke="#000000" fill="none" strokeWidth="1" strokeLinecap="round" />
+    </svg>
+  );
+
+  const renderSpider = () => (
+    <svg viewBox="0 0 50 30" className="bug-character" xmlns="http://www.w3.org/2000/svg">
+      <g className="bug-leg-1" style={{ transformOrigin: '23px 20px' }}>
+        <path d="M 23 20 Q 15 10 10 30" stroke="#6b7280" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M 25 20 Q 18 15 15 30" stroke="#6b7280" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+      </g>
+      <g className="bug-leg-3" style={{ transformOrigin: '31px 20px' }}>
+        <path d="M 31 20 Q 38 10 45 30" stroke="#6b7280" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M 29 20 Q 35 15 38 30" stroke="#6b7280" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+      </g>
+      <circle cx="27" cy="20" r="7" fill="#6b7280" />
+      <circle cx="34" cy="22" r="3" fill="#6b7280" />
+    </svg>
+  );
+
   return (
-    <div className="idle-nudge-walk">
-      <div className="nudge-thought-bubble">{phrases[index]}</div>
-      <div className="nudge-figure-wrapper">
-        <svg viewBox="0 0 60 130" className="nudge-character" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="30" cy="8" rx="10" ry="5" fill="#6366f1" />
-          <circle cx="30" cy="17" r="11" fill="#f4c18e" />
-          <rect x="27" y="26" width="6" height="6" rx="2" fill="#f4c18e" />
-          <rect x="18" y="32" width="24" height="26" rx="4" fill="var(--accent-indigo)" />
-          <g className="nudge-arm-left" style={{ transformOrigin: '20px 35px' }}>
-            <rect x="11" y="34" width="9" height="20" rx="4" fill="#818cf8" />
-            <circle cx="15.5" cy="56" r="4" fill="#f4c18e" />
-          </g>
-          <g className="nudge-arm-right" style={{ transformOrigin: '40px 35px' }}>
-            <rect x="40" y="34" width="9" height="20" rx="4" fill="#818cf8" />
-            <circle cx="44.5" cy="56" r="4" fill="#f4c18e" />
-          </g>
-          <rect x="19" y="56" width="22" height="8" rx="3" fill="#4f46e5" />
-          <g className="nudge-leg-left" style={{ transformOrigin: '25px 64px' }}>
-            <rect x="20" y="62" width="10" height="28" rx="4" fill="#312e81" />
-            <ellipse cx="25" cy="91" rx="8" ry="4" fill="#1e1b4b" />
-          </g>
-          <g className="nudge-leg-right" style={{ transformOrigin: '35px 64px' }}>
-            <rect x="30" y="62" width="10" height="28" rx="4" fill="#3730a3" />
-            <ellipse cx="35" cy="91" rx="8" ry="4" fill="#1e1b4b" />
-          </g>
-        </svg>
+    <div className="walking-nudge-container">
+      <div key={index} className="nudge-speech-bubble">{phrases[index]}</div>
+      <div className="bug-figure-wrapper">
+        {bugType === 'ladybug' && renderLadybug()}
+        {bugType === 'ant' && renderAnt()}
+        {bugType === 'spider' && renderSpider()}
       </div>
     </div>
   );

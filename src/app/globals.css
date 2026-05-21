@@ -4072,15 +4072,16 @@ a.jira-tag-key:hover {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  padding: 10px 16px;
+  padding: 8px 12px;
   border-radius: 20px; /* Rounder for thought bubble */
   white-space: nowrap;
   box-shadow: var(--shadow-md);
   margin-bottom: 12px; /* Space for the thought dots */
   opacity: 0;
   position: relative;
+  transition: opacity 0.3s ease, transform 0.3s ease;
   animation: popSpeech 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   animation-delay: 2s; 
 }
@@ -4090,25 +4091,27 @@ a.jira-tag-key:hover {
   content: '';
   position: absolute;
   bottom: -6px;
-  left: 20%;
-  width: 8px;
-  height: 8px;
+  right: 25%;
+  width: 7px;
+  height: 7px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 50%;
+  transition: opacity 0.3s ease;
 }
 
 /* Tiny thinking dot */
 .nudge-speech-bubble::after {
   content: '';
   position: absolute;
-  bottom: -14px;
-  left: 15%;
+  bottom: -15px;
+  right: 18%;
   width: 4px;
   height: 4px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 50%;
+  transition: opacity 0.3s ease;
 }
 
 /* Light mode specific adjustment */
@@ -4123,37 +4126,21 @@ a.jira-tag-key:hover {
   border-color: rgba(99,102,241,0.3);
 }
 
-.nudge-figure-wrapper {
-  /* No absolute positioning needed anymore since we are using flex box column-end */
+.bug-figure-wrapper {
   display: flex;
   justify-content: center;
 }
 
-/* The SVG character parts for literal walking */
-.nudge-character {
-  width: 56px;  /* Wider viewBox portrait */
-  height: 78px;
+.bug-character {
+  width: 44px;
+  height: 26px;
+  margin-top: 2px;
+  animation: bugWalk 0.6s ease-in-out infinite alternate;
 }
 
-/* Right leg swings forward */
-.nudge-leg-right {
-  animation: walkLegForward 1.2s ease-in-out infinite alternate;
-}
-
-/* Left leg swings backward */
-.nudge-leg-left {
-  animation: walkLegForward 1.2s ease-in-out infinite alternate-reverse;
-}
-
-/* Right arm swings backward (opposite leg) */
-.nudge-arm-right {
-  animation: walkArmBack 1.2s ease-in-out infinite alternate;
-}
-
-/* Left arm swings forward (opposite leg) */
-.nudge-arm-left {
-  animation: walkArmBack 1.2s ease-in-out infinite alternate-reverse;
-}
+.bug-leg-1 { animation: walkLegBack 0.5s ease-in-out infinite alternate; }
+.bug-leg-2 { animation: walkLegFront 0.5s ease-in-out infinite alternate-reverse; }
+.bug-leg-3 { animation: walkLegFront 0.5s ease-in-out infinite alternate; }
 
 @keyframes walkInLeftToRight {
   0% { left: -120px; }
@@ -4165,20 +4152,34 @@ a.jira-tag-key:hover {
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-@keyframes walkLeg {
-  0% { transform: rotate(-30deg); }
-  100% { transform: rotate(30deg); }
+@keyframes bugWalk {
+  0% { transform: translateY(0) rotate(-2deg); }
+  100% { transform: translateY(-2px) rotate(2deg); }
 }
 
-@keyframes walkArm {
-  0% { transform: rotate(20deg); }
-  100% { transform: rotate(-20deg); }
+@keyframes walkLegFront {
+  0% { transform: rotate(-25deg); }
+  100% { transform: rotate(25deg); }
 }
 
-@keyframes headBob {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-2px); }
+@keyframes walkLegBack {
+  0% { transform: rotate(-20deg); }
+  100% { transform: rotate(20deg); }
 }
+
+.walking-figure {
+  animation: loaderWalk 2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+@keyframes loaderWalk {
+  0% { transform: rotate(-8deg) translateY(0); }
+  25% { transform: rotate(0) translateY(-6px); }
+  50% { transform: rotate(8deg) translateY(0); }
+  75% { transform: rotate(0) translateY(-6px); }
+  100% { transform: rotate(-8deg) translateY(0); }
+}
+
 
 
 /* ===== VACATION ANIMATION ===== */
