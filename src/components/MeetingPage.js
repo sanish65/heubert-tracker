@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -49,6 +49,12 @@ export default function MeetingPage() {
   const [idleSubmissionId, setIdleSubmissionId] = useState(null);
   const idleTimerRef = useState(null);
 
+  // Confused Human idle overlay for enlarged view
+  const [showEnlargedIdle, setShowEnlargedIdle] = useState(false);
+  const enlargedIdleRef = useState(null);
+  // Tracks if user has scrolled to the bottom of submissions (seen all entries)
+  const hasScrolledToBottomRef = useRef(false);
+
   useEffect(() => {
     setIsClient(true);
     const todayStr = new Date().toLocaleDateString('en-CA');
@@ -63,7 +69,7 @@ export default function MeetingPage() {
     }
   }, [isLoaded, isAuthReady, user, router]);
 
-  // Handle Idle Nudge Logic in Enlarged mode
+  // Handle Idle Nudge Logic in Enlarged mode (bug walking on submission cards)
   useEffect(() => {
     if (!isEnlarged) {
       setIdleSubmissionId(null);
@@ -72,23 +78,18 @@ export default function MeetingPage() {
     }
 
     const startIdleTimer = () => {
-      setIdleSubmissionId(null); // Hide immediately on activity
+      setIdleSubmissionId(null);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       
       idleTimerRef.current = setTimeout(() => {
-        // Find topmost fully visible submission
         const listEl = document.querySelector('.submissions-list');
         if (!listEl) return;
-        
         const items = Array.from(listEl.querySelectorAll('.submission-item:not(.missing)'));
         const listRect = listEl.getBoundingClientRect();
-        
         let topmostId = null;
         let minTopOffset = Infinity;
-
         for (const item of items) {
           const rect = item.getBoundingClientRect();
-          // Check if item is within the visible bounds of the list
           if (rect.top >= listRect.top && rect.bottom <= listRect.bottom) {
             if (rect.top < minTopOffset) {
               minTopOffset = rect.top;
@@ -96,23 +97,69 @@ export default function MeetingPage() {
             }
           }
         }
-        
-        if (topmostId) {
-          setIdleSubmissionId(topmostId);
-        }
-      }, 120000); // 5 seconds idle
+        if (topmostId) setIdleSubmissionId(topmostId);
+      }, 120000); // 2 minutes idle for bug
     };
 
-    // Attach listeners to reset timer
     const events = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'];
     events.forEach(e => window.addEventListener(e, startIdleTimer));
-    
-    // Initial start
     startIdleTimer();
-
     return () => {
       events.forEach(e => window.removeEventListener(e, startIdleTimer));
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [isEnlarged]);
+
+  // Confused Human overlay — appears after 4 mins idle in enlarged view,
+  // but ONLY if the user hasn't already scrolled through all submissions
+  useEffect(() => {
+    hasScrolledToBottomRef.current = false; // reset every time enlarged toggles
+
+    if (!isEnlarged) {
+      setShowEnlargedIdle(false);
+      if (enlargedIdleRef.current) clearTimeout(enlargedIdleRef.current);
+      return;
+    }
+
+    // Check if the submissions list has been scrolled to the bottom
+    const checkScrollBottom = () => {
+      const listEl = document.querySelector('.submissions-list');
+      if (!listEl) return;
+      const { scrollTop, scrollHeight, clientHeight } = listEl;
+      if (scrollTop + clientHeight >= scrollHeight - 16) {
+        hasScrolledToBottomRef.current = true;
+      }
+    };
+
+    const resetEnlargedIdle = () => {
+      setShowEnlargedIdle(false);
+      if (enlargedIdleRef.current) clearTimeout(enlargedIdleRef.current);
+      enlargedIdleRef.current = setTimeout(() => {
+        // Only nudge if user hasn't finished scrolling through submissions
+        if (!hasScrolledToBottomRef.current) {
+          setShowEnlargedIdle(true);
+        }
+      }, 240000); // 4 minutes idle for confused human
+    };
+
+    const windowEvents = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'];
+    windowEvents.forEach(e => window.addEventListener(e, resetEnlargedIdle));
+
+    // Attach scroll listener to the submissions list (with a short delay for DOM render)
+    let listEl = null;
+    const attachScrollListener = () => {
+      listEl = document.querySelector('.submissions-list');
+      if (listEl) listEl.addEventListener('scroll', checkScrollBottom);
+    };
+    const attachTimer = setTimeout(attachScrollListener, 300);
+
+    resetEnlargedIdle();
+
+    return () => {
+      windowEvents.forEach(e => window.removeEventListener(e, resetEnlargedIdle));
+      if (enlargedIdleRef.current) clearTimeout(enlargedIdleRef.current);
+      clearTimeout(attachTimer);
+      if (listEl) listEl.removeEventListener('scroll', checkScrollBottom);
     };
   }, [isEnlarged]);
 
@@ -389,6 +436,9 @@ export default function MeetingPage() {
 
         {/* STANDUP SUBMISSIONS (FROM SECONDARY DB) */}
         <section className={`meeting-card submissions-card ${isEnlarged ? 'enlarged' : ''}`}>
+          {isEnlarged && showEnlargedIdle && (
+            <ConfusedHuman onDismiss={() => setShowEnlargedIdle(false)} />
+          )}
           <div className="card-header-with-actions">
             <h2 className="card-title">✅ Daily Submissions</h2>
             <div className="card-header-tools">
@@ -472,60 +522,62 @@ export default function MeetingPage() {
                               <div key={`submission-${index}-ans-${ansIdx}`} className="submission-qa">
                                 <label className="qa-label">{key}</label>
                                 <div className="ans-text position-relative">
-                                  {/* Idle Nudge removed from here */}
                                   {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
                                 </div>
                               </div>
                             ))
                           )}
-                        {s.jira_tickets && s.jira_tickets.length > 0 && (
-                          <div className="jira-section">
-                            <label className="qa-label">Jira Tickets</label>
-                            <div className="jira-tags">
-                                {[...s.jira_tickets].sort((a, b) => {
-                                  const priority = {
-                                    'blocked':     0,
-                                    'in progress': 1,
-                                    'in review':   2,
-                                    'to do':       3,
-                                    'on hold':     4,
-                                    'done':        5,
-                                    'closed':      6,
-                                  };
-                                  const aStatus = (typeof a === 'object' ? a.status : null)?.toLowerCase() ?? '';
-                                  const bStatus = (typeof b === 'object' ? b.status : null)?.toLowerCase() ?? '';
-                                  return (priority[aStatus] ?? 99) - (priority[bStatus] ?? 99);
-                                }).map((t, tIdx) => {
-                                  const ticketKey = typeof t === 'object' ? (t.key || t.summary || "Ticket") : t;
-                                  const ticketStatus = typeof t === 'object' ? (t.status || null) : null;
-                                  const ticketUrl = typeof t === 'object' ? t.url : null;
-                                  const statusClass = ticketStatus
-                                    ? `jira-status jira-status--${ticketStatus.toLowerCase().replace(/\s+/g, '-')}`
-                                    : null;
-                                  return (
-                                    <span key={`jira-${index}-${tIdx}`} className="jira-tag" title={typeof t === 'object' && t.summary ? t.summary : ticketKey}>
-                                      {ticketUrl ? (
-                                        <a href={ticketUrl} target="_blank" rel="noopener noreferrer" className="jira-tag-key">
-                                          {ticketKey}
-                                        </a>
-                                      ) : (
-                                        <span className="jira-tag-key">{ticketKey}</span>
-                                      )}
-                                      {typeof t === 'object' && t.summary && (
-                                        <span className="jira-summary">{t.summary}</span>
-                                      )}
-                                      {ticketStatus && (
-                                        <span className={statusClass}>{ticketStatus}</span>
-                                      )}
-                                    </span>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        )}
-                      </>
+                        </>
+                      )}
+                    </div>
+                    {/* Jira tickets rendered OUTSIDE submission-content so they're never hidden by 250px scroll cap */}
+                    {!s.isMissing && s.jira_tickets && s.jira_tickets.length > 0 && (
+                      <div className="jira-section">
+                        <label className="qa-label">Jira Tickets</label>
+                        <div className={`jira-tags${s.jira_tickets.length > 5 ? ' jira-tags--multi-col' : ''}`}>
+                          {[...s.jira_tickets].sort((a, b) => {
+                            const priority = {
+                              'blocked':     0,
+                              'in progress': 1,
+                              'in review':   2,
+                              'to do':       3,
+                              'on hold':     4,
+                              'done':        5,
+                              'closed':      6,
+                            };
+                            const aStatus = (typeof a === 'object' ? a.status : null)?.toLowerCase() ?? '';
+                            const bStatus = (typeof b === 'object' ? b.status : null)?.toLowerCase() ?? '';
+                            return (priority[aStatus] ?? 99) - (priority[bStatus] ?? 99);
+                          }).map((t, tIdx) => {
+                            const ticketKey = typeof t === 'object' ? (t.key || t.summary || "Ticket") : t;
+                            const ticketStatus = typeof t === 'object' ? (t.status || null) : null;
+                            const ticketUrl = typeof t === 'object' ? t.url : null;
+                            const statusClass = ticketStatus
+                              ? `jira-status jira-status--${ticketStatus.toLowerCase().replace(/\s+/g, '-')}`
+                              : null;
+                            return (
+                              <span key={`jira-${index}-${tIdx}`} className="jira-tag">
+                                <span className="jira-tag-row">
+                                  {ticketUrl ? (
+                                    <a href={ticketUrl} target="_blank" rel="noopener noreferrer" className="jira-tag-key">
+                                      {ticketKey}
+                                    </a>
+                                  ) : (
+                                    <span className="jira-tag-key">{ticketKey}</span>
+                                  )}
+                                  {ticketStatus && (
+                                    <span className={statusClass}>{ticketStatus}</span>
+                                  )}
+                                </span>
+                                {typeof t === 'object' && t.summary && (
+                                  <span className="jira-summary">{t.summary}</span>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
-                  </div>
                 </div>
                 );
               })
@@ -727,43 +779,62 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
 
 function IdleNudge({ phrases }) {
   const [index, setIndex] = useState(0);
-  const [bugType, setBugType] = useState('ladybug');
+  const [bugType, setBugType] = useState('turtle');
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    // Randomize initial bug
-    const bugs = ['ladybug', 'ant', 'spider'];
-    setBugType(bugs[Math.floor(Math.random() * bugs.length)]);
-    
-    // Randomize initial text
-    setIndex(Math.floor(Math.random() * phrases.length));
+    if (!isInitialized.current) {
+      // Randomize initial bug
+      const bugs = ['turtle', 'ant', 'spider'];
+      setBugType(bugs[Math.floor(Math.random() * bugs.length)]);
+      
+      // Randomize initial text
+      setIndex(Math.floor(Math.random() * phrases.length));
+      isInitialized.current = true;
+    }
     
     // Change text every 5 seconds as it walks (so it's easily readable)
     const interval = setInterval(() => {
       setIndex(current => (current + 1) % phrases.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, [phrases]);
+  }, [phrases.length]);
 
-  const renderLadybug = () => (
+  const renderTurtle = () => (
     <svg viewBox="0 0 50 30" className="bug-character" xmlns="http://www.w3.org/2000/svg">
-      <g className="bug-leg-1" style={{ transformOrigin: '12px 20px' }}>
-        <path d="M 12 20 Q 8 28 4 30" stroke="var(--text-primary)" fill="none" strokeWidth="2" strokeLinecap="round" />
+      {/* Back legs */}
+      <g className="bug-leg-1" style={{ transformOrigin: '12px 22px' }}>
+        <path d="M 12 22 Q 10 26 8 28" stroke="#166534" fill="none" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M 8 28 L 5 28" stroke="#166534" strokeWidth="2.5" strokeLinecap="round" />
       </g>
-      <g className="bug-leg-2" style={{ transformOrigin: '25px 22px' }}>
-        <path d="M 25 22 Q 25 28 23 30" stroke="var(--text-primary)" fill="none" strokeWidth="2" strokeLinecap="round" />
+      
+      {/* Front legs */}
+      <g className="bug-leg-3" style={{ transformOrigin: '32px 22px' }}>
+        <path d="M 32 22 Q 35 26 38 28" stroke="#166534" fill="none" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M 38 28 L 41 28" stroke="#166534" strokeWidth="2.5" strokeLinecap="round" />
       </g>
-      <g className="bug-leg-3" style={{ transformOrigin: '38px 20px' }}>
-        <path d="M 38 20 Q 44 28 48 30" stroke="var(--text-primary)" fill="none" strokeWidth="2" strokeLinecap="round" />
-      </g>
-      <circle cx="42" cy="18" r="5" fill="var(--text-primary)" />
-      <path d="M 45 15 Q 48 10 50 12" stroke="var(--text-primary)" fill="none" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M 43 14 Q 45 8 48 9" stroke="var(--text-primary)" fill="none" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M 5 22 C 5 8, 40 8, 40 22 Z" fill="#ef4444" />
-      <path d="M 5 22 Q 22 20 40 22" stroke="#b91c1c" fill="none" strokeWidth="1" />
-      <circle cx="15" cy="15" r="2.5" fill="#0f172a" />
-      <circle cx="28" cy="12" r="3" fill="#0f172a" />
-      <circle cx="22" cy="18" r="2" fill="#0f172a" />
-      <circle cx="35" cy="17" r="2.5" fill="#0f172a" />
+
+      {/* Tail */}
+      <path d="M 10 20 Q 5 18 3 20" stroke="#166534" fill="none" strokeWidth="2.5" strokeLinecap="round" />
+
+      {/* Head */}
+      <ellipse cx="40" cy="18" rx="6" ry="4" fill="#166534" />
+      {/* Eye */}
+      <circle cx="43" cy="17" r="1" fill="#fff" />
+      
+      {/* Shell Base (Plastron) */}
+      <ellipse cx="22" cy="22" rx="15" ry="3" fill="#854d0e" />
+      
+      {/* Shell (Carapace) */}
+      <path d="M 7 20 C 7 5, 37 5, 37 20 Z" fill="#22c55e" />
+      <path d="M 7 20 C 7 5, 37 5, 37 20 Z" fill="url(#turtle-shell)" opacity="0.3" />
+      
+      {/* Shell outline & pattern lines */}
+      <path d="M 7 20 C 7 5, 37 5, 37 20 Z" fill="none" stroke="#15803d" strokeWidth="1.5" />
+      <path d="M 12 18 C 12 10, 32 10, 32 18 Z" fill="none" stroke="#15803d" strokeWidth="1.5" />
+      <path d="M 22 8 L 22 18" stroke="#15803d" strokeWidth="1.5" />
+      <path d="M 15 11 L 10 16" stroke="#15803d" strokeWidth="1.5" />
+      <path d="M 29 11 L 34 16" stroke="#15803d" strokeWidth="1.5" />
     </svg>
   );
 
@@ -805,7 +876,7 @@ function IdleNudge({ phrases }) {
     <div className="walking-nudge-container">
       <div key={index} className="nudge-speech-bubble">{phrases[index]}</div>
       <div className="bug-figure-wrapper">
-        {bugType === 'ladybug' && renderLadybug()}
+        {bugType === 'turtle' && renderTurtle()}
         {bugType === 'ant' && renderAnt()}
         {bugType === 'spider' && renderSpider()}
       </div>
@@ -919,3 +990,71 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
     </div>
   );
 }
+
+// Confused human overlay for enlarged idle state
+function ConfusedHuman({ onDismiss }) {
+  return (
+    <div className="confused-human-overlay" onClick={onDismiss}>
+      <div className="confused-human-wrap">
+        {/* Speech bubble */}
+        <div className="confused-bubble">
+          Let&apos;s finish the sync first! 📋
+        </div>
+        <div className="confused-bubble-tail" />
+
+        {/* SVG stick figure — confused pose */}
+        <svg
+          className="confused-figure"
+          viewBox="0 0 120 180"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+        >
+          {/* Floating question marks */}
+          <text className="qmark qmark1" x="88" y="30" fontSize="18" fill="#facc15" fontWeight="900">?</text>
+          <text className="qmark qmark2" x="20" y="45" fontSize="14" fill="#facc15" fontWeight="900">?</text>
+          <text className="qmark qmark3" x="95" y="58" fontSize="11" fill="#facc15" fontWeight="900">?</text>
+
+          {/* Head */}
+          <circle cx="60" cy="36" r="18" stroke="var(--text-primary)" strokeWidth="3" fill="rgba(99,102,241,0.12)" />
+
+          {/* Confused face — worried symmetric brows, wide eyes, open uncertain mouth */}
+          {/* Eyes — slightly bigger for a wide "huh?" look */}
+          <circle cx="53" cy="33" r="3" fill="var(--text-primary)" />
+          <circle cx="67" cy="33" r="3" fill="var(--text-primary)" />
+          {/* Tiny bright dot highlights in eyes */}
+          <circle cx="55" cy="31" r="1" fill="rgba(255,255,255,0.7)" />
+          <circle cx="69" cy="31" r="1" fill="rgba(255,255,255,0.7)" />
+          {/* Both brows raised & arched inward — worried/confused, NOT stern */}
+          <path d="M48 27 Q53 22 58 27" stroke="var(--text-primary)" strokeWidth="2" strokeLinecap="round" />
+          <path d="M62 27 Q67 22 72 27" stroke="var(--text-primary)" strokeWidth="2" strokeLinecap="round" />
+          {/* Mouth: small open oval — confused "uhh?" expression */}
+          <ellipse cx="60" cy="44" rx="5" ry="3.5" fill="var(--text-primary)" opacity="0.8" />
+
+          {/* Body */}
+          <line x1="60" y1="54" x2="60" y2="110" stroke="var(--text-primary)" strokeWidth="3" strokeLinecap="round" />
+
+          {/* Left arm — raised and bent (scratching head) */}
+          <path d="M60 65 Q40 55 38 38" stroke="var(--text-primary)" strokeWidth="3" strokeLinecap="round" />
+          {/* Hand scratching */}
+          <circle cx="38" cy="36" r="4" stroke="var(--text-primary)" strokeWidth="2" fill="rgba(99,102,241,0.15)" />
+
+          {/* Right arm — out to the side (shrug) */}
+          <path d="M60 65 Q82 72 90 62" stroke="var(--text-primary)" strokeWidth="3" strokeLinecap="round" />
+          <path d="M90 62 Q96 58 94 65" stroke="var(--text-primary)" strokeWidth="2" strokeLinecap="round" />
+
+          {/* Left leg */}
+          <path d="M60 110 Q50 135 45 155" stroke="var(--text-primary)" strokeWidth="3" strokeLinecap="round" />
+          {/* Right leg */}
+          <path d="M60 110 Q70 135 75 155" stroke="var(--text-primary)" strokeWidth="3" strokeLinecap="round" />
+
+          {/* Feet */}
+          <path d="M45 155 Q40 158 35 155" stroke="var(--text-primary)" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M75 155 Q80 158 85 155" stroke="var(--text-primary)" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+
+        <p className="confused-hint">click anywhere to dismiss</p>
+      </div>
+    </div>
+  );
+}
+

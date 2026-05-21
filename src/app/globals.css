@@ -3541,16 +3541,16 @@ body {
   border-bottom-left-radius: var(--radius-lg);
 }
 
-/* Right panel — Q&A */
+/* Right panel — Q&A + Jira section */
 .submissions-card.enlarged .submission-content {
   flex: 1;
-  overflow: visible; /* Prevents scroll clipping of absolute children */
+  overflow: visible;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
-  padding: 1.5rem;
-  align-content: center;
-  max-height: none; /* Override normal-view limit */
+  padding: 1.5rem 1.5rem 0.75rem;
+  align-content: start;
+  max-height: none;
 }
 
 /* Q&A blocks */
@@ -3558,6 +3558,24 @@ body {
   margin-bottom: 0;
   display: flex;
   flex-direction: column;
+  width: 100%;
+}
+
+/* Jira section in enlarged mode: sits below Q&A, full width */
+.submissions-card.enlarged .jira-section {
+  grid-column: 1 / -1;
+  margin-top: 0;
+  padding: 0.75rem 1.5rem 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.submissions-card.enlarged .jira-section .jira-tags {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.submissions-card.enlarged .jira-tag {
   width: 100%;
 }
 
@@ -3665,7 +3683,7 @@ body {
 
 .jira-section {
   margin-top: 0.5rem;
-  padding-top: 1rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--border-color);
 }
 
@@ -3673,20 +3691,40 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
+/* 2-column grid when there are more than 5 tickets */
+.jira-tags--multi-col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+/* Each ticket is a vertical card: [key | status] on top, [summary] below */
 .jira-tag {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-left: 3px solid rgba(99, 102, 241, 0.5);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 7px 10px;
   font-size: 0.78rem;
   font-weight: 700;
   width: 100%;
+  box-sizing: border-box;
+}
+
+/* Top row: ticket key (left) + status badge (right) */
+.jira-tag-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .jira-tag-key {
@@ -3696,6 +3734,7 @@ body {
   white-space: nowrap;
   flex-shrink: 0;
   transition: color 0.15s;
+  font-size: 0.8rem;
 }
 
 a.jira-tag-key:hover {
@@ -3704,16 +3743,16 @@ a.jira-tag-key:hover {
   text-underline-offset: 2px;
 }
 
+/* Summary on its own row — wraps freely without disrupting key/status alignment */
 .jira-summary {
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.77rem;
   font-weight: 400;
-  flex: 1 1 auto;
   white-space: normal;
   line-height: 1.4;
-  opacity: 0.9;
   word-break: break-word;
-  padding-right: 8px;
+  opacity: 0.85;
+  margin-top: 1px;
 }
 
 /* Status badge inside a jira-tag */
@@ -3721,13 +3760,12 @@ a.jira-tag-key:hover {
   display: inline-block;
   padding: 2px 7px;
   border-radius: 4px;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 /* Status colour variants */
@@ -3756,6 +3794,132 @@ a.jira-tag-key:hover {
   background: rgba(99, 102, 241, 0.2);
   color: #a5b4fc;
   text-decoration-color: #a5b4fc;
+}
+
+/* ===== CONFUSED HUMAN IDLE OVERLAY ===== */
+
+/* Full-screen backdrop — sits on top of enlarged card content */
+.confused-human-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 3rem;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  cursor: pointer;
+  animation: confusedFadeIn 0.4s ease forwards;
+}
+
+@keyframes confusedFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Wrapper that holds bubble + figure + hint */
+.confused-human-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  animation: confusedBounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes confusedBounceIn {
+  from { transform: translateY(60px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Speech bubble */
+.confused-bubble {
+  background: var(--bg-card, #1e2130);
+  border: 1.5px solid rgba(250, 204, 21, 0.6);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 20px;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(250,204,21,0.15);
+  margin-bottom: 6px;
+  animation: confusedPulse 2s ease-in-out infinite;
+}
+
+@keyframes confusedPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.03); }
+}
+
+/* Tiny triangle tail below the bubble */
+.confused-bubble-tail {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid rgba(250, 204, 21, 0.6);
+  margin-bottom: 2px;
+}
+
+/* SVG figure */
+.confused-figure {
+  width: 130px;
+  height: auto;
+  animation: confusedSway 2.2s ease-in-out infinite;
+  transform-origin: bottom center;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+}
+
+@keyframes confusedSway {
+  0%, 100% { transform: rotate(-3deg); }
+  50%       { transform: rotate(3deg); }
+}
+
+/* Floating question marks */
+.qmark { font-family: inherit; }
+
+.qmark1 {
+  animation: floatQ1 1.8s ease-in-out infinite;
+}
+.qmark2 {
+  animation: floatQ2 2.3s ease-in-out infinite;
+}
+.qmark3 {
+  animation: floatQ3 1.5s ease-in-out infinite;
+}
+
+@keyframes floatQ1 {
+  0%, 100% { transform: translateY(0px);  opacity: 1; }
+  50%       { transform: translateY(-6px); opacity: 0.7; }
+}
+@keyframes floatQ2 {
+  0%, 100% { transform: translateY(0px);  opacity: 0.85; }
+  50%       { transform: translateY(-5px); opacity: 0.5; }
+}
+@keyframes floatQ3 {
+  0%, 100% { transform: translateY(0px);  opacity: 0.7; }
+  50%       { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Dismiss hint */
+.confused-hint {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Light theme overrides */
+[data-theme="light"] .confused-bubble {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(250, 204, 21, 0.8);
+}
+[data-theme="light"] .confused-human-overlay {
+  background: rgba(15, 23, 42, 0.35);
 }
 
 /* ===== LIGHT THEME OVERRIDES ===== */
@@ -4070,14 +4234,14 @@ a.jira-tag-key:hover {
 
 .nudge-speech-bubble {
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 8px 12px;
+  border: 1.5px solid var(--border-hover);
+  color: #fff; /* Force bright text in dark mode */
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 10px 14px;
   border-radius: 20px; /* Rounder for thought bubble */
   white-space: nowrap;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   margin-bottom: 12px; /* Space for the thought dots */
   opacity: 0;
   position: relative;
@@ -4116,14 +4280,15 @@ a.jira-tag-key:hover {
 
 /* Light mode specific adjustment */
 [data-theme="light"] .nudge-speech-bubble {
-  background: #fff;
-  color: var(--accent-indigo);
-  border-color: rgba(99,102,241,0.3);
+  background: var(--accent-indigo);
+  color: #ffffff;
+  border: none;
+  box-shadow: var(--shadow-md), 0 4px 15px rgba(99,102,241,0.3);
 }
 [data-theme="light"] .nudge-speech-bubble::before,
 [data-theme="light"] .nudge-speech-bubble::after {
-  background: #fff;
-  border-color: rgba(99,102,241,0.3);
+  background: var(--accent-indigo);
+  border: none;
 }
 
 .bug-figure-wrapper {
