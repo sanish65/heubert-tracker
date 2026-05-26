@@ -85,25 +85,14 @@ export default function RetrospectivePage() {
             setShareUrl(`${window.location.origin}/retrospective/${savedId}`);
           }
           setView("board");
-          // start polling after state is set
-          if (pollRef.current) clearInterval(pollRef.current);
-          pollRef.current = setInterval(async () => {
-            try {
-              const r = await fetch(`/api/retro?sessionId=${savedId}`);
-              if (!r.ok) return;
-              const d = await r.json();
-              setSession(d.session);
-              setCards(d.cards || []);
-              setCardVotes(d.cardVotes || []);
-            } catch {}
-          }, 2500);
+          startPolling(savedId);
         } catch {
           localStorage.removeItem("heubert_retro_session_id");
         }
       };
       autoJoin();
     }
-  }, []);
+  }, [startPolling]);
 
   // ── Fetch board ──────────────────────────────────────────
   const fetchBoard = useCallback(async (sid) => {
