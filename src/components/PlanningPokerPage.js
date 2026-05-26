@@ -20,6 +20,7 @@ export default function PlanningPokerPage() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [participantName, setParticipantName] = useState("");
+  const [showMorePoints, setShowMorePoints] = useState(false);
   const pollRef = useRef(null);
   const [shareUrl, setShareUrl] = useState("");
 
@@ -49,6 +50,50 @@ export default function PlanningPokerPage() {
     return "";
   };
 
+  // ── Auto-restore session from localStorage ──────────────────
+  useEffect(() => {
+    const savedId = localStorage.getItem("heubert_poker_session_id");
+    const savedName = localStorage.getItem("heubert_collab_name");
+    
+    if (savedName) {
+      setParticipantName(savedName);
+      setJoinName(savedName);
+      setCreatorName(savedName);
+    }
+    
+    if (savedId) {
+      setJoinSessionId(savedId);
+      const autoJoin = async () => {
+        try {
+          const res = await fetch(`/api/poker?sessionId=${savedId}`);
+          if (!res.ok) {
+            localStorage.removeItem("heubert_poker_session_id");
+            return;
+          }
+          const data = await res.json();
+          setSession(data.session);
+          setVotes(data.votes || []);
+          
+          if (savedName) {
+            const isCreator = savedName === data.session.created_by;
+            if (isCreator) {
+              setIsHost(true);
+              setShareUrl(buildShareUrl(savedId));
+            }
+            const myExisting = (data.votes || []).find((v) => v.participant_name === savedName);
+            if (myExisting && myExisting.vote !== 'waiting') setMyVote(myExisting.vote);
+          }
+          
+          setView("host");
+          startPolling(savedId);
+        } catch {
+          localStorage.removeItem("heubert_poker_session_id");
+        }
+      };
+      autoJoin();
+    }
+  }, [startPolling]);
+
   // ── Create session (host) ─────────────────────────────
   const handleCreateSession = async () => {
     if (!sessionTitle.trim() || !creatorName.trim()) {
@@ -75,6 +120,8 @@ export default function PlanningPokerPage() {
       setParticipantName(creatorName.trim());
       const url = buildShareUrl(data.session.id);
       setShareUrl(url);
+      localStorage.setItem("heubert_poker_session_id", data.session.id);
+      localStorage.setItem("heubert_collab_name", creatorName.trim());
       setView("host");
       startPolling(data.session.id);
 
@@ -114,7 +161,9 @@ export default function PlanningPokerPage() {
       const myExisting = (data.votes || []).find(
         (v) => v.participant_name === joinName.trim()
       );
-      setMyVote(myExisting ? myExisting.vote : null);
+      setMyVote(myExisting && myExisting.vote !== 'waiting' ? myExisting.vote : null);
+      localStorage.setItem("heubert_poker_session_id", joinSessionId.trim());
+      localStorage.setItem("heubert_collab_name", joinName.trim());
       setView("host");
       startPolling(joinSessionId.trim());
 
@@ -271,11 +320,11 @@ export default function PlanningPokerPage() {
                   />
                 </div>
                 <div className="poker-form-group">
-                  <label>Story / Ticket Title</label>
+                  <label>Sprint</label>
                   <input
                     className="poker-input"
                     type="text"
-                    placeholder="e.g. Implement login page"
+                    placeholder="e.g. Sprint 24"
                     value={sessionTitle}
                     onChange={(e) => setSessionTitle(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCreateSession()}
@@ -342,7 +391,7 @@ export default function PlanningPokerPage() {
             <h4 className="poker-howto-title">How it works</h4>
             <div className="poker-howto-steps">
               {[
-                { icon: "1️⃣", text: "Host creates a session with the story title" },
+                { icon: "1️⃣", text: "Host creates a session with the sprint title" },
                 { icon: "2️⃣", text: "Share the generated link with participants" },
                 { icon: "3️⃣", text: "Everyone picks a Fibonacci story point card" },
                 { icon: "4️⃣", text: "Host reveals results — average shown instantly" },
@@ -372,9 +421,10 @@ export default function PlanningPokerPage() {
                   setVotes([]);
                   setMyVote(null);
                   setError("");
+                  localStorage.removeItem("heubert_poker_session_id");
                 }}
               >
-                ← Back
+                ← Exit Session
               </button>
               <div>
                 <h2 className="poker-session-title">{session.title}</h2>
@@ -413,7 +463,7 @@ export default function PlanningPokerPage() {
           <div className="poker-status-bar">
             <div className="poker-status-info">
               <span className="poker-vote-count">
-                🗳️ {votes.length} vote{votes.length !== 1 ? "s" : ""} cast
+                🗳️ {votes.filter(v => v.vote !== 'waiting').length} / {votes.length} voted
               </span>
               <span
                 className={`poker-reveal-badge ${
@@ -429,7 +479,7 @@ export default function PlanningPokerPage() {
                   <button
                     className="btn-poker-reveal"
                     onClick={handleReveal}
-                    disabled={votes.length === 0}
+                    disabled={votes.filter(v => v.vote !== 'waiting').length === 0}
                   >
                     📢 Publish Results
                   </button>
@@ -441,6 +491,23 @@ export default function PlanningPokerPage() {
               </div>
             )}
           </div>
+
+          {/* Active Participants Tracking (Before Reveal) */}
+          {!session.revealed && votes.length > 0 && (
+            <div className="poker-vote-breakdown poker-participants-tracking" style={{ marginBottom: 16 }}>
+              {votes.map((v) => {
+                const hasVoted = v.vote && v.vote !== 'waiting';
+                return (
+                  <div key={v.id} className={`poker-vote-chip ${hasVoted ? 'voted' : 'waiting'}`} style={{ opacity: hasVoted ? 1 : 0.65 }}>
+                    <span className="poker-vote-chip-name">{v.participant_name}</span>
+                    <span className="poker-vote-chip-val" style={{ fontSize: '0.8rem', color: hasVoted ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                      {hasVoted ? '✅ Ready' : <span className="pulse-opacity">🤔 Thinking...</span>}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Results Panel (when revealed) */}
           {session.revealed && (
@@ -479,7 +546,7 @@ export default function PlanningPokerPage() {
                   : "Pick your story point estimate"}
               </h3>
               <div className="poker-cards-grid">
-                {FIBONACCI.map((val) => (
+                {FIBONACCI.filter(val => showMorePoints || ![34, 55, 89].includes(val)).map((val) => (
                   <button
                     key={val}
                     className={`poker-card ${
@@ -495,6 +562,15 @@ export default function PlanningPokerPage() {
                     )}
                   </button>
                 ))}
+                {!showMorePoints && (
+                  <button
+                    className="poker-card"
+                    onClick={() => setShowMorePoints(true)}
+                  >
+                    <span className="poker-card-val">...</span>
+                    <span className="poker-card-sub">Others</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

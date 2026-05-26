@@ -2,11 +2,25 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const COLUMNS = [
-  { key: "went_well", label: "What Went Well?",   emoji: "🎉", color: "green"  },
-  { key: "improve",   label: "Needs Improvement", emoji: "🔧", color: "amber"  },
-  { key: "focus",     label: "Focus More On",      emoji: "🎯", color: "indigo" },
-];
+const RETRO_TEMPLATES = {
+  standard: [
+    { key: "went_well", label: "What Went Well?",   emoji: "🎉", color: "green"  },
+    { key: "improve",   label: "Needs Improvement", emoji: "🔧", color: "amber"  },
+    { key: "focus",     label: "Focus More On",      emoji: "🎯", color: "indigo" },
+  ],
+  sailboat: [
+    { key: "wind",    label: "Wind (Pushing us forward)", emoji: "⛵", color: "sky"    },
+    { key: "anchors", label: "Anchors (Holding us back)", emoji: "⚓", color: "slate"  },
+    { key: "rocks",   label: "Rocks (Risks ahead)",      emoji: "🪨", color: "rose"   },
+  ],
+  start_stop: [
+    { key: "start",    label: "Start Doing",    emoji: "🚀", color: "emerald" },
+    { key: "stop",     label: "Stop Doing",     emoji: "🛑", color: "crimson" },
+    { key: "continue", label: "Continue Doing", emoji: "🔄", color: "violet"  },
+  ]
+};
+
+const DEFAULT_COLUMNS = RETRO_TEMPLATES.standard;
 
 export default function RetrospectivePage() {
   const [view, setView]             = useState("home");   // home | board | actions
@@ -22,7 +36,8 @@ export default function RetrospectivePage() {
   const [isHost, setIsHost]   = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied]   = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("standard");
+  const [loading, setLoading]     = useState(false);
   const [error, setError]     = useState("");
 
   // compose
@@ -40,6 +55,54 @@ export default function RetrospectivePage() {
   const pollRef        = useRef(null);
   const composeRef     = useRef(null);
   const dropComposeRef = useRef(null);
+
+  // ── Auto-restore session from localStorage ──────────────────
+  useEffect(() => {
+    const savedId = localStorage.getItem("heubert_retro_session_id");
+    const savedName = localStorage.getItem("heubert_collab_name");
+    if (savedName) {
+      setParticipantName(savedName);
+      setJoinName(savedName);
+      setCreatorName(savedName);
+    }
+    if (savedId) {
+      setJoinSessionId(savedId);
+      const autoJoin = async () => {
+        try {
+          const res = await fetch(`/api/retro?sessionId=${savedId}`);
+          if (!res.ok) {
+            localStorage.removeItem("heubert_retro_session_id");
+            return;
+          }
+          const data = await res.json();
+          setSession(data.session);
+          setCards(data.cards || []);
+          setCardVotes(data.cardVotes || []);
+          const isCreator = savedName && savedName === data.session.created_by;
+          if (isCreator) {
+            setIsHost(true);
+            setShareUrl(`${window.location.origin}/retrospective/${savedId}`);
+          }
+          setView("board");
+          // start polling after state is set
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = setInterval(async () => {
+            try {
+              const r = await fetch(`/api/retro?sessionId=${savedId}`);
+              if (!r.ok) return;
+              const d = await r.json();
+              setSession(d.session);
+              setCards(d.cards || []);
+              setCardVotes(d.cardVotes || []);
+            } catch {}
+          }, 2500);
+        } catch {
+          localStorage.removeItem("heubert_retro_session_id");
+        }
+      };
+      autoJoin();
+    }
+  }, []);
 
   // ── Fetch board ──────────────────────────────────────────
   const fetchBoard = useCallback(async (sid) => {
@@ -73,13 +136,25 @@ export default function RetrospectivePage() {
     if (!sessionTitle.trim() || !creatorName.trim()) { setError("Please enter your name and a session title."); return; }
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/retro", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", title: sessionTitle.trim(), createdBy: creatorName.trim() }) });
+      const res = await fetch("/api/retro", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ 
+          action: "create", 
+          title: sessionTitle.trim(), 
+          createdBy: creatorName.trim(),
+          template: selectedTemplate
+        }) 
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSession(data.session); setCards([]); setCardVotes([]);
-      setParticipantName(creatorName.trim()); setIsHost(true);
+      setView("board"); setIsHost(true);
+      setParticipantName(creatorName.trim());
+      localStorage.setItem("heubert_retro_session_id", data.session.id);
+      localStorage.setItem("heubert_collab_name", creatorName.trim());
       setShareUrl(`${window.location.origin}/retrospective/${data.session.id}`);
-      setView("board"); startPolling(data.session.id);
+      startPolling(data.session.id);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -93,6 +168,8 @@ export default function RetrospectivePage() {
       if (!res.ok) throw new Error(data.error || "Session not found");
       setSession(data.session); setCards(data.cards || []); setCardVotes(data.cardVotes || []);
       setParticipantName(joinName.trim()); setIsHost(false);
+      localStorage.setItem("heubert_retro_session_id", data.session.id);
+      localStorage.setItem("heubert_collab_name", joinName.trim());
       setView("board"); startPolling(joinSessionId.trim());
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
@@ -102,12 +179,34 @@ export default function RetrospectivePage() {
   const handlePin = async (colKey, text, onDone) => {
     if (!text.trim() || !session) return;
     setPinning(true);
+    // Optimistic update — show card immediately
+    const tempCard = {
+      id: `temp_${Date.now()}`,
+      session_id: session.id,
+      column_type: colKey,
+      content: text.trim(),
+      author: participantName || "You",
+      created_at: new Date().toISOString(),
+    };
+    setCards(prev => [...prev, tempCard]);
+    onDone(); // clear compose immediately
     try {
-      await fetch("/api/retro", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add_card", sessionId: session.id, columnType: colKey, content: text.trim(), author: participantName }) });
+      const res = await fetch("/api/retro", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add_card", sessionId: session.id, columnType: colKey, content: text.trim(), author: participantName || "" }) });
+      const data = await res.json();
+      if (!res.ok) {
+        // Remove optimistic card and show error
+        setCards(prev => prev.filter(c => c.id !== tempCard.id));
+        setError(`Failed to pin card: ${data.error || res.statusText}`);
+        return;
+      }
+      // Replace temp card with real one from server
       await fetchBoard(session.id);
-      onDone();
-    } catch (_) {}
-    finally { setPinning(false); }
+    } catch (err) {
+      setCards(prev => prev.filter(c => c.id !== tempCard.id));
+      setError(`Network error: ${err.message}`);
+    } finally {
+      setPinning(false);
+    }
   };
 
   const handleDelete = async (cardId) => {
@@ -117,9 +216,9 @@ export default function RetrospectivePage() {
   // ── Vote ─────────────────────────────────────────────────
   const handleVoteCard = async (cardId) => {
     if (!participantName) return;
-    const hasVoted = cardVotes.some(v => v.card_id === cardId && v.participant_name === participantName);
+    const hasVoted = cardVotes.some(v => String(v.card_id) === String(cardId) && v.participant_name === participantName);
     if (hasVoted) {
-      setCardVotes(prev => prev.filter(v => !(v.card_id === cardId && v.participant_name === participantName)));
+      setCardVotes(prev => prev.filter(v => !(String(v.card_id) === String(cardId) && v.participant_name === participantName)));
     } else {
       setCardVotes(prev => [...prev, { card_id: cardId, participant_name: participantName }]);
     }
@@ -141,14 +240,26 @@ export default function RetrospectivePage() {
   };
 
   // ── Helpers ───────────────────────────────────────────────
-  const voteCountFor = (cardId) => cardVotes.filter(v => v.card_id === cardId).length;
-  const hasVotedFor  = (cardId) => cardVotes.some(v => v.card_id === cardId && v.participant_name === participantName);
-  const cardsFor = (colKey) => cards.filter(c => c.column_type === colKey).sort((a, b) => voteCountFor(b.id) - voteCountFor(a.id));
+  const currentColumns = (session?.template && RETRO_TEMPLATES[session.template]) 
+    || (selectedTemplate && RETRO_TEMPLATES[selectedTemplate])
+    || DEFAULT_COLUMNS;
+
+  const voteCountFor = (cardId) => cardVotes.filter(v => String(v.card_id) === String(cardId)).length;
+  const hasVotedFor  = (cardId) => cardVotes.some(v => String(v.card_id) === String(cardId) && v.participant_name === participantName);
+  const cardsFor = (colKey) => cards.filter(c => c.column_type === colKey).sort((a, b) => {
+    const diff = voteCountFor(b.id) - voteCountFor(a.id);
+    if (diff !== 0) return diff;
+    return String(a.id).localeCompare(String(b.id)); // Stable secondary sort
+  });
   const handleCopy = () => { navigator.clipboard.writeText(shareUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
   const isDragging = !!dragType;
 
   // ── All cards sorted by votes for Action Items view ───────
-  const allCardsSorted = [...cards].sort((a, b) => voteCountFor(b.id) - voteCountFor(a.id));
+  const allCardsSorted = [...cards].sort((a, b) => {
+    const diff = voteCountFor(b.id) - voteCountFor(a.id);
+    if (diff !== 0) return diff;
+    return String(a.id).localeCompare(String(b.id)); // Stable secondary sort
+  });
   const priorityTier = (cardId) => {
     const v = voteCountFor(cardId);
     if (v >= 3) return { label: "🔴 High Priority", cls: "action-tier-high" };
@@ -187,7 +298,32 @@ export default function RetrospectivePage() {
               <div className="retro-entry-card-header"><span className="retro-entry-icon">🚀</span><h3>Create Session</h3><p>Start a new retro board as the facilitator</p></div>
               <div className="poker-form">
                 <div className="poker-form-group"><label>Your Name</label><input className="poker-input" placeholder="e.g. Alice" value={creatorName} onChange={e => setCreatorName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleCreate()} /></div>
-                <div className="poker-form-group"><label>Sprint / Board Title</label><input className="poker-input" placeholder="e.g. Sprint 42 Retro" value={sessionTitle} onChange={e => setSessionTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && handleCreate()} /></div>
+                <div className="poker-form-group"><label>Sprint</label><input className="poker-input" placeholder="e.g. Sprint 42" value={sessionTitle} onChange={e => setSessionTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && handleCreate()} /></div>
+                
+                <div className="poker-form-group">
+                  <label>Board Flavour</label>
+                  <div className="poker-template-selector">
+                    <button 
+                      className={`poker-template-btn ${selectedTemplate === 'standard' ? 'active' : ''}`}
+                      onClick={() => setSelectedTemplate('standard')}
+                    >
+                      🎉 Standard
+                    </button>
+                    <button 
+                      className={`poker-template-btn ${selectedTemplate === 'sailboat' ? 'active' : ''}`}
+                      onClick={() => setSelectedTemplate('sailboat')}
+                    >
+                      ⛵ Sailboat
+                    </button>
+                    <button 
+                      className={`poker-template-btn ${selectedTemplate === 'start_stop' ? 'active' : ''}`}
+                      onClick={() => setSelectedTemplate('start_stop')}
+                    >
+                      🚀 Start/Stop
+                    </button>
+                  </div>
+                </div>
+
                 <button className="btn-poker-primary" onClick={handleCreate} disabled={loading}>{loading ? <span className="poker-spinner" /> : "🚀 Create Board"}</button>
               </div>
             </div>
@@ -202,7 +338,7 @@ export default function RetrospectivePage() {
           </div>
           {error && <div className="poker-error">{error}</div>}
           <div className="retro-preview">
-            {COLUMNS.map(col => (
+            {currentColumns.map(col => (
               <div key={col.key} className={`retro-preview-col retro-col-${col.color}`}>
                 <span className="retro-preview-emoji">{col.emoji}</span>
                 <span className="retro-preview-label">{col.label}</span>
@@ -218,7 +354,15 @@ export default function RetrospectivePage() {
           {/* Header */}
           <div className="retro-board-header">
             <div className="retro-board-meta">
-              <button className="poker-back-btn" onClick={() => { if (pollRef.current) clearInterval(pollRef.current); setView("home"); setSession(null); setCards([]); setCardVotes([]); setError(""); }}>← Back</button>
+              <button className="poker-back-btn" onClick={() => { 
+                if (pollRef.current) clearInterval(pollRef.current); 
+                setView("home"); 
+                setSession(null); 
+                setCards([]); 
+                setCardVotes([]); 
+                setError(""); 
+                localStorage.removeItem("heubert_retro_session_id");
+              }}>← Exit Board</button>
               <div>
                 <h2 className="retro-board-title">{session.title}</h2>
                 <span className="retro-board-badge">{isHost ? "🎯 Facilitator" : "👤 Participant"} · {cards.length} card{cards.length !== 1 ? "s" : ""}</span>
@@ -245,7 +389,7 @@ export default function RetrospectivePage() {
               {participantName ? <>Hi <strong>{participantName}</strong> — <span className="retro-drag-hint">↕ drag</span> a card to the matching column, or click to compose:</> : "Pick a card to add your thought:"}
             </p>
             <div className="retro-stacks">
-              {COLUMNS.map(col => (
+              {currentColumns.map(col => (
                 <button key={col.key}
                   draggable
                   onDragStart={e => handleDragStart(e, col.key)}
@@ -267,7 +411,7 @@ export default function RetrospectivePage() {
 
           {/* Global compose panel */}
           {activeCompose && (() => {
-            const col = COLUMNS.find(c => c.key === activeCompose);
+            const col = currentColumns.find(c => c.key === activeCompose);
             return (
               <div className="retro-compose-panel">
                 <div className={`retro-compose-card retro-compose-${col.color}`}>
@@ -289,7 +433,7 @@ export default function RetrospectivePage() {
 
           {/* Board columns */}
           <div className={`retro-columns${isDragging ? " retro-columns-dragging" : ""}`}>
-            {COLUMNS.map(col => {
+            {currentColumns.map(col => {
               const isOver   = dragOver === col.key;
               const isMatch  = dragType === col.key;
               const isReject = rejectedCol === col.key;
@@ -302,6 +446,10 @@ export default function RetrospectivePage() {
                   onDragLeave={handleDragLeave}
                   onDrop={e => handleDrop(e, col.key)}
                 >
+                  {/* Fallback if column not found in current template */}
+                  {!col && <div style={{display:'none'}} />}
+                  {col && (
+                    <>
                   <div className="retro-column-header">
                     <span className="retro-column-emoji">{col.emoji}</span>
                     <span className="retro-column-label">{col.label}</span>
@@ -351,6 +499,8 @@ export default function RetrospectivePage() {
                       );
                     })}
                   </div>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -372,7 +522,7 @@ export default function RetrospectivePage() {
             <div className="retro-actions-list">
               {allCardsSorted.map((card, idx) => {
                 const votes  = voteCountFor(card.id);
-                const col    = COLUMNS.find(c => c.key === card.column_type);
+                const col    = currentColumns.find(c => c.key === card.column_type) || currentColumns[0];
                 const tier   = priorityTier(card.id);
                 return (
                   <div key={card.id} className={`retro-action-item ${tier.cls}`}>

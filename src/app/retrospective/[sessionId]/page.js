@@ -4,11 +4,25 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 
-const COLUMNS = [
-  { key: "went_well", label: "What Went Well?",   emoji: "🎉", color: "green"  },
-  { key: "improve",   label: "Needs Improvement", emoji: "🔧", color: "amber"  },
-  { key: "focus",     label: "Focus More On",      emoji: "🎯", color: "indigo" },
-];
+const RETRO_TEMPLATES = {
+  standard: [
+    { key: "went_well", label: "What Went Well?",   emoji: "🎉", color: "green"  },
+    { key: "improve",   label: "Needs Improvement", emoji: "🔧", color: "amber"  },
+    { key: "focus",     label: "Focus More On",      emoji: "🎯", color: "indigo" },
+  ],
+  sailboat: [
+    { key: "wind",    label: "Wind (Pushing us forward)", emoji: "⛵", color: "sky"    },
+    { key: "anchors", label: "Anchors (Holding us back)", emoji: "⚓", color: "slate"  },
+    { key: "rocks",   label: "Rocks (Risks ahead)",      emoji: "🪨", color: "rose"   },
+  ],
+  start_stop: [
+    { key: "start",    label: "Start Doing",    emoji: "🚀", color: "emerald" },
+    { key: "stop",     label: "Stop Doing",     emoji: "🛑", color: "crimson" },
+    { key: "continue", label: "Continue Doing", emoji: "🔄", color: "violet"  },
+  ]
+};
+
+const DEFAULT_COLUMNS = RETRO_TEMPLATES.standard;
 
 export default function RetroSessionPage() {
   const { sessionId } = useParams();
@@ -94,20 +108,41 @@ export default function RetroSessionPage() {
   const handlePin = async (colKey, text, onDone) => {
     if (!text.trim() || !session) return;
     setPinning(true);
+    // Optimistic update — show card immediately
+    const tempCard = {
+      id: `temp_${Date.now()}`,
+      session_id: session.id,
+      column_type: colKey,
+      content: text.trim(),
+      author: participantName || "You",
+      created_at: new Date().toISOString(),
+    };
+    setCards(prev => [...prev, tempCard]);
+    onDone(); // clear compose immediately
     try {
-      await fetch("/api/retro", {
+      const res = await fetch("/api/retro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "add_card", sessionId,
-          columnType: colKey, content: text.trim(), author: participantName,
+          columnType: colKey, content: text.trim(), author: participantName || "",
         }),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        setCards(prev => prev.filter(c => c.id !== tempCard.id));
+        setError(`Failed to pin card: ${data.error || res.statusText}`);
+        return;
+      }
       await fetchBoard();
-      onDone();
-    } catch (_) {}
-    finally { setPinning(false); }
+    } catch (err) {
+      setCards(prev => prev.filter(c => c.id !== tempCard.id));
+      setError(`Network error: ${err.message}`);
+    } finally {
+      setPinning(false);
+    }
   };
+
 
   // ── Delete card ─────────────────────────────────────────
   const handleDelete = async (cardId) => {
@@ -119,12 +154,12 @@ export default function RetroSessionPage() {
   const handleVoteCard = async (cardId) => {
     if (!participantName) return;
     const hasVoted = cardVotes.some(
-      v => v.card_id === cardId && v.participant_name === participantName
+      v => String(v.card_id) === String(cardId) && v.participant_name === participantName
     );
     // Optimistic update
     if (hasVoted) {
       setCardVotes(prev =>
-        prev.filter(v => !(v.card_id === cardId && v.participant_name === participantName))
+        prev.filter(v => !(String(v.card_id) === String(cardId) && v.participant_name === participantName))
       );
     } else {
       setCardVotes(prev => [...prev, { card_id: cardId, participant_name: participantName }]);
@@ -175,14 +210,20 @@ export default function RetroSessionPage() {
   };
 
   // ── Helpers ─────────────────────────────────────────────
-  const voteCountFor = (cardId) => cardVotes.filter(v => v.card_id === cardId).length;
+  const currentColumns = (session?.template && RETRO_TEMPLATES[session.template]) || DEFAULT_COLUMNS;
+
+  const voteCountFor = (cardId) => cardVotes.filter(v => String(v.card_id) === String(cardId)).length;
   const hasVotedFor  = (cardId) =>
-    cardVotes.some(v => v.card_id === cardId && v.participant_name === participantName);
+    cardVotes.some(v => String(v.card_id) === String(cardId) && v.participant_name === participantName);
 
   const cardsFor = (colKey) =>
     cards
       .filter(c => c.column_type === colKey)
-      .sort((a, b) => voteCountFor(b.id) - voteCountFor(a.id));
+      .sort((a, b) => {
+        const diff = voteCountFor(b.id) - voteCountFor(a.id);
+        if (diff !== 0) return diff;
+        return String(a.id).localeCompare(String(b.id)); // Stable secondary sort
+      });
 
   const isDragging = !!dragType;
 
@@ -254,7 +295,7 @@ export default function RetroSessionPage() {
                 <span className="retro-drag-hint">↕ drag</span> a card onto the matching column, or click to compose:
               </p>
               <div className="retro-stacks">
-                {COLUMNS.map(col => (
+                {currentColumns.map(col => (
                   <button
                     key={col.key}
                     draggable
@@ -285,7 +326,7 @@ export default function RetroSessionPage() {
 
             {/* ── Global compose panel (click-to-open) ── */}
             {activeCompose && (() => {
-              const col = COLUMNS.find(c => c.key === activeCompose);
+              const col = currentColumns.find(c => c.key === activeCompose);
               return (
                 <div className="retro-compose-panel">
                   <div className={`retro-compose-card retro-compose-${col.color}`}>
@@ -320,7 +361,7 @@ export default function RetroSessionPage() {
 
             {/* ── Board columns with drop zones ── */}
             <div className={`retro-columns${isDragging ? " retro-columns-dragging" : ""}`}>
-              {COLUMNS.map(col => {
+              {currentColumns.map(col => {
                 const isOver   = dragOver === col.key;
                 const isMatch  = dragType === col.key;
                 const isReject = rejectedCol === col.key;
@@ -341,6 +382,9 @@ export default function RetroSessionPage() {
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, col.key)}
                   >
+                    {!col && <div style={{display:'none'}} />}
+                    {col && (
+                      <>
                     <div className="retro-column-header">
                       <span className="retro-column-emoji">{col.emoji}</span>
                       <span className="retro-column-label">{col.label}</span>
@@ -425,6 +469,8 @@ export default function RetroSessionPage() {
                         );
                       })}
                     </div>
+                      </>
+                    )}
                   </div>
                 );
               })}

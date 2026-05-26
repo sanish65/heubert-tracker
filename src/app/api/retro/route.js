@@ -19,6 +19,20 @@ export async function GET(request) {
     .from('retro_sessions').select('*').eq('id', sessionId).single();
   if (sErr || !session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
+  // Handle template fallback if column is missing or encoded in title
+  let activeTemplate = session.template;
+  if (!activeTemplate) {
+    const match = session.title.match(/\s\[(\w+)\]$/);
+    if (match) {
+      activeTemplate = match[1];
+      session.template = activeTemplate;
+      session.title = session.title.replace(match[0], '');
+    } else {
+      activeTemplate = 'standard';
+      session.template = activeTemplate;
+    }
+  }
+
   const { data: cards, error: cErr } = await supabase
     .from('retro_cards').select('*').eq('session_id', sessionId).order('created_at', { ascending: true });
   if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
@@ -26,27 +40,80 @@ export async function GET(request) {
   const { data: cardVotes } = await supabase
     .from('retro_card_votes').select('card_id, participant_name').eq('session_id', sessionId);
 
-  return NextResponse.json({ session, cards: cards || [], cardVotes: cardVotes || [] });
+  // Map DB column types back to the template keys if restricted by constraints
+  const TEMPLATES = {
+    standard: ['went_well', 'improve', 'focus'],
+    sailboat: ['wind', 'anchors', 'rocks'],
+    start_stop: ['start', 'stop', 'continue']
+  };
+  const DB_COLS = ['went_well', 'improve', 'focus'];
+  const sessionCols = TEMPLATES[activeTemplate] || TEMPLATES.standard;
+
+  const translatedCards = (cards || []).map(c => {
+    const idx = DB_COLS.indexOf(c.column_type);
+    if (idx >= 0) return { ...c, column_type: sessionCols[idx] };
+    return c;
+  });
+
+  return NextResponse.json({ session, cards: translatedCards, cardVotes: cardVotes || [] });
 }
 
 export async function POST(request) {
   const body = await request.json();
 
   if (body.action === 'create') {
-    const { title, createdBy } = body;
+    const { title, createdBy, template = 'standard' } = body;
     const { data, error } = await supabase
-      .from('retro_sessions').insert({ title, created_by: createdBy }).select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      .from('retro_sessions').insert({ title, created_by: createdBy, template }).select().single();
+    if (error) {
+      // Fallback if template column doesn't exist or is not in schema cache
+      if (error.message.includes('column "template" does not exist') || error.message.includes('Could not find the \'template\' column')) {
+        const encodedTitle = `${title} [${template}]`;
+        const { data: retryData, error: retryError } = await supabase
+          .from('retro_sessions').insert({ title: encodedTitle, created_by: createdBy }).select().single();
+        if (retryError) return NextResponse.json({ error: retryError.message }, { status: 500 });
+        
+        // Clean the title for the response
+        retryData.title = title;
+        retryData.template = template;
+        return NextResponse.json({ session: retryData });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     return NextResponse.json({ session: data });
   }
 
   if (body.action === 'add_card') {
     const { sessionId, columnType, content, author } = body;
+    
+    // Fallback: translate columnType to DB compatible one based on session template
+    const { data: session } = await supabase.from('retro_sessions').select('*').eq('id', sessionId).single();
+    let template = session?.template;
+    if (!template && session?.title) {
+        const match = session.title.match(/\s\[(\w+)\]$/);
+        if (match) template = match[1];
+    }
+    template = template || 'standard';
+
+    const TEMPLATES = {
+      standard: ['went_well', 'improve', 'focus'],
+      sailboat: ['wind', 'anchors', 'rocks'],
+      start_stop: ['start', 'stop', 'continue']
+    };
+    const DB_COLS = ['went_well', 'improve', 'focus'];
+    const sessionCols = TEMPLATES[template] || TEMPLATES.standard;
+    const colIdx = sessionCols.indexOf(columnType);
+    const dbColumnType = colIdx >= 0 ? DB_COLS[colIdx] : columnType;
+
     const { data, error } = await supabase
       .from('retro_cards')
-      .insert({ session_id: sessionId, column_type: columnType, content, author })
+      .insert({ session_id: sessionId, column_type: dbColumnType, content, author })
       .select().single();
+      
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    
+    // Map back for the immediate response
+    data.column_type = columnType;
     return NextResponse.json({ card: data });
   }
 

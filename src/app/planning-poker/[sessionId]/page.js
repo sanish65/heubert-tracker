@@ -16,6 +16,7 @@ export default function PokerSessionPage() {
   const [nameEntered, setNameEntered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showMorePoints, setShowMorePoints] = useState(false);
   const pollRef = useRef(null);
 
   // ── Poll for session updates ───────────────────────────
@@ -191,6 +192,28 @@ export default function PokerSessionPage() {
             </div>
           ) : (
             <>
+              {/* Active Participants Tracking (Before Reveal) */}
+              {!session.revealed && votes.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <div className="poker-vote-count" style={{ marginBottom: 12 }}>
+                    🗳️ {votes.filter(v => v.vote !== 'waiting').length} / {votes.length} voted
+                  </div>
+                  <div className="poker-vote-breakdown poker-participants-tracking">
+                    {votes.map((v) => {
+                      const hasVoted = v.vote && v.vote !== 'waiting';
+                      return (
+                        <div key={v.id} className={`poker-vote-chip ${hasVoted ? 'voted' : 'waiting'}`} style={{ opacity: hasVoted ? 1 : 0.65 }}>
+                          <span className="poker-vote-chip-name">{v.participant_name}</span>
+                          <span className="poker-vote-chip-val" style={{ fontSize: '0.8rem', color: hasVoted ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                            {hasVoted ? '✅ Ready' : <span className="pulse-opacity">🤔 Thinking...</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Revealed Results */}
               {session.revealed && (
                 <div className="poker-results-panel" style={{ marginBottom: 24 }}>
@@ -228,7 +251,7 @@ export default function PokerSessionPage() {
                       : "Pick your story point estimate"}
                   </h3>
                   <div className="poker-cards-grid">
-                    {FIBONACCI.map((val) => (
+                    {FIBONACCI.filter(val => showMorePoints || ![34, 55, 89].includes(val)).map((val) => (
                       <button
                         key={val}
                         className={`poker-card ${
@@ -244,6 +267,15 @@ export default function PokerSessionPage() {
                         )}
                       </button>
                     ))}
+                    {!showMorePoints && (
+                      <button
+                        className="poker-card"
+                        onClick={() => setShowMorePoints(true)}
+                      >
+                        <span className="poker-card-val">...</span>
+                        <span className="poker-card-sub">Others</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
