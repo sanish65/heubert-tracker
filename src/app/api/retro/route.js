@@ -49,13 +49,22 @@ export async function GET(request) {
   const DB_COLS = ['went_well', 'improve', 'focus'];
   const sessionCols = TEMPLATES[activeTemplate] || TEMPLATES.standard;
 
-  const translatedCards = (cards || []).map(c => {
-    const idx = DB_COLS.indexOf(c.column_type);
-    if (idx >= 0) return { ...c, column_type: sessionCols[idx] };
-    return c;
+  const activity = [];
+  const actualCards = [];
+  
+  (cards || []).forEach(c => {
+    if (c.content === '__THINKING__') {
+      const idx = DB_COLS.indexOf(c.column_type);
+      const uiCol = idx >= 0 ? sessionCols[idx] : c.column_type;
+      activity.push({ ...c, column_type: uiCol, participant_name: c.author.replace('TYPING:', '') });
+    } else {
+      const idx = DB_COLS.indexOf(c.column_type);
+      const uiCol = idx >= 0 ? sessionCols[idx] : c.column_type;
+      actualCards.push({ ...c, column_type: uiCol });
+    }
   });
 
-  return NextResponse.json({ session, cards: translatedCards, cardVotes: cardVotes || [] });
+  return NextResponse.json({ session, cards: actualCards, cardVotes: cardVotes || [], activity });
 }
 
 export async function POST(request) {
@@ -137,6 +146,42 @@ export async function POST(request) {
       .eq('card_id', cardId)
       .eq('participant_name', participantName);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === 'sync_activity') {
+    const { sessionId, participantName, columnType, isTyping } = body;
+    if (!isTyping) {
+      await supabase.from('retro_cards').delete()
+        .eq('session_id', sessionId)
+        .eq('author', `TYPING:${participantName}`);
+    } else {
+      // Map columnType to DB type
+      const { data: session } = await supabase.from('retro_sessions').select('*').eq('id', sessionId).single();
+      let template = session?.template || 'standard';
+      if (!session?.template && session?.title) {
+        const match = session.title.match(/\s\[(\w+)\]$/);
+        if (match) template = match[1];
+      }
+      const TEMPLATES = { standard: ['went_well', 'improve', 'focus'], sailboat: ['wind', 'anchors', 'rocks'], start_stop: ['start', 'stop', 'continue'] };
+      const DB_COLS = ['went_well', 'improve', 'focus'];
+      const sessionCols = TEMPLATES[template] || TEMPLATES.standard;
+      const colIdx = sessionCols.indexOf(columnType);
+      const dbColumnType = colIdx >= 0 ? DB_COLS[colIdx] : columnType;
+
+      // Clean up previous activity from this user
+      await supabase.from('retro_cards').delete()
+        .eq('session_id', sessionId)
+        .eq('author', `TYPING:${participantName}`);
+
+      // Insert new activity
+      await supabase.from('retro_cards').insert({
+        session_id: sessionId,
+        column_type: dbColumnType,
+        content: '__THINKING__',
+        author: `TYPING:${participantName}`
+      });
+    }
     return NextResponse.json({ ok: true });
   }
 

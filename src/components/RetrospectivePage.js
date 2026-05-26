@@ -28,6 +28,7 @@ export default function RetrospectivePage() {
   const [session, setSession]       = useState(null);
   const [cards, setCards]           = useState([]);
   const [cardVotes, setCardVotes]   = useState([]);
+  const [activity, setActivity]     = useState([]); // [{participant_name, column_type}]
   const [participantName, setParticipantName] = useState("");
   const [creatorName, setCreatorName]   = useState("");
   const [sessionTitle, setSessionTitle] = useState("");
@@ -113,6 +114,7 @@ export default function RetrospectivePage() {
       setSession(data.session);
       setCards(data.cards || []);
       setCardVotes(data.cardVotes || []);
+      setActivity(data.activity || []);
     } catch (_) {}
   }, []);
 
@@ -130,6 +132,46 @@ export default function RetrospectivePage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // ── Sync typing status ────────────────────────────────────
+  useEffect(() => {
+    if (!session || !participantName || view !== "board") return;
+    const isTyping = !!(activeCompose || dropCol);
+    const columnType = activeCompose || dropCol;
+    
+    const sync = async () => {
+      try {
+        await fetch("/api/retro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync_activity",
+            sessionId: session.id,
+            participantName,
+            columnType,
+            isTyping
+          })
+        });
+      } catch (_) {}
+    };
+
+    sync();
+    // Cleanup on unmount or state change
+    return () => {
+      if (isTyping) {
+        fetch("/api/retro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync_activity",
+            sessionId: session.id,
+            participantName,
+            isTyping: false
+          })
+        });
+      }
+    };
+  }, [activeCompose, dropCol, session, participantName, view]);
 
   // ── Create / Join ────────────────────────────────────────
   const handleCreate = async () => {
@@ -254,12 +296,14 @@ export default function RetrospectivePage() {
   const handleCopy = () => { navigator.clipboard.writeText(shareUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
   const isDragging = !!dragType;
 
-  // ── All cards sorted by votes for Action Items view ───────
-  const allCardsSorted = [...cards].sort((a, b) => {
-    const diff = voteCountFor(b.id) - voteCountFor(a.id);
-    if (diff !== 0) return diff;
-    return String(a.id).localeCompare(String(b.id)); // Stable secondary sort
-  });
+  // ── All cards with votes sorted for Action Items view ────
+  const allCardsSorted = cards
+    .filter(c => voteCountFor(c.id) > 0)
+    .sort((a, b) => {
+      const diff = voteCountFor(b.id) - voteCountFor(a.id);
+      if (diff !== 0) return diff;
+      return String(a.id).localeCompare(String(b.id)); // Stable secondary sort
+    });
   const priorityTier = (cardId) => {
     const v = voteCountFor(cardId);
     if (v >= 3) return { label: "🔴 High Priority", cls: "action-tier-high" };
@@ -274,7 +318,7 @@ export default function RetrospectivePage() {
         {isEnlarged && <span className="retro-topbar-title">🗂️ Retrospective</span>}
         {view === "board" && (
           <button className="retro-action-items-btn" onClick={() => setView("actions")}>
-            📋 Action Items {allCardsSorted.length > 0 && <span className="retro-ai-badge">{allCardsSorted.filter(c => voteCountFor(c.id) > 0).length}</span>}
+            📋 Action Items {allCardsSorted.length > 0 && <span className="retro-ai-badge">{allCardsSorted.length}</span>}
           </button>
         )}
         {view === "actions" && (
@@ -472,7 +516,18 @@ export default function RetrospectivePage() {
                         </div>
                       </div>
                     )}
-                    {colCards.length === 0 && !hasDrop && (
+
+                    {/* Activity indicators (Others thinking) */}
+                    {activity.filter(a => a.column_type === col.key && a.participant_name !== participantName).map((a) => (
+                      <div key={`typing-${a.participant_name}`} className="retro-typing-indicator">
+                        <div className="typing-dots">
+                          <span></span><span></span><span></span>
+                        </div>
+                        <span className="typing-text">{a.participant_name} is thinking...</span>
+                      </div>
+                    ))}
+
+                    {colCards.length === 0 && !hasDrop && activity.filter(a => a.column_type === col.key).length === 0 && (
                       <div className={`retro-column-empty${isDragging && isMatch ? " retro-column-empty-glow" : ""}`}>
                         {isDragging && isMatch ? "Drop here ↓" : `No cards yet — pick a ${col.emoji} card above!`}
                       </div>
@@ -517,7 +572,7 @@ export default function RetrospectivePage() {
           </div>
 
           {allCardsSorted.length === 0 ? (
-            <div className="retro-actions-empty">No cards have been added yet.</div>
+            <div className="retro-actions-empty">No voted cards yet — top-voted cards will appear here as action items.</div>
           ) : (
             <div className="retro-actions-list">
               {allCardsSorted.map((card, idx) => {

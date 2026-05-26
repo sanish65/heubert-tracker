@@ -32,6 +32,7 @@ export default function RetroSessionPage() {
   const [session, setSession]       = useState(null);
   const [cards, setCards]           = useState([]);
   const [cardVotes, setCardVotes]   = useState([]); // [{card_id, participant_name}]
+  const [activity, setActivity]     = useState([]); // [{participant_name, column_type}]
   const [participantName, setParticipantName] = useState("");
   const [nameEntered, setNameEntered] = useState(false);
   const [loading, setLoading]       = useState(true);
@@ -62,6 +63,7 @@ export default function RetroSessionPage() {
       setSession(data.session);
       setCards(data.cards || []);
       setCardVotes(data.cardVotes || []);
+      setActivity(data.activity || []);
     } catch { setError("Unable to reach server."); }
     finally { setLoading(false); }
   }, [sessionId]);
@@ -103,6 +105,45 @@ export default function RetroSessionPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // ── Sync typing status ────────────────────────────────────
+  useEffect(() => {
+    if (!session || !participantName || !nameEntered) return;
+    const isTyping = !!(activeCompose || dropCol);
+    const columnType = activeCompose || dropCol;
+    
+    const sync = async () => {
+      try {
+        await fetch("/api/retro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync_activity",
+            sessionId: session.id,
+            participantName,
+            columnType,
+            isTyping
+          })
+        });
+      } catch (_) {}
+    };
+
+    sync();
+    return () => {
+      if (isTyping) {
+        fetch("/api/retro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync_activity",
+            sessionId: session.id,
+            participantName,
+            isTyping: false
+          })
+        });
+      }
+    };
+  }, [activeCompose, dropCol, session, participantName, nameEntered]);
 
   // ── Pin card ────────────────────────────────────────────
   const handlePin = async (colKey, text, onDone) => {
@@ -425,8 +466,18 @@ export default function RetroSessionPage() {
                         </div>
                       )}
 
+                      {/* Activity indicators (Others thinking) */}
+                      {activity.filter(a => a.column_type === col.key && a.participant_name !== participantName).map((a) => (
+                        <div key={`typing-${a.participant_name}`} className="retro-typing-indicator">
+                          <div className="typing-dots">
+                            <span></span><span></span><span></span>
+                          </div>
+                          <span className="typing-text">{a.participant_name} is thinking...</span>
+                        </div>
+                      ))}
+
                       {/* Empty state */}
-                      {colCards.length === 0 && !hasDrop && (
+                      {colCards.length === 0 && !hasDrop && activity.filter(a => a.column_type === col.key).length === 0 && (
                         <div className={`retro-column-empty${isDragging && isMatch ? " retro-column-empty-glow" : ""}`}>
                           {isDragging && isMatch ? `Drop here ↓` : "No cards yet!"}
                         </div>
