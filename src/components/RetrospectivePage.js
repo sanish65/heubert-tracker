@@ -57,6 +57,24 @@ export default function RetrospectivePage() {
   const composeRef     = useRef(null);
   const dropComposeRef = useRef(null);
 
+  // ── Fetch board ──────────────────────────────────────────
+  const fetchBoard = useCallback(async (sid) => {
+    try {
+      const res = await fetch(`/api/retro?sessionId=${sid}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setSession(data.session);
+      setCards(data.cards || []);
+      setCardVotes(data.cardVotes || []);
+      setActivity(data.activity || []);
+    } catch (_) {}
+  }, []);
+
+  const startPolling = useCallback((sid) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => fetchBoard(sid), 2500);
+  }, [fetchBoard]);
+
   // ── Auto-restore session from localStorage ──────────────────
   useEffect(() => {
     const savedId = localStorage.getItem("heubert_retro_session_id");
@@ -94,25 +112,8 @@ export default function RetrospectivePage() {
     }
   }, [startPolling]);
 
-  // ── Fetch board ──────────────────────────────────────────
-  const fetchBoard = useCallback(async (sid) => {
-    try {
-      const res = await fetch(`/api/retro?sessionId=${sid}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setSession(data.session);
-      setCards(data.cards || []);
-      setCardVotes(data.cardVotes || []);
-      setActivity(data.activity || []);
-    } catch (_) {}
-  }, []);
-
-  const startPolling = useCallback((sid) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => fetchBoard(sid), 2500);
-  }, [fetchBoard]);
-
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
   useEffect(() => { document.body.style.overflow = isEnlarged ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [isEnlarged]);
   useEffect(() => { if (activeCompose && composeRef.current) composeRef.current.focus(); }, [activeCompose]);
   useEffect(() => { if (dropCol && dropComposeRef.current) dropComposeRef.current.focus(); }, [dropCol]);
