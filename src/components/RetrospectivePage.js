@@ -241,6 +241,19 @@ export default function RetrospectivePage() {
     }
   };
 
+  const handleEndSession = async () => {
+    if (!session || !isHost) return;
+    if (!confirm("Are you sure you want to end this session? This will lock the board for everyone.")) return;
+    try {
+      await fetch("/api/retro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "end_session", sessionId: session.id })
+      });
+      await fetchBoard(session.id);
+    } catch (_) {}
+  };
+
   const handleDelete = async (cardId) => {
     try { await fetch(`/api/retro?cardId=${cardId}`, { method: "DELETE" }); setCards(prev => prev.filter(c => c.id !== cardId)); } catch (_) {}
   };
@@ -403,19 +416,41 @@ export default function RetrospectivePage() {
               </div>
             </div>
             {isHost && shareUrl && (
-              <div className="poker-share-box">
-                <span className="poker-share-label">🔗 Shareable Link</span>
-                <div className="poker-share-row">
-                  <input className="poker-share-input" readOnly value={shareUrl} />
-                  <button className={`poker-copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>{copied ? "✅ Copied!" : "📋 Copy"}</button>
+              <div className="retro-header-actions">
+                <div className="poker-share-box">
+                  <span className="poker-share-label">🔗 Shareable Link</span>
+                  <div className="poker-share-row">
+                    <input className="poker-share-input" readOnly value={shareUrl} />
+                    <button className={`poker-copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>{copied ? "✅ Copied!" : "📋 Copy"}</button>
+                  </div>
+                  <div className="poker-session-id-row">
+                    <span className="poker-session-id-label">Session ID:</span>
+                    <code className="poker-session-id">{session.id}</code>
+                  </div>
                 </div>
-                <div className="poker-session-id-row">
-                  <span className="poker-session-id-label">Session ID:</span>
-                  <code className="poker-session-id">{session.id}</code>
-                </div>
+                {!session.is_ended && (
+                  <button className="retro-end-session-btn" onClick={handleEndSession}>
+                    🏁 End Session
+                  </button>
+                )}
               </div>
             )}
           </div>
+
+          {/* Session Ended Overlay */}
+          {session.is_ended && (
+            <div className="retro-ended-overlay">
+              <div className="retro-ended-message">
+                <span className="retro-ended-icon">🏁</span>
+                <h2>This Retrospective has ended</h2>
+                <p>The facilitator has concluded this session. Thank you for your contributions!</p>
+                <p className="retro-ended-sub">Please wait for the next sprint's session to begin.</p>
+                <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
+                  Back to Hub
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Card Stacks — draggable */}
           <div className="retro-stack-tray">

@@ -35,6 +35,7 @@ export default function RetroSessionPage() {
   const [activity, setActivity]     = useState([]); // [{participant_name, column_type}]
   const [participantName, setParticipantName] = useState("");
   const [nameEntered, setNameEntered] = useState(false);
+  const [isHost, setIsHost]           = useState(false);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
 
@@ -64,9 +65,13 @@ export default function RetroSessionPage() {
       setCards(data.cards || []);
       setCardVotes(data.cardVotes || []);
       setActivity(data.activity || []);
+
+      if (participantName && data.session?.created_by === participantName) {
+        setIsHost(true);
+      }
     } catch { setError("Unable to reach server."); }
     finally { setLoading(false); }
-  }, [sessionId]);
+  }, [sessionId, participantName]);
 
   useEffect(() => {
     fetchBoard();
@@ -296,7 +301,28 @@ export default function RetroSessionPage() {
       </header>
 
       <main className="retro-standalone-main">
-        <h2 className="retro-standalone-title">{session.title}</h2>
+        <div className="retro-standalone-header-row">
+          <h2 className="retro-standalone-title">{session.title}</h2>
+          {isHost && !session.is_ended && (
+            <button className="retro-end-session-btn" onClick={handleEndSession}>
+              🏁 End Session
+            </button>
+          )}
+        </div>
+
+        {session.is_ended && (
+           <div className="retro-ended-overlay">
+             <div className="retro-ended-message">
+               <span className="retro-ended-icon">🏁</span>
+               <h2>This Retrospective has ended</h2>
+               <p>The facilitator has concluded this session. Thank you for your contributions!</p>
+               <p className="retro-ended-sub">Please wait for the next sprint's session to begin.</p>
+               <button className="btn-poker-primary" onClick={() => { window.location.href = "/"; }}>
+                 Exit to Home
+               </button>
+             </div>
+           </div>
+        )}
 
         {!nameEntered ? (
           <div className="retro-standalone-name">

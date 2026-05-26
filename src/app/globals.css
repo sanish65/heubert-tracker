@@ -5103,3 +5103,90 @@ a.jira-tag-key:hover {
   color: var(--text-secondary);
   font-style: italic;
 }
+
+.retro-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.retro-end-session-btn {
+  background: var(--bg-glass);
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.retro-end-session-btn:hover {
+  background: var(--accent-red);
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.retro-ended-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.4s ease-out;
+  border-radius: var(--radius-lg);
+}
+
+.retro-ended-message {
+  background: var(--card-bg);
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  max-width: 500px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.retro-ended-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.retro-ended-message h2 {
+  font-size: 2rem;
+  margin-bottom: 15px;
+  color: var(--text-primary);
+}
+
+.retro-ended-message p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+
+.retro-ended-sub {
+  font-style: italic;
+  font-size: 0.9rem !important;
+  margin-bottom: 30px !important;
+}
+
+.retro-standalone-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.retro-board-view, .retro-standalone-main {
+  position: relative;
+}

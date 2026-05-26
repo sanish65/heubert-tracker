@@ -52,8 +52,11 @@ export async function GET(request) {
   const activity = [];
   const actualCards = [];
   
+  let isEnded = false;
   (cards || []).forEach(c => {
-    if (c.content === '__THINKING__') {
+    if (c.content === '__SESSION_ENDED__') {
+      isEnded = true;
+    } else if (c.content === '__THINKING__') {
       const idx = DB_COLS.indexOf(c.column_type);
       const uiCol = idx >= 0 ? sessionCols[idx] : c.column_type;
       activity.push({ ...c, column_type: uiCol, participant_name: c.author.replace('TYPING:', '') });
@@ -64,7 +67,12 @@ export async function GET(request) {
     }
   });
 
-  return NextResponse.json({ session, cards: actualCards, cardVotes: cardVotes || [], activity });
+  return NextResponse.json({ 
+    session: { ...session, is_ended: isEnded }, 
+    cards: actualCards, 
+    cardVotes: cardVotes || [], 
+    activity 
+  });
 }
 
 export async function POST(request) {
@@ -182,6 +190,19 @@ export async function POST(request) {
         author: `TYPING:${participantName}`
       });
     }
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === 'end_session') {
+    const { sessionId } = body;
+    // Insert a system card to signal end of session
+    const { error } = await supabase.from('retro_cards').insert({
+      session_id: sessionId,
+      column_type: 'went_well',
+      content: '__SESSION_ENDED__',
+      author: 'SYSTEM'
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
 
