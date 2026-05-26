@@ -16,6 +16,7 @@ export default function PokerSessionPage() {
   const [nameEntered, setNameEntered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isHost, setIsHost] = useState(false);
   const [showMorePoints, setShowMorePoints] = useState(false);
   const pollRef = useRef(null);
 
@@ -31,12 +32,16 @@ export default function PokerSessionPage() {
       const data = await res.json();
       setSession(data.session);
       setVotes(data.votes || []);
+      
+      if (participantName && data.session?.created_by === participantName) {
+        setIsHost(true);
+      }
     } catch {
       setError("Unable to reach the server.");
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, participantName]);
 
   useEffect(() => {
     fetchSession();
@@ -165,8 +170,33 @@ export default function PokerSessionPage() {
 
       <main className="poker-standalone-main">
         <div className="poker-standalone-card">
-          <h2 className="poker-standalone-story">{session.title}</h2>
+          <div className="poker-standalone-header-row">
+            <h2 className="poker-standalone-story">{session.title}</h2>
+            {isHost && !session.is_ended && (
+              <button className="retro-end-session-btn" onClick={async () => {
+                if (!confirm("End this session for everyone?")) return;
+                await fetch("/api/poker", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end", sessionId: session.id }) });
+                fetchSession();
+              }}>
+                🏁 End Session
+              </button>
+            )}
+          </div>
           <p className="poker-standalone-story-sub">Story / Ticket being estimated</p>
+
+          {session.is_ended && (
+             <div className="retro-ended-overlay">
+               <div className="retro-ended-message">
+                 <span className="retro-ended-icon">🏁</span>
+                 <h2>This Poker Session has ended</h2>
+                 <p>The host has concluded this session. Thank you for voting!</p>
+                 <p className="retro-ended-sub">Please wait for the next sprint's session to begin.</p>
+                 <button className="btn-poker-primary" onClick={() => { window.location.href = "/"; }}>
+                   Exit to Home
+                 </button>
+               </div>
+             </div>
+          )}
 
           {/* Name Entry */}
           {!nameEntered ? (

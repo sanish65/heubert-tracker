@@ -21,6 +21,7 @@ export default function PlanningPokerPage() {
   const [copied, setCopied] = useState(false);
   const [participantName, setParticipantName] = useState("");
   const [showMorePoints, setShowMorePoints] = useState(false);
+  const [recentSessions, setRecentSessions] = useState([]);
   const pollRef = useRef(null);
   const [shareUrl, setShareUrl] = useState("");
 
@@ -42,6 +43,15 @@ export default function PlanningPokerPage() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (view === "home") {
+      fetch("/api/poker")
+        .then(res => res.json())
+        .then(data => { if (data.sessions) setRecentSessions(data.sessions); })
+        .catch(() => {});
+    }
+  }, [view]);
 
   const buildShareUrl = (sid) => {
     if (typeof window !== "undefined") {
@@ -237,6 +247,24 @@ export default function PlanningPokerPage() {
     } catch (_) {}
   };
 
+  const handleEndSession = async () => {
+    if (!session || !isHost) return;
+    if (!confirm("Are you sure you want to end this session? This will lock the board for everyone.")) return;
+    try {
+      await fetch("/api/poker", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "end", sessionId: session.id }),
+      });
+      // Trigger update
+      const res = await fetch(`/api/poker?sessionId=${session.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSession(data.session);
+      }
+    } catch (_) {}
+  };
+
   // ── Copy share link ────────────────────────────────────
   const handleCopy = () => {
     if (!shareUrl) return;
@@ -386,6 +414,62 @@ export default function PlanningPokerPage() {
 
           {error && <div className="poker-error">{error}</div>}
 
+          {recentSessions.length > 0 && (() => {
+            const active = recentSessions.filter(s => !s.is_ended);
+            const ended  = recentSessions.filter(s => s.is_ended);
+            
+            const renderCard = (s) => (
+              <button key={s.id} className={`retro-recent-card ${s.is_ended ? 'retro-recent-card-ended' : ''}`} onClick={() => {
+                setJoinSessionId(s.id);
+                setJoinName(participantName || "");
+                if (participantName) {
+                    setLoading(true);
+                    fetch(`/api/poker?sessionId=${s.id}`)
+                      .then(res => res.json())
+                      .then(data => {
+                        if (data.error) throw new Error(data.error);
+                        setSession(data.session);
+                        setVotes(data.votes || []);
+                        setParticipantName(participantName);
+                        localStorage.setItem("heubert_poker_session_id", data.session.id);
+                        localStorage.setItem("heubert_collab_name", participantName);
+                        setView("host"); // For poker, host/join view is same-ish logic here
+                        startPolling(s.id);
+                      })
+                      .catch(e => setError(e.message))
+                      .finally(() => setLoading(false));
+                } else {
+                  document.querySelector('.retro-entry-card-join').scrollIntoView({ behavior: 'smooth' });
+                }
+              }}>
+                <div className="retro-recent-card-top">
+                  <span className="retro-recent-emoji">🗳️</span>
+                  <div className="retro-recent-meta">
+                    <h4>{s.title} {s.is_ended && <span className="retro-ended-tag">Ended</span>}</h4>
+                    <span>By {s.created_by} · {new Date(s.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </button>
+            );
+
+            return (
+              <div className="retro-recent-sessions">
+                {active.length > 0 && (
+                  <div className="retro-recent-section">
+                    <h3 className="retro-recent-title">🌐 Active Sessions</h3>
+                    <div className="retro-recent-grid">{active.map(renderCard)}</div>
+                  </div>
+                )}
+                {ended.length > 0 && (
+                  <div className="retro-recent-section" style={{ marginTop: '40px' }}>
+                    <h3 className="retro-recent-title">🏁 Completed Sessions</h3>
+                    <div className="retro-recent-grid">{ended.map(renderCard)}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* How it works */}
           <div className="poker-howto">
             <h4 className="poker-howto-title">How it works</h4>
@@ -455,9 +539,29 @@ export default function PlanningPokerPage() {
                   <span className="poker-session-id-label">Session ID:</span>
                   <code className="poker-session-id">{session.id}</code>
                 </div>
+                {!session.is_ended && (
+                  <button className="retro-end-session-btn" style={{marginTop: '10px'}} onClick={handleEndSession}>
+                    🏁 End Session
+                  </button>
+                )}
               </div>
             )}
           </div>
+
+          {/* Session Ended Overlay */}
+          {session.is_ended && (
+            <div className="retro-ended-overlay">
+              <div className="retro-ended-message">
+                <span className="retro-ended-icon">🏁</span>
+                <h2>This Poker Session has ended</h2>
+                <p>The host has concluded this session. Thank you for voting!</p>
+                <p className="retro-ended-sub">Please wait for the next sprint's session to begin.</p>
+                <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
+                  Back to Hub
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Status Bar */}
           <div className="poker-status-bar">

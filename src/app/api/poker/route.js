@@ -15,7 +15,27 @@ export async function GET(request) {
   const sessionId = searchParams.get('sessionId');
 
   if (!sessionId) {
-    return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
+    const { data: sessions, error: listErr } = await supabase
+      .from('poker_sessions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    
+    if (listErr) return NextResponse.json({ error: listErr.message }, { status: 500 });
+    
+    // Check which are ended
+    const sids = sessions.map(s => s.id);
+    const { data: endedSignals } = await supabase
+      .from('poker_votes')
+      .select('session_id')
+      .eq('participant_name', '__SYSTEM__')
+      .eq('vote', '__SESSION_ENDED__')
+      .in('session_id', sids);
+    
+    const endedSids = new Set(endedSignals?.map(es => es.session_id) || []);
+    const cleaned = sessions.map(s => ({ ...s, is_ended: endedSids.has(s.id) }));
+
+    return NextResponse.json({ sessions: cleaned });
   }
 
   const { data: session, error: sErr } = await supabase
@@ -32,12 +52,14 @@ export async function GET(request) {
     .from('poker_votes')
     .select('*')
     .eq('session_id', sessionId);
+  
+  const isEnded = votes?.some(v => v.participant_name === '__SYSTEM__' && v.vote === '__SESSION_ENDED__');
+  const actualVotes = votes?.filter(v => v.participant_name !== '__SYSTEM__') || [];
 
-  if (vErr) {
-    return NextResponse.json({ error: vErr.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ session, votes: votes || [] });
+  return NextResponse.json({ 
+    session: { ...session, is_ended: isEnded }, 
+    votes: actualVotes 
+  });
 }
 
 export async function POST(request) {
@@ -121,6 +143,15 @@ export async function PATCH(request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ session: data });
+  }
+
+  if (action === 'end') {
+    const { error } = await supabase
+      .from('poker_votes')
+      .insert({ session_id: sessionId, participant_name: '__SYSTEM__', vote: '__SESSION_ENDED__' });
+    
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

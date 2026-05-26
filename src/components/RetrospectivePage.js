@@ -39,7 +39,8 @@ export default function RetrospectivePage() {
   const [copied, setCopied]   = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("standard");
   const [loading, setLoading]     = useState(false);
-  const [error, setError]     = useState("");
+  const [error, setError]         = useState("");
+  const [recentSessions, setRecentSessions] = useState([]);
 
   // compose
   const [activeCompose, setActiveCompose] = useState(null);
@@ -113,6 +114,15 @@ export default function RetrospectivePage() {
   }, [startPolling]);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  useEffect(() => {
+    if (view === "home") {
+      fetch("/api/retro")
+        .then(res => res.json())
+        .then(data => { if (data.sessions) setRecentSessions(data.sessions); })
+        .catch(() => {});
+    }
+  }, [view]);
 
   useEffect(() => { document.body.style.overflow = isEnlarged ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [isEnlarged]);
   useEffect(() => { if (activeCompose && composeRef.current) composeRef.current.focus(); }, [activeCompose]);
@@ -384,6 +394,64 @@ export default function RetrospectivePage() {
             </div>
           </div>
           {error && <div className="poker-error">{error}</div>}
+
+          {recentSessions.length > 0 && (() => {
+            const active = recentSessions.filter(s => !s.is_ended);
+            const ended  = recentSessions.filter(s => s.is_ended);
+            
+            const renderCard = (s) => (
+              <button key={s.id} className={`retro-recent-card ${s.is_ended ? 'retro-recent-card-ended' : ''}`} onClick={() => {
+                setJoinSessionId(s.id);
+                setJoinName(participantName || "");
+                if (participantName) {
+                  setLoading(true);
+                  fetch(`/api/retro?sessionId=${s.id}`)
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.error) throw new Error(data.error);
+                      setSession(data.session);
+                      setCards(data.cards || []);
+                      setCardVotes(data.cardVotes || []);
+                      setParticipantName(participantName);
+                      localStorage.setItem("heubert_retro_session_id", data.session.id);
+                      localStorage.setItem("heubert_collab_name", participantName);
+                      setView("board");
+                      startPolling(s.id);
+                    })
+                    .catch(e => setError(e.message))
+                    .finally(() => setLoading(false));
+                } else {
+                  document.querySelector('.retro-entry-card-join').scrollIntoView({ behavior: 'smooth' });
+                }
+              }}>
+                <div className="retro-recent-card-top">
+                  <span className="retro-recent-emoji">{RETRO_TEMPLATES[s.template]?.[0]?.emoji || "📋"}</span>
+                  <div className="retro-recent-meta">
+                    <h4>{s.title} {s.is_ended && <span className="retro-ended-tag">Ended</span>}</h4>
+                    <span>By {s.created_by} · {new Date(s.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <div className="retro-recent-badge">{s.template}</div>
+              </button>
+            );
+
+            return (
+              <div className="retro-recent-sessions">
+                {active.length > 0 && (
+                  <div className="retro-recent-section">
+                    <h3 className="retro-recent-title">🌐 Active Boards</h3>
+                    <div className="retro-recent-grid">{active.map(renderCard)}</div>
+                  </div>
+                )}
+                {ended.length > 0 && (
+                  <div className="retro-recent-section" style={{ marginTop: '40px' }}>
+                    <h3 className="retro-recent-title">🏁 Completed Boards</h3>
+                    <div className="retro-recent-grid">{ended.map(renderCard)}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <div className="retro-preview">
             {currentColumns.map(col => (
               <div key={col.key} className={`retro-preview-col retro-col-${col.color}`}>

@@ -13,7 +13,45 @@ const supabase = createClient(
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const sessionId = searchParams.get('sessionId');
-  if (!sessionId) return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
+  
+  if (!sessionId) {
+    // List recent sessions
+    const { data: sessions, error: listErr } = await supabase
+      .from('retro_sessions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    
+    if (listErr) return NextResponse.json({ error: listErr.message }, { status: 500 });
+    
+    // Check which of these are ended
+    const sids = sessions.map(s => s.id);
+    const { data: endedSignals } = await supabase
+      .from('retro_cards')
+      .select('session_id')
+      .eq('content', '__SESSION_ENDED__')
+      .in('session_id', sids);
+    
+    const endedSids = new Set(endedSignals?.map(es => es.session_id) || []);
+
+    // Clean templates and titles for each session
+    const cleaned = sessions.map(s => {
+      let templ = s.template;
+      let title = s.title;
+      if (!templ) {
+        const match = title.match(/\s\[(\w+)\]$/);
+        if (match) {
+          templ = match[1];
+          title = title.replace(match[0], '');
+        } else {
+          templ = 'standard';
+        }
+      }
+      return { ...s, template: templ, title, is_ended: endedSids.has(s.id) };
+    });
+
+    return NextResponse.json({ sessions: cleaned });
+  }
 
   const { data: session, error: sErr } = await supabase
     .from('retro_sessions').select('*').eq('id', sessionId).single();
