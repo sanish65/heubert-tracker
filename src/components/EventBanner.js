@@ -64,17 +64,19 @@ export default function EventBanner() {
           
           if (diff >= 0 && diff <= 7) {
             if (type === 'birthday') {
-              banners.push({
-                id: `bday-${emp.id}-${y}`,
-                diff,
-                type: "celebration",
-                title: `${emp.name}'s Birthday`,
-                icon: "🎂",
-                className: "banner-celebration",
-              });
+              if (diff === 0) {
+                banners.push({
+                  id: `bday-${emp.id}-${y}`,
+                  diff,
+                  type: "celebration",
+                  title: `${emp.name}'s Birthday`,
+                  icon: "🎂",
+                  className: "banner-celebration",
+                });
+              }
             } else {
               const years = y - d.getFullYear();
-              if (years > 0) {
+              if (years > 0 && diff === 0) {
                 banners.push({
                   id: `work-${emp.id}-${y}`,
                   diff,

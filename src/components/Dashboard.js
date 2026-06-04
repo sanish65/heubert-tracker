@@ -4,7 +4,7 @@ import StatsCard from "./StatsCard";
 import EventBanner from "@/components/EventBanner";
 
 export default function Dashboard() {
-  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents } = useApp();
+  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled } = useApp();
   const [sendingWish, setSendingWish] = useState(null); // empId
 
   // Late Fines
@@ -112,15 +112,40 @@ export default function Dashboard() {
   };
 
   // Per-employee breakdown for bar chart
-  const empData = employees.map((emp) => {
-    const empFines = fines.filter((f) => f.employee_name === emp.name);
-    return {
-      name: emp.name,
-      paid: empFines.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0),
-      unpaid: empFines.filter((f) => f.status === "unpaid").reduce((s, f) => s + f.amount, 0),
-    };
-  }).sort((a, b) => (b.paid + b.unpaid) - (a.paid + a.unpaid))
-  .filter(e => e.name !== 'Developers');
+  const empData = employees
+    .filter(emp => emp.status !== 'resigned')
+    .map((emp) => {
+      const empFines = fines.filter((f) => f.employee_name === emp.name);
+      return {
+        name: emp.name,
+        paid: empFines.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0),
+        unpaid: empFines.filter((f) => f.status === "unpaid").reduce((s, f) => s + f.amount, 0),
+      };
+    }).sort((a, b) => (b.paid + b.unpaid) - (a.paid + a.unpaid))
+    .filter(e => e.name !== 'Developers');
+
+  const leastFined = empData.length > 0 ? empData[empData.length - 1] : null;
+
+  const LeastFinedHonoree = () => {
+    return (
+      <div 
+        className="least-fined-container" 
+        title="I'm the least fined team member! ✨"
+      >
+        <div className="walking-honoree">
+          <div className="honoree-placard">always on time, low on fine</div>
+          <svg width="24" height="40" viewBox="0 0 24 40">
+            <rect x="10" y="14" width="4" height="15" fill="#4B5563" rx="2" />
+            <circle cx="12" cy="8" r="5" fill="#FCD34D" />
+            <line x1="11" y1="29" x2="9" y2="38" stroke="#4B5563" strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="13" y1="29" x2="15" y2="38" stroke="#4B5563" strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="10" y1="16" x2="6" y2="24" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" />
+            <line x1="14" y1="16" x2="18" y2="24" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </div>
+      </div>
+    );
+  };
 
   const maxTotal = Math.max(...empData.map((e) => e.paid + e.unpaid), 1);
 
@@ -171,7 +196,10 @@ export default function Dashboard() {
         <h3 className="section-title">Fines by Employee</h3>
         <div className="bar-chart">
           {empData.map((emp) => (
-            <div key={emp.name} className="bar-row">
+            <div key={emp.name} className="bar-row" style={{ position: 'relative' }}>
+              {animationsEnabled !== false && emp.name === leastFined?.name && (emp.paid + emp.unpaid) <= (leastFined.paid + leastFined.unpaid) && (
+                <LeastFinedHonoree />
+              )}
               <span className="bar-label">{emp.name.split(' ')[0]}</span>
               <div className="bar-track">
                 <div

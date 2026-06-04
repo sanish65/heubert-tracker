@@ -117,7 +117,7 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw }) {
           </div>
         </div>
 
-        <div className="table-wrapper">
+        <div className="table-wrapper scrollable-table">
           <table className="data-table fine-table">
             <thead>
               <tr>

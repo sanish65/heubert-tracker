@@ -84,14 +84,21 @@ export default function AddFineModal({ isOpen, onClose }) {
                 />
               </div>
               <div className="form-group-interactive">
-                <label htmlFor="fine-amount">Amount (Rs.)</label>
-                <input
-                  id="fine-amount"
-                  type="number"
-                  min="1"
-                  value={form.amount}
-                  onChange={handleChange("amount")}
-                />
+                <label>Amount (Rs.)</label>
+                <div className="amount-preset-options">
+                  {[25, 50].map(val => (
+                    <label key={val} className={`amount-chip ${form.amount == val ? 'active' : ''}`}>
+                      <input 
+                        type="radio" 
+                        name="fineAmount" 
+                        value={val} 
+                        checked={form.amount == val} 
+                        onChange={() => setForm(prev => ({ ...prev, amount: val }))} 
+                      />
+                      <span>RS {val}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="form-group-interactive">
                 <label htmlFor="fine-status">Status</label>

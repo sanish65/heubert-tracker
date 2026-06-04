@@ -5,13 +5,13 @@ import { useApp } from "@/context/AppContext";
 
 export default function EditFineModal({ isOpen, onClose, fine }) {
   const { updateFine } = useApp();
-  const [amount, setAmount] = useState(50);
+  const [amount, setAmount] = useState(25);
   const [status, setStatus] = useState("unpaid");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (fine) {
-      setAmount(fine.amount || 50);
+      setAmount(fine.amount || 25);
       setStatus(fine.status || "unpaid");
     }
   }, [fine, isOpen]);
@@ -50,13 +50,20 @@ export default function EditFineModal({ isOpen, onClose, fine }) {
           </div>
           <div className="form-group-interactive">
             <label>Amount (Rs.)</label>
-            <input 
-              type="number" 
-              value={amount} 
-              onChange={e => setAmount(e.target.value)} 
-              required 
-              min="0"
-            />
+            <div className="amount-preset-options">
+              {[25, 50].map(val => (
+                <label key={val} className={`amount-chip ${amount == val ? 'active' : ''}`}>
+                  <input 
+                    type="radio" 
+                    name="fineAmount" 
+                    value={val} 
+                    checked={amount == val} 
+                    onChange={() => setAmount(val)} 
+                  />
+                  <span>RS {val}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <div className="form-group-interactive">
             <label>Status</label>

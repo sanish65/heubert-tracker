@@ -120,7 +120,7 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
         </div>
       </div>
 
-      <div className="table-wrapper">
+      <div className="table-wrapper scrollable-table">
         <table className="data-table">
           <thead>
             <tr>

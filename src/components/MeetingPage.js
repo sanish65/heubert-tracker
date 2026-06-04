@@ -687,7 +687,7 @@ export default function MeetingPage() {
 // COMPACT INLINE MODALS FOR MEETING MODE
 function QuickAddFineModal({ isOpen, onClose, addFine, employees, today }) {
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState(50);
+  const [amount, setAmount] = useState(25);
   
   const hSubmit = (e) => {
     e.preventDefault();
@@ -710,7 +710,20 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today }) {
           </div>
           <div className="form-group-interactive">
             <label>Amount (Rs.)</label>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required />
+            <div className="amount-preset-options">
+              {[25, 50].map(val => (
+                <label key={val} className={`amount-chip ${amount == val ? 'active' : ''}`}>
+                  <input 
+                    type="radio" 
+                    name="fineAmount" 
+                    value={val} 
+                    checked={amount == val} 
+                    onChange={() => setAmount(val)} 
+                  />
+                  <span>RS {val}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
