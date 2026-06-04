@@ -30,6 +30,8 @@ import AddCompanyEventModal from "@/components/AddCompanyEventModal";
 import EditCompanyEventModal from "@/components/EditCompanyEventModal";
 import PlanningPokerPage from "@/components/PlanningPokerPage";
 import RetrospectivePage from "@/components/RetrospectivePage";
+import MemoriesPage from "@/components/MemoriesPage";
+import AddMemoryModal from "@/components/AddMemoryModal";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady } = useApp();
@@ -63,6 +65,7 @@ export default function Home() {
   const [showAddFine, setShowAddFine] = useState(false);
   const [showAddLeave, setShowAddLeave] = useState(false);
   const [showAddStandup, setShowAddStandup] = useState(false);
+  const [showAddMemory, setShowAddMemory] = useState(false);
   const [showEditEmployee, setShowEditEmployee] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showAddSeason, setShowAddSeason] = useState(false);
@@ -83,7 +86,7 @@ export default function Home() {
   // Load active tab from localStorage on mount
   useEffect(() => {
     const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "words", "capacity", "events", "poker", "retro"].includes(savedTab)) {
+    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "words", "capacity", "events", "poker", "retro", "memories"].includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
@@ -343,11 +346,18 @@ export default function Home() {
         )}
         {activeTab === "poker" && <PlanningPokerPage />}
         {activeTab === "retro" && <RetrospectivePage />}
+        {activeTab === "memories" && <MemoriesPage onAddMemory={() => setShowAddMemory(true)} />}
       </main>
 
       {/* Footer */}
       <footer className="app-footer">
         <div className="footer-left">
+          <span 
+            className={`footer-memories-link ${activeTab === 'memories' ? 'active' : ''}`}
+            onClick={() => setActiveTab('memories')}
+          >
+            ✨ Team Memories
+          </span>
           <span>Heubert Tracker © 2026</span>
           <span className="db-status">
             <span className="pulse-dot"></span> Cloud Database Connected
@@ -428,6 +438,10 @@ export default function Home() {
           setEditingSeason(null);
         }}
         season={editingSeason}
+      />
+      <AddMemoryModal 
+        isOpen={showAddMemory}
+        onClose={() => setShowAddMemory(false)}
       />
       <EditWordModal
         isOpen={showEditWord}

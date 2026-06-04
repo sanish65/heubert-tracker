@@ -229,8 +229,8 @@ body {
   gap: 10px;
   background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: transparent;
 }
 
 .title-icon {
@@ -2702,7 +2702,8 @@ body {
   font-weight: 800;
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
   margin-bottom: 0.25rem;
 }
 
@@ -3175,7 +3176,8 @@ body {
   font-weight: 800;
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -5459,4 +5461,310 @@ a.jira-tag-key:hover {
 
 .poker-standalone-card {
   position: relative;
+}
+
+/* ===== FOOTER MEMORIES LINK ===== */
+.footer-memories-link {
+  color: var(--accent-amber);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--accent-amber-soft);
+  transition: all 0.2s ease;
+  margin-right: 12px;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.footer-memories-link:hover {
+  transform: translateY(-2px);
+  background: var(--accent-amber);
+  color: #000;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.footer-memories-link.active {
+  background: var(--accent-amber);
+  color: #000;
+}
+
+/* ===== MEMORIES PAGE ===== */
+.memories-container {
+  position: relative;
+  min-height: 80vh;
+  padding-top: 40px;
+}
+
+.memories-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  gap: 20px;
+}
+
+.memories-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent-amber), #fff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.memories-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Christmas Lights */
+.christmas-lights-strand {
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  position: absolute;
+  z-index: 10;
+  left: -24px;
+  right: -24px;
+  top: -24px;
+  pointer-events: none;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  justify-content: space-around;
+  border-bottom: 2px solid #222;
+}
+
+.christmas-lights-strand li {
+  position: relative;
+  background: #fff;
+  width: 12px;
+  height: 28px;
+  border-radius: 50% 50% 100% 100%;
+  margin: 0 8px;
+  animation-fill-mode: both;
+  animation-iteration-count: infinite;
+  box-shadow: 0px 4.66667px 24px 3px #fff;
+}
+
+.christmas-lights-strand li:nth-child(odd) {
+  background: #ff0000;
+  animation-name: lightRed;
+  animation-duration: 2s;
+  box-shadow: 0px 4.66667px 24px 3px #f00;
+}
+
+.christmas-lights-strand li:nth-child(4n+2) {
+  background: #00ff00;
+  animation-name: lightGreen;
+  animation-duration: 1.5s;
+  box-shadow: 0px 4.66667px 24px 3px #0f0;
+}
+
+.christmas-lights-strand li:nth-child(4n+3) {
+  background: #0000ff;
+  animation-name: lightBlue;
+  animation-duration: 1.8s;
+  box-shadow: 0px 4.66667px 24px 3px #00f;
+}
+
+@keyframes lightRed {
+  0%, 100% { background: #ff0000; box-shadow: 0px 2px 10px #f00; }
+  50% { background: #500000; box-shadow: none; }
+}
+
+@keyframes lightGreen {
+  0%, 100% { background: #00ff00; box-shadow: 0px 2px 10px #0f0; }
+  50% { background: #004000; box-shadow: none; }
+}
+
+@keyframes lightBlue {
+  0%, 100% { background: #0000ff; box-shadow: 0px 2px 10px #00f; }
+  50% { background: #000040; box-shadow: none; }
+}
+
+/* Memories Wall */
+.memories-wall {
+  position: relative;
+  padding: 40px 0;
+}
+
+.memory-wires {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.wire {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  width: 100%;
+}
+
+.memories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 40px;
+  position: relative;
+  z-index: 5;
+}
+
+.memory-item {
+  position: relative;
+  opacity: 0;
+  transform: translateY(20px) scale(0.9);
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.memory-item.appear {
+  opacity: 1;
+  transform: translateY(0) scale(1) rotate(var(--rotation));
+}
+
+.memory-pin {
+  width: 12px;
+  height: 24px;
+  background: #8b5e3c;
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.memory-pin::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 50%;
+}
+
+.memory-card {
+  background: #fff;
+  padding: 12px;
+  padding-bottom: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.1);
+  color: #333;
+  transition: transform 0.3s ease;
+}
+
+.memory-item:hover .memory-card {
+  transform: scale(1.05);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+  z-index: 20;
+}
+
+.memory-media {
+  width: 100%;
+  background: #eee;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 1px solid #ddd;
+}
+
+.memory-media img, 
+.memory-media video {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  max-height: 300px;
+}
+
+.memory-text-content {
+  padding: 20px 10px;
+  text-align: center;
+  position: relative;
+}
+
+.quote-mark {
+  font-family: serif;
+  font-size: 3rem;
+  color: var(--accent-indigo);
+  opacity: 0.2;
+  position: absolute;
+  top: -10px;
+  left: 0;
+}
+
+.quote-mark.bottom {
+  top: auto;
+  bottom: -20px;
+  right: 0;
+  left: auto;
+}
+
+.memory-message {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #222;
+  line-height: 1.4;
+  font-family: 'Inter', sans-serif;
+}
+
+.memory-info {
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.memory-caption {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: #111;
+}
+
+.memory-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.memory-author {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.memory-date {
+  font-size: 0.7rem;
+  color: #999;
+}
+
+.memories-empty-state {
+  text-align: center;
+  padding: 80px 0;
+  color: var(--text-secondary);
+}
+
+.empty-sparkles {
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+
+/* Sequential Pop-up Animation Helper */
+.memory-item.appear {
+  animation: memoryPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: var(--delay);
+}
+
+@keyframes memoryPop {
+  0% { opacity: 0; transform: translateY(30px) scale(0.8) rotate(0deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(var(--rotation)); }
 }

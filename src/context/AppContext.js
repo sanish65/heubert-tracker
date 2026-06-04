@@ -27,6 +27,7 @@ export function AppProvider({ children }) {
   const [standupQuestions, setStandupQuestions] = useState([]);
   const [theme, setTheme] = useState("dark");
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
+  const [memories, setMemories] = useState([]);
 
   const adminEmails = [
     "sanish@heubert.com",
@@ -60,6 +61,7 @@ export function AppProvider({ children }) {
         supabase.from("sprints").select("*").order("created_at", { ascending: false }),
         supabaseStandup.from("standup_responses").select("*").order("date", { ascending: false }),
         supabaseStandup.from("questions").select("*").order("sort_order", { ascending: true }),
+        supabase.from("memories").select("*").order("created_at", { ascending: false }),
       ]);
 
       const [
@@ -75,6 +77,7 @@ export function AppProvider({ children }) {
         { data: sprintsData },
         { data: standupSubData },
         { data: standupQuestData },
+        { data: memoryData },
       ] = results;
 
       if (empData) setEmployees(empData);
@@ -93,6 +96,7 @@ export function AppProvider({ children }) {
       }
       if (standupSubData) setStandupSubmissions(standupSubData);
       if (standupQuestData) setStandupQuestions(standupQuestData);
+      if (memoryData) setMemories(memoryData);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -536,6 +540,25 @@ export function AppProvider({ children }) {
     if (data) setCompanyEvents(prev => prev.map(e => e.id === id ? data[0] : e));
     return { data, error };
   };
+
+  const addMemory = async (memory) => {
+    const payload = {
+      type: memory.type,
+      content: memory.content,
+      caption: memory.caption || "",
+      author_name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Team Member",
+      author_email: user?.email
+    };
+    const { data, error } = await supabase.from("memories").insert([payload]).select();
+    if (data) setMemories(prev => [data[0], ...prev]);
+    return { data, error };
+  };
+
+  const deleteMemory = async (id) => {
+    const { error } = await supabase.from("memories").delete().eq("id", id);
+    if (!error) setMemories(prev => prev.filter(m => m.id !== id));
+    return { error };
+  };
   const seedWordsTable = async () => {
     if (wordSeasons.length > 0) return;
     
@@ -723,6 +746,9 @@ export function AppProvider({ children }) {
         toggleTheme,
         animationsEnabled,
         toggleAnimations,
+        memories,
+        addMemory,
+        deleteMemory,
       }}
     >
       {children}
