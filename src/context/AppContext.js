@@ -550,14 +550,25 @@ export function AppProvider({ children }) {
       author_email: user?.email
     };
     const { data, error } = await supabase.from("memories").insert([payload]).select();
+    if (error) throw error;
     if (data) setMemories(prev => [data[0], ...prev]);
     return { data, error };
   };
 
   const deleteMemory = async (id) => {
     const { error } = await supabase.from("memories").delete().eq("id", id);
-    if (!error) setMemories(prev => prev.filter(m => m.id !== id));
+    if (error) throw error;
+    setMemories(prev => prev.filter(m => m.id !== id));
     return { error };
+  };
+
+  const updateMemory = async (id, updates) => {
+    const { data, error } = await supabase.from("memories").update(updates).eq("id", id).select();
+    if (error) throw error;
+    if (data && data.length > 0) {
+      setMemories(prev => prev.map(m => m.id === id ? data[0] : m));
+    }
+    return { data, error };
   };
   const seedWordsTable = async () => {
     if (wordSeasons.length > 0) return;
@@ -749,6 +760,7 @@ export function AppProvider({ children }) {
         memories,
         addMemory,
         deleteMemory,
+        updateMemory,
       }}
     >
       {children}

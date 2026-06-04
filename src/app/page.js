@@ -122,6 +122,21 @@ export default function Home() {
     return <HumanLoader />;
   }
 
+  if (activeTab === "memories") {
+    return (
+      <div className="standalone-memories-root">
+        <MemoriesPage 
+          onAddMemory={() => setShowAddMemory(true)} 
+          onBack={() => setActiveTab("dashboard")}
+        />
+        <AddMemoryModal 
+          isOpen={showAddMemory}
+          onClose={() => setShowAddMemory(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       {/* Header */}
@@ -346,7 +361,6 @@ export default function Home() {
         )}
         {activeTab === "poker" && <PlanningPokerPage />}
         {activeTab === "retro" && <RetrospectivePage />}
-        {activeTab === "memories" && <MemoriesPage onAddMemory={() => setShowAddMemory(true)} />}
       </main>
 
       {/* Footer */}
