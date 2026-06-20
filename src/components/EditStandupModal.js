@@ -5,11 +5,13 @@ import { useApp } from "@/context/AppContext";
 
 export default function EditStandupModal({ isOpen, onClose, record }) {
   const { updateStandupFine } = useApp();
+  const [date, setDate] = useState("");
   const [status, setStatus] = useState("late");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (record) {
+      setDate(record.date || "");
       setStatus(record.status || "late");
     }
   }, [record, isOpen]);
@@ -21,6 +23,7 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
     setSubmitting(true);
     try {
       const { error } = await updateStandupFine(record.id, {
+        date,
         status
       });
       if (!error) onClose();
@@ -44,6 +47,15 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
           <div className="form-group-interactive">
             <label>Employee</label>
             <input type="text" value={record.employee_name} disabled className="input-disabled" />
+          </div>
+          <div className="form-group-interactive">
+            <label>Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
           </div>
           <div className="form-group-interactive">
             <label>Status</label>

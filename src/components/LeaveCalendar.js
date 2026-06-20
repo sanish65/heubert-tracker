@@ -13,16 +13,24 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
 
-  // Helper to generate dates between start and end
+  // Helper to generate dates between start and end (legacy fallback)
   const getDatesInRange = (start, end) => {
     const dates = [];
     let current = new Date(start + "T00:00:00");
     const last = new Date(end + "T00:00:00");
     while (current <= last) {
+      const dow = current.getDay();
       const y = current.getFullYear();
       const m = String(current.getMonth() + 1).padStart(2, "0");
       const d = String(current.getDate()).padStart(2, "0");
-      dates.push(`${y}-${m}-${d}`);
+      const dtStr = `${y}-${m}-${d}`;
+      
+      const isWeekend = dow === 0 || dow === 6;
+      const isHoliday = publicHolidays.some(h => h.date === dtStr);
+      
+      if (!isWeekend && !isHoliday) {
+        dates.push(dtStr);
+      }
       current.setDate(current.getDate() + 1);
     }
     return dates;
@@ -36,7 +44,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       : leaves;
 
     filtered.forEach((leave) => {
-      const dates = getDatesInRange(leave.start_date, leave.end_date);
+      const dates = leave.dates || getDatesInRange(leave.start_date, leave.end_date);
       dates.forEach((d) => {
         if (!map[d]) map[d] = [];
         map[d].push({ type: leave.type, name: leave.employee_name, id: leave.id });
@@ -58,7 +66,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
     let days = 0;
 
     filtered.forEach((l) => {
-      const dates = getDatesInRange(l.start_date, l.end_date);
+      const dates = l.dates || getDatesInRange(l.start_date, l.end_date);
       const datesInThisMonth = dates.filter((d) => {
         const dt = new Date(d + "T00:00:00");
         return dt.getFullYear() === viewYear && dt.getMonth() === viewMonth;

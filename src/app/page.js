@@ -32,6 +32,7 @@ import PlanningPokerPage from "@/components/PlanningPokerPage";
 import RetrospectivePage from "@/components/RetrospectivePage";
 import MemoriesPage from "@/components/MemoriesPage";
 import AddMemoryModal from "@/components/AddMemoryModal";
+import ReleaseUpdatesModal from "@/components/ReleaseUpdatesModal";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady } = useApp();
@@ -61,6 +62,7 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showSettings]);
 
+  const [showReleaseUpdates, setShowReleaseUpdates] = useState(false);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [showAddFine, setShowAddFine] = useState(false);
   const [showAddLeave, setShowAddLeave] = useState(false);
@@ -372,6 +374,13 @@ export default function Home() {
           >
             ✨ Team Memories
           </span>
+          <span 
+            className="footer-updates-link"
+            onClick={() => setShowReleaseUpdates(true)}
+            title="View Release Updates"
+          >
+            🎁 Updates
+          </span>
           <span>Heubert Tracker © 2026</span>
           <span className="db-status">
             <span className="pulse-dot"></span> Cloud Database Connected
@@ -464,6 +473,10 @@ export default function Home() {
           setEditingWord(null);
         }}
         word={editingWord}
+      />
+      <ReleaseUpdatesModal
+        isOpen={showReleaseUpdates}
+        onClose={() => setShowReleaseUpdates(false)}
       />
     </div>
   );

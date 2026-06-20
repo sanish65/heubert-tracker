@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
+import EditStandupModal from "./EditStandupModal";
 
 export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
   const { standupFines, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin } = useApp();
@@ -9,6 +10,7 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
   const [filter, setFilter] = useState("all"); // all, paid, unpaid
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "desc" });
   const [celebration, setCelebration] = useState({ show: false, message: "" });
+  const [editingRecord, setEditingRecord] = useState(null);
 
   const filteredFines = useMemo(() => {
     let list = [...standupFines];
@@ -155,12 +157,22 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
                   </td>
                   <td>
                     {(isAdmin || isFineAdmin) && (
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => deleteStandupFine(fine.id)}
-                      >
-                        Delete
-                      </button>
+                      <div className="action-btns">
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => setEditingRecord(fine)}
+                          title="Edit"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => deleteStandupFine(fine.id)}
+                          title="Delete"
+                        >
+                          🗑
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -184,6 +196,12 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
           </div>
         </div>
       )}
+
+      <EditStandupModal
+        isOpen={!!editingRecord}
+        onClose={() => setEditingRecord(null)}
+        record={editingRecord}
+      />
     </div>
   );
 }

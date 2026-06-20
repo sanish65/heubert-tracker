@@ -4,6 +4,19 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import { supabase, supabaseStandup } from "@/lib/supabase";
 import { wordSeedSeasons, wordSeedWords } from "@/data/wordSeedData";
 
+function toDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function parseLocalDate(str) {
+  if (!str) return new Date();
+  const [y, m, d] = str.split("-").map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
@@ -396,6 +409,25 @@ export function AppProvider({ children }) {
     if (!error) setLeaves(prev => prev.filter(l => l.id !== id));
   };
 
+  const updateLeave = async (id, updatedData) => {
+    const { data, error } = await supabase
+      .from("leaves")
+      .update({
+        start_date: updatedData.start_date,
+        end_date: updatedData.end_date,
+        type: updatedData.type,
+        reason: updatedData.reason,
+        dates: updatedData.dates,
+      })
+      .eq("id", id)
+      .select();
+
+    if (data) {
+      setLeaves(prev => prev.map(l => l.id === id ? data[0] : l));
+    }
+    return { data, error };
+  };
+
   const addStandupFine = async (record) => {
     const payload = {
         employee_name: record.name,
@@ -424,6 +456,7 @@ export function AppProvider({ children }) {
     const { data, error } = await supabase
       .from("standup_records")
       .update({
+        date: updatedData.date,
         status: updatedData.status
       })
       .eq("id", id)
@@ -626,13 +659,12 @@ export function AppProvider({ children }) {
   );
 
   const calculateCapacity = useCallback((employeeName, startDateStr, endDateStr) => {
-    const start = new Date(startDateStr);
-    const end = new Date(endDateStr);
     let totalHours = 0;
+    let current = parseLocalDate(startDateStr);
 
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      const dayOfWeek = d.getDay(); // 0 = Sun, 6 = Sat
+    while (toDateStr(current) <= endDateStr) {
+      const dateStr = toDateStr(current);
+      const dayOfWeek = current.getDay(); // 0 = Sun, 6 = Sat
 
       // Skip weekends
       if (dayOfWeek === 0 || dayOfWeek === 6) continue;
@@ -649,12 +681,13 @@ export function AppProvider({ children }) {
       } else {
         totalHours += 6; // Mon-Thu: 8 - 2 break = 6
       }
+      current.setDate(current.getDate() + 1);
     }
     return totalHours;
   }, [publicHolidays, leaves]);
 
   const calculateSprintRange = (startDateStr) => {
-    let date = new Date(startDateStr);
+    let date = parseLocalDate(startDateStr);
     let workingDays = 1; 
     while (workingDays < 10) {
       date.setDate(date.getDate() + 1);
@@ -664,7 +697,7 @@ export function AppProvider({ children }) {
     }
     return {
       start: startDateStr,
-      end: date.toISOString().split('T')[0]
+      end: toDateStr(date)
     };
   };
 
@@ -723,6 +756,7 @@ export function AppProvider({ children }) {
         getEmployeeStats,
         addLeave,
         deleteLeave,
+        updateLeave,
         addStandupFine,
         toggleStandupFineStatus,
         deleteStandupFine,

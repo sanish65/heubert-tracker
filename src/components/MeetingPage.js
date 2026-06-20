@@ -215,7 +215,23 @@ export default function MeetingPage() {
   // Today's Data
   const todaysFines = useMemo(() => fines.filter(f => f.date === today), [fines, today]);
   const todaysStandups = useMemo(() => standupFines.filter(f => f.date === today), [standupFines, today]);
-  const activeLeaves = useMemo(() => leaves.filter(l => today >= l.start_date && today <= l.end_date), [leaves, today]);
+  const activeLeaves = useMemo(() => {
+    const d = new Date();
+    const dow = d.getDay();
+    const dtStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const isWeekend = dow === 0 || dow === 6;
+    const isHoliday = publicHolidays.some(h => h.date.startsWith(dtStr));
+
+    if (isWeekend || isHoliday) return [];
+
+    return leaves.filter(l => {
+      if (l.dates && Array.isArray(l.dates)) {
+        return l.dates.includes(dtStr);
+      }
+      // Legacy fallback
+      return dtStr >= l.start_date && dtStr <= l.end_date;
+    });
+  }, [leaves, publicHolidays]);
   // Shared/system emails — never expected to submit standups
   const nonStandupEmails = new Set([
     "developers@heubert.com",
@@ -901,6 +917,7 @@ function IdleNudge({ phrases }) {
 function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("full");   // full | half | early
+  const [segment, setSegment] = useState("first");    // first | second
   const [category, setCategory] = useState("Casual"); // Casual | Sick | Project Holiday
 
   const DURATION_OPTS = [
@@ -912,12 +929,18 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
   const hSubmit = (e) => {
     e.preventDefault();
     if (!name) return;
+    
+    let finalReason = category;
+    if (duration === "half") {
+      finalReason = (segment === "first" ? "[First Half] " : "[Second Half] ") + finalReason;
+    }
+
     addLeave({
       name,
       type: duration,          // "full" | "half" | "early" → stored in leaves.type
       startDate: today,
       endDate: today,
-      reason: category,        // "Casual" | "Sick" | "Project Holiday" → stored in leaves.reason
+      reason: finalReason,     // e.g. "[First Half] Casual" → stored in leaves.reason
     });
     onClose();
   };
@@ -955,6 +978,32 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
               ))}
             </div>
           </div>
+
+          {duration === "half" && (
+            <div className="form-group-interactive" style={{ marginTop: "1rem" }}>
+              <label>Half Day Segment</label>
+              <div className="leave-type-options">
+                {[
+                  { value: "first", label: "First Half", icon: "🌅" },
+                  { value: "second", label: "Second Half", icon: "🌇" },
+                ].map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`leave-type-chip ${segment === opt.value ? "active" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="quickLeaveSegment"
+                      value={opt.value}
+                      checked={segment === opt.value}
+                      onChange={() => setSegment(opt.value)}
+                    />
+                    <span>{opt.icon} {opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="form-group-interactive">
             <label>Category</label>

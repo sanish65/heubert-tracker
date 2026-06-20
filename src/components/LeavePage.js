@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import LeaveCalendar from "./LeaveCalendar";
+import EditLeaveModal from "./EditLeaveModal";
 
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
@@ -10,11 +11,30 @@ const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
 export default function LeavePage({ onAddLeave, onAddHoliday }) {
   const { leaves, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday } = useApp();
   const [filterEmployee, setFilterEmployee] = useState("");
+  const [editingLeave, setEditingLeave] = useState(null);
 
   const calculateDays = (start, end, type) => {
-    const s = new Date(start + "T00:00:00");
-    const e = new Date(end + "T00:00:00");
-    const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+    let diff = 0;
+    const sDate = new Date(start + "T00:00:00");
+    const eDate = new Date(end + "T00:00:00");
+    
+    let current = new Date(sDate);
+    while (current <= eDate) {
+      const dow = current.getDay();
+      const y = current.getFullYear();
+      const m = String(current.getMonth() + 1).padStart(2, "0");
+      const d = String(current.getDate()).padStart(2, "0");
+      const dtStr = `${y}-${m}-${d}`;
+      
+      const isWeekend = dow === 0 || dow === 6;
+      const isHoliday = publicHolidays.some(h => h.date.startsWith(dtStr));
+      
+      if (!isWeekend && !isHoliday) {
+        diff++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
     return type === "half" ? diff * 0.5 : diff;
   };
 
@@ -31,7 +51,8 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
     return employees.map((emp) => {
       const empLeaves = leaves.filter((l) => l.employee_name === emp.name);
       const totalDays = empLeaves.reduce((sum, l) => {
-        return sum + calculateDays(l.start_date, l.end_date, l.type);
+        const days = l.dates ? l.dates.length : calculateDays(l.start_date, l.end_date, l.type);
+        return sum + (l.type === "half" ? days * 0.5 : days);
       }, 0);
       return { name: emp.name, records: empLeaves.length, totalDays };
     }).filter((e) => e.records > 0).sort((a, b) => b.totalDays - a.totalDays);
@@ -47,7 +68,8 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
   };
 
   return (
-    <div className="leave-page">
+    <>
+      <div className="leave-page">
       <div className="leave-layout">
         {/* Left: Calendar */}
         <div className="leave-calendar-col">
@@ -133,13 +155,22 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
                           </span>
                         </div>
                         {(isAdmin || (currentEmployee && leave.employee_name === currentEmployee.name)) && (
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => deleteLeave(leave.id)}
-                            title="Delete"
-                          >
-                            🗑
-                          </button>
+                          <div className="action-btns">
+                            <button
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => setEditingLeave(leave)}
+                              title="Edit"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => deleteLeave(leave.id)}
+                              title="Delete"
+                            >
+                              🗑
+                            </button>
+                          </div>
                         )}
                       </div>
                       <div className="leave-card-dates">
@@ -150,7 +181,7 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
                           )}
                         </span>
                         <span className="leave-day-count">
-                          {calculateDays(leave.start_date, leave.end_date, leave.type)} days
+                          {dayCount || calculateDays(leave.start_date, leave.end_date, leave.type)} working days
                         </span>
                       </div>
                       {leave.reason && (
@@ -210,6 +241,13 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
           )}
         </div>
       </div>
-    </div>
+      </div>
+
+      <EditLeaveModal
+        isOpen={!!editingLeave}
+        onClose={() => setEditingLeave(null)}
+        leave={editingLeave}
+      />
+    </>
   );
 }

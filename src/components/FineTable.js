@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import WithdrawalLog from "./WithdrawalLog";
+import EditFineModal from "./EditFineModal";
 
 export default function FineTable({ selectedEmployee, onAddFine, onWithdraw }) {
   const { fines, toggleFineStatus, deleteFine, isAdmin, isFineAdmin } = useApp();
@@ -10,6 +11,7 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
+  const [editingFine, setEditingFine] = useState(null);
 
   const filtered = useMemo(() => {
     let list = [...fines];
@@ -165,13 +167,22 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw }) {
                     </td>
                     <td>
                       {(isAdmin || isFineAdmin) && (
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => deleteFine(f.id)}
-                          title="Delete"
-                        >
-                          🗑
-                        </button>
+                        <div className="action-btns">
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => setEditingFine(f)}
+                            title="Edit"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => deleteFine(f.id)}
+                            title="Delete"
+                          >
+                            🗑
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -183,6 +194,12 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw }) {
       </section>
 
       <WithdrawalLog onWithdraw={onWithdraw} />
+
+      <EditFineModal
+        isOpen={!!editingFine}
+        onClose={() => setEditingFine(null)}
+        fine={editingFine}
+      />
     </div>
   );
 }

@@ -2,25 +2,58 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { buildWorkingDates } from "@/lib/utils";
+
+// Returns YYYY-MM-DD string from a local Date object
+function toDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Strictly local midnight date
+function parseLocalDate(str) {
+  if (!str) return new Date();
+  const [y, m, d] = str.split("-").map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+
 
 export default function AddLeaveModal({ isOpen, onClose }) {
-  const { addLeave, employees, currentEmployee, isAdmin } = useApp();
-  const today = new Date().toISOString().split("T")[0];
+  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays } = useApp();
+  const today = toDateStr(new Date());
+
   const [form, setForm] = useState({
     name: "",
     startDate: today,
-    endDate: today,
-    type: "full", // "full" | "half" | "early"
+    type: "full",
+    segment: "first", // "first" or "second"
     reason: "",
   });
+  const [multiDay, setMultiDay] = useState(false);
+  const [endDate, setEndDate] = useState("");
   const [error, setError] = useState("");
 
-  // Auto-select current employee if available
+  // Build a Set of public holiday date strings for fast lookup
+  const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
+
+  // Auto-select current employee if not admin
   useEffect(() => {
     if (isOpen && currentEmployee && !form.name) {
-      setForm(prev => ({ ...prev, name: currentEmployee.name }));
+      setForm((prev) => ({ ...prev, name: currentEmployee.name }));
     }
   }, [isOpen, currentEmployee, form.name]);
+
+  // Reset to defaults when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setMultiDay(false);
+      setEndDate("");
+      setError("");
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -29,67 +62,55 @@ export default function AddLeaveModal({ isOpen, onClose }) {
     setError("");
   };
 
+  // Derived working dates for preview
+  const effectiveEnd = multiDay && endDate ? endDate : form.startDate;
+  const previewDates =
+    form.startDate && effectiveEnd >= form.startDate
+      ? buildWorkingDates(form.startDate, effectiveEnd, holidaySet)
+      : form.startDate
+      ? buildWorkingDates(form.startDate, form.startDate, holidaySet)
+      : [];
+  const workingDayCount =
+    form.type === "half" ? previewDates.length * 0.5 : previewDates.length;
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name) {
-      setError("Please select an employee");
-      return;
-    }
-    if (!form.startDate) {
-      setError("Please select a start date");
-      return;
-    }
-    if (!form.endDate) {
-      setError("Please select an end date");
-      return;
-    }
-    if (form.endDate < form.startDate) {
+    if (!form.name) { setError("Please select an employee"); return; }
+    if (!form.startDate) { setError("Please select a start date"); return; }
+    if (multiDay && endDate && endDate < form.startDate) {
       setError("End date cannot be before start date");
       return;
     }
 
-    // Generate dates array between start and end (inclusive)
-    const dates = [];
-    let current = new Date(form.startDate + "T00:00:00");
-    const end = new Date(form.endDate + "T00:00:00");
-    
-    while (current <= end) {
-      // Manually build YYYY-MM-DD to avoid UTC shift from toISOString()
-      const y = current.getFullYear();
-      const m = String(current.getMonth() + 1).padStart(2, "0");
-      const d = String(current.getDate()).padStart(2, "0");
-      dates.push(`${y}-${m}-${d}`);
-      current.setDate(current.getDate() + 1);
+    const finalEnd = multiDay && endDate ? endDate : form.startDate;
+    const dates = buildWorkingDates(form.startDate, finalEnd, holidaySet);
+
+    if (dates.length === 0) {
+      setError("The selected range has no working days (all weekends or holidays).");
+      return;
+    }
+
+    let finalReason = form.reason.trim();
+    if (form.type === "half") {
+      const segmentStr = form.segment === "first" ? "[First Half]" : "[Second Half]";
+      finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
     }
 
     addLeave({
       name: form.name,
       startDate: form.startDate,
-      endDate: form.endDate,
+      endDate: finalEnd,
       dates,
       type: form.type,
-      reason: form.reason.trim(),
+      reason: finalReason,
       createdAt: new Date().toISOString(),
     });
 
-    setForm({
-      name: "",
-      startDate: today,
-      endDate: today,
-      type: "full",
-      reason: "",
-    });
+    setForm({ name: "", startDate: today, type: "full", segment: "first", reason: "" });
+    setMultiDay(false);
+    setEndDate("");
     onClose();
   };
-
-  const dayCount = (() => {
-    if (!form.startDate || !form.endDate || form.endDate < form.startDate) return 0;
-    const s = new Date(form.startDate + "T00:00:00");
-    const e = new Date(form.endDate + "T00:00:00");
-    const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
-    if (form.type === "half") return diff * 0.5;
-    return diff;
-  })();
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -100,6 +121,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-sections-container">
+
             {/* 1. Employee & Type */}
             <div className="form-section">
               <div className="form-section-title">🏖️ Leave Baseline</div>
@@ -119,9 +141,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
                       <>
                         <option value="">Select employee</option>
                         {employees.map((emp) => (
-                          <option key={emp.id} value={emp.name}>
-                            {emp.name}
-                          </option>
+                          <option key={emp.id} value={emp.name}>{emp.name}</option>
                         ))}
                       </>
                     )}
@@ -151,6 +171,32 @@ export default function AddLeaveModal({ isOpen, onClose }) {
                     ))}
                   </div>
                 </div>
+
+                {form.type === "half" && (
+                  <div className="form-group-interactive">
+                    <label>Half Day Segment</label>
+                    <div className="leave-type-options">
+                      {[
+                        { value: "first", label: "First Half", icon: "🌅" },
+                        { value: "second", label: "Second Half", icon: "🌇" },
+                      ].map((opt) => (
+                        <label
+                          key={opt.value}
+                          className={`leave-type-chip ${form.segment === opt.value ? "active" : ""}`}
+                        >
+                          <input
+                            type="radio"
+                            name="leaveSegment"
+                            value={opt.value}
+                            checked={form.segment === opt.value}
+                            onChange={handleChange("segment")}
+                          />
+                          <span>{opt.icon} {opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -159,7 +205,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
               <div className="form-section-title">📅 Timeline</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
-                  <label htmlFor="leave-start">Start Date</label>
+                  <label htmlFor="leave-start">Leave Date</label>
                   <input
                     id="leave-start"
                     type="date"
@@ -167,20 +213,46 @@ export default function AddLeaveModal({ isOpen, onClose }) {
                     onChange={handleChange("startDate")}
                   />
                 </div>
+
+                {/* Multi-day toggle */}
                 <div className="form-group-interactive">
-                  <label htmlFor="leave-end">End Date</label>
-                  <input
-                    id="leave-end"
-                    type="date"
-                    value={form.endDate}
-                    onChange={handleChange("endDate")}
-                  />
+                  <label>Multiple Days?</label>
+                  <label className="leave-multiday-toggle">
+                    <input
+                      type="checkbox"
+                      checked={multiDay}
+                      onChange={(e) => {
+                        setMultiDay(e.target.checked);
+                        if (!e.target.checked) setEndDate("");
+                      }}
+                    />
+                    <span className={`toggle-pill ${multiDay ? "active" : ""}`}>
+                      {multiDay ? "Yes — set end date" : "No — single day"}
+                    </span>
+                  </label>
                 </div>
-                {dayCount > 0 && (
+
+                {multiDay && (
                   <div className="form-group-interactive">
-                    <label>Duration Summary</label>
-                    <div className="leave-summary-badge" style={{ margin: 0, padding: '10px' }}>
-                       {dayCount} {dayCount === 1 ? "day" : "days"} leave
+                    <label htmlFor="leave-end">End Date</label>
+                    <input
+                      id="leave-end"
+                      type="date"
+                      value={endDate}
+                      min={form.startDate}
+                      onChange={(e) => { setEndDate(e.target.value); setError(""); }}
+                    />
+                  </div>
+                )}
+
+                {previewDates.length > 0 && (
+                  <div className="form-group-interactive">
+                    <label>Working Days</label>
+                    <div className="leave-summary-badge" style={{ margin: 0, padding: "10px" }}>
+                      {workingDayCount} {workingDayCount === 1 ? "working day" : "working days"}
+                      {multiDay && endDate && (
+                        <span className="leave-skip-note"> · weekends &amp; holidays skipped</span>
+                      )}
                     </div>
                   </div>
                 )}
