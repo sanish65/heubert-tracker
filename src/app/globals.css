@@ -5049,7 +5049,7 @@ a.jira-tag-key:hover {
 .retro-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 900px) { .retro-columns { grid-template-columns: 1fr; } }
 
-.retro-column { border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--bg-card); backdrop-filter: blur(20px); display: flex; flex-direction: column; min-height: 300px; overflow: hidden; }
+.retro-column { border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--bg-card); backdrop-filter: blur(20px); display: flex; flex-direction: column; min-height: 300px; }
 .retro-column-green   { border-color: rgba(34,197,94,0.25); }
 .retro-column-amber   { border-color: rgba(249,115,22,0.25); }
 .retro-column-indigo  { border-color: rgba(99,102,241,0.25); }
@@ -5095,6 +5095,32 @@ a.jira-tag-key:hover {
 .retro-sticky-author  { font-size: 0.72rem; color: #475569; font-weight: 600; font-style: italic; }
 .retro-sticky-delete  { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.72rem; padding: 2px 4px; border-radius: 4px; transition: color 0.15s, background 0.15s; line-height: 1; }
 .retro-sticky-delete:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+
+/* Edit button on sticky */
+.retro-sticky-edit { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.78rem; padding: 2px 4px; border-radius: 4px; transition: color 0.15s, background 0.15s; line-height: 1; }
+.retro-sticky-edit:hover { color: #6366f1; background: rgba(99,102,241,0.1); }
+
+/* Inline edit textarea (inside the sticky card) */
+.retro-edit-textarea { background: rgba(255,255,255,0.85); border: 1px solid rgba(99,102,241,0.3); border-radius: 6px; padding: 8px 10px; font-family: inherit; font-size: 0.86rem; color: #1e293b; resize: none; outline: none; width: 100%; }
+.retro-edit-textarea:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+
+/* @Mention chip inside card content */
+.retro-mention { background: rgba(99,102,241,0.14); color: #4f46e5; border-radius: 4px; padding: 1px 5px; font-weight: 700; font-size: 0.84em; white-space: nowrap; }
+
+/* @Mention autocomplete dropdown */
+.retro-mention-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--bg-card); border: 1px solid rgba(99,102,241,0.35);
+  border-radius: var(--radius-sm); overflow: hidden;
+  z-index: 999; list-style: none; margin: 3px 0 0; padding: 4px 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: retroSlideIn 0.15s ease;
+}
+.retro-mention-dropdown li {
+  padding: 8px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  color: var(--text-secondary); transition: background 0.12s, color 0.12s;
+}
+.retro-mention-dropdown li:hover { background: rgba(99,102,241,0.12); color: var(--accent-indigo); }
 
 /* ── Sticky card actions row (vote + delete) ── */
 .retro-sticky-actions { display: flex; align-items: center; gap: 4px; }

@@ -22,6 +22,7 @@ export default function PlanningPokerPage() {
   const [participantName, setParticipantName] = useState("");
   const [showMorePoints, setShowMorePoints] = useState(false);
   const [recentSessions, setRecentSessions] = useState([]);
+  const [isRestoring, setIsRestoring] = useState(true);
   const pollRef = useRef(null);
   const [shareUrl, setShareUrl] = useState("");
 
@@ -78,6 +79,7 @@ export default function PlanningPokerPage() {
           const res = await fetch(`/api/poker?sessionId=${savedId}`);
           if (!res.ok) {
             localStorage.removeItem("heubert_poker_session_id");
+            setIsRestoring(false);
             return;
           }
           const data = await res.json();
@@ -98,9 +100,13 @@ export default function PlanningPokerPage() {
           startPolling(savedId);
         } catch {
           localStorage.removeItem("heubert_poker_session_id");
+        } finally {
+          setIsRestoring(false);
         }
       };
       autoJoin();
+    } else {
+      setIsRestoring(false);
     }
   }, [startPolling]);
 
@@ -315,8 +321,17 @@ export default function PlanningPokerPage() {
         </button>
       </div>
 
+      {isRestoring && (
+        <div className="retro-ended-overlay">
+          <div className="retro-ended-message" style={{ background: 'transparent', boxShadow: 'none' }}>
+            <span className="poker-spinner" style={{ width: '40px', height: '40px', borderTopColor: 'var(--accent-indigo)' }}></span>
+            <h2 style={{ marginTop: '20px' }}>Loading your session...</h2>
+          </div>
+        </div>
+      )}
+
       {/* ── HOME / ENTRY ── */}
-      {view === "home" && (
+      {!isRestoring && view === "home" && (
         <div className="poker-home">
           <div className="poker-hero">
             <span className="poker-hero-icon">🃏</span>
@@ -539,7 +554,11 @@ export default function PlanningPokerPage() {
                   <span className="poker-session-id-label">Session ID:</span>
                   <code className="poker-session-id">{session.id}</code>
                 </div>
-                {!session.is_ended && (
+                {session.is_ended ? (
+                  <button className="btn-poker-primary" style={{marginTop: '10px'}} onClick={() => { setView("home"); setSession(null); }}>
+                    Back to Hub
+                  </button>
+                ) : (
                   <button className="retro-end-session-btn" style={{marginTop: '10px'}} onClick={handleEndSession}>
                     🏁 End Session
                   </button>
@@ -548,20 +567,7 @@ export default function PlanningPokerPage() {
             )}
           </div>
 
-          {/* Session Ended Overlay */}
-          {session.is_ended && (
-            <div className="retro-ended-overlay">
-              <div className="retro-ended-message">
-                <span className="retro-ended-icon">🏁</span>
-                <h2>This Poker Session has ended</h2>
-                <p>The host has concluded this session. Thank you for voting!</p>
-                <p className="retro-ended-sub">Please wait for the next sprint's session to begin.</p>
-                <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
-                  Back to Hub
-                </button>
-              </div>
-            </div>
-          )}
+
 
           {/* Status Bar */}
           <div className="poker-status-bar">
@@ -577,7 +583,7 @@ export default function PlanningPokerPage() {
                 {session.revealed ? "🔓 Results Revealed" : "🔒 Voting in Progress"}
               </span>
             </div>
-            {isHost && (
+            {isHost && !session.is_ended && (
               <div className="poker-host-actions">
                 {!session.revealed ? (
                   <button
@@ -642,7 +648,7 @@ export default function PlanningPokerPage() {
           )}
 
           {/* Voting Grid */}
-          {!session.revealed && (
+          {!session.revealed && !session.is_ended && (
             <div className="poker-vote-section">
               <h3 className="poker-vote-title">
                 {myVoteInSession

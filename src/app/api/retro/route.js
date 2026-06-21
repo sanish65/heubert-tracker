@@ -231,6 +231,83 @@ export async function POST(request) {
     return NextResponse.json({ ok: true });
   }
 
+  if (body.action === 'edit_card') {
+    try {
+      const { cardId, content, author } = body;
+      console.log("[RETRO_API] edit_card request:", { cardId, author, contentLength: content?.length });
+      
+      if (!cardId || !content?.trim()) return NextResponse.json({ error: 'cardId and content required' }, { status: 400 });
+      
+      // 1. Fetch current card and its votes to prepare for "edit via replace"
+      const { data: card, error: fetchErr } = await supabase.from('retro_cards').select('*').eq('id', cardId).single();
+      if (fetchErr) {
+        console.error("[RETRO_API] fetch error:", fetchErr);
+        return NextResponse.json({ error: 'Card fetch failed: ' + fetchErr.message }, { status: 500 });
+      }
+      if (!card) return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+      
+      const cardAuthor = (card.author || "").toLowerCase().trim();
+      const reqAuthor = (author || "").toLowerCase().trim();
+      const isOwner = cardAuthor === reqAuthor;
+      
+      if (!isOwner) {
+        console.warn("[RETRO_API] Forbidden: owner mismatch", { cardAuthor, reqAuthor });
+        return NextResponse.json({ error: 'Forbidden: You can only edit your own cards' }, { status: 403 });
+      }
+
+      // 2. Fetch votes to preserve them
+      const { data: votes, error: votesErr } = await supabase.from('retro_card_votes').select('*').eq('card_id', cardId);
+      if (votesErr) {
+        console.error("[RETRO_API] votes fetch error:", votesErr);
+        return NextResponse.json({ error: 'Failed to backup votes: ' + votesErr.message }, { status: 500 });
+      }
+
+      // 3. Delete the old card (cascades to votes)
+      const { error: delErr } = await supabase.from('retro_cards').delete().eq('id', cardId);
+      if (delErr) {
+        console.error("[RETRO_API] delete error:", delErr);
+        return NextResponse.json({ error: 'Failed to prepare edit: ' + delErr.message }, { status: 500 });
+      }
+
+      // 4. Re-insert the card with the SAME ID but updated content
+      const { data: newData, error: insertErr } = await supabase.from('retro_cards').insert({
+        id: card.id,
+        session_id: card.session_id,
+        column_type: card.column_type,
+        content: content.trim(),
+        author: card.author,
+        created_at: card.created_at // Preserve original timestamp
+      }).select().single();
+
+      if (insertErr) {
+        console.error("[RETRO_API] insert error:", insertErr);
+        return NextResponse.json({ error: 'Failed to re-insert card: ' + insertErr.message }, { status: 500 });
+      }
+
+      // 5. Restore votes
+      if (votes && votes.length > 0) {
+        // Clean votes slightly (remove internal Supabase ID if present requested by PK)
+        const votesToInsert = votes.map(v => ({
+          session_id: v.session_id,
+          card_id: v.card_id,
+          participant_name: v.participant_name,
+          created_at: v.created_at
+        }));
+        const { error: restoreVotesErr } = await supabase.from('retro_card_votes').insert(votesToInsert);
+        if (restoreVotesErr) {
+          console.error("[RETRO_API] restore votes error:", restoreVotesErr);
+          // Note: The card is already updated, so we might want to warn rather than fail completely,
+          // but for consistency we'll report the error.
+        }
+      }
+      
+      return NextResponse.json({ card: newData });
+    } catch (e) {
+      console.error("[RETRO_API] Catch-all error:", e);
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+  }
+
   if (body.action === 'end_session') {
     const { sessionId } = body;
     // Insert a system card to signal end of session

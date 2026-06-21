@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useApp } from "@/context/AppContext";
 
 const RETRO_TEMPLATES = {
   standard: [
@@ -22,6 +23,86 @@ const RETRO_TEMPLATES = {
 
 const DEFAULT_COLUMNS = RETRO_TEMPLATES.standard;
 
+// ── MentionTextarea ─────────────────────────────────────
+function MentionTextarea({ value, onChange, employeeNames, className, maxLength, rows, onSave, onCancel, saving }) {
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [cursorPos, setCursorPos] = useState(0);
+  const taRef = useRef(null);
+
+  const filteredNames = mentionQuery
+    ? employeeNames.filter(n => n.toLowerCase().startsWith(mentionQuery.toLowerCase())).slice(0, 5)
+    : [];
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    const pos = e.target.selectionStart;
+    onChange(val);
+    setCursorPos(pos);
+
+    // Detect @mention trigger
+    const textBefore = val.slice(0, pos);
+    const match = textBefore.match(/@(\w[\w ]*)$/);
+    if (match) {
+      setMentionQuery(match[1]);
+      setMentionOpen(true);
+    } else {
+      setMentionOpen(false);
+      setMentionQuery("");
+    }
+  };
+
+  const insertMention = (name) => {
+    const textBefore = value.slice(0, cursorPos);
+    const textAfter = value.slice(cursorPos);
+    const lastAt = textBefore.lastIndexOf("@");
+    const newText = textBefore.slice(0, lastAt) + `@${name} ` + textAfter;
+    onChange(newText);
+    setMentionOpen(false);
+    setMentionQuery("");
+    setTimeout(() => taRef.current?.focus(), 0);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") { onCancel(); }
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onSave(); }
+  };
+
+  return (
+    <div className="retro-mention-wrapper" style={{ position: "relative" }}>
+      <textarea
+        ref={taRef}
+        className={className}
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        maxLength={maxLength}
+        rows={rows}
+        autoFocus
+      />
+      {mentionOpen && filteredNames.length > 0 && (
+        <ul className="retro-mention-dropdown">
+          {filteredNames.map(name => (
+            <li key={name} onMouseDown={(e) => { e.preventDefault(); insertMention(name); }}>
+              @{name}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="retro-compose-footer">
+        <span className="retro-compose-char">{value.length}/{maxLength} · Ctrl+Enter to save</span>
+        <div className="retro-compose-actions">
+          <button className="retro-btn-cancel" type="button" onClick={onCancel}>Cancel</button>
+          <button className="retro-btn-pin retro-btn-pin-green" type="button" onClick={onSave} disabled={!value.trim() || saving}>
+            {saving ? <span className="poker-spinner" /> : "💾 Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
 export default function RetrospectivePage() {
   const [view, setView]             = useState("home");   // home | board | actions
   const [isEnlarged, setIsEnlarged] = useState(false);
@@ -41,6 +122,15 @@ export default function RetrospectivePage() {
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
   const [recentSessions, setRecentSessions] = useState([]);
+  const [isRestoring, setIsRestoring] = useState(true);
+
+  // ── Edit card state ───────────────────────────────────────
+  const [editingCardId, setEditingCardId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const { employees } = useApp();
+  const employeeNames = employees.map(e => e.name);
 
   // compose
   const [activeCompose, setActiveCompose] = useState(null);
@@ -57,6 +147,8 @@ export default function RetrospectivePage() {
   const pollRef        = useRef(null);
   const composeRef     = useRef(null);
   const dropComposeRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef      = useRef(false);
 
   // ── Fetch board ──────────────────────────────────────────
   const fetchBoard = useCallback(async (sid) => {
@@ -92,6 +184,7 @@ export default function RetrospectivePage() {
           const res = await fetch(`/api/retro?sessionId=${savedId}`);
           if (!res.ok) {
             localStorage.removeItem("heubert_retro_session_id");
+            setIsRestoring(false);
             return;
           }
           const data = await res.json();
@@ -107,9 +200,13 @@ export default function RetrospectivePage() {
           startPolling(savedId);
         } catch {
           localStorage.removeItem("heubert_retro_session_id");
+        } finally {
+          setIsRestoring(false);
         }
       };
       autoJoin();
+    } else {
+      setIsRestoring(false);
     }
   }, [startPolling]);
 
@@ -135,43 +232,73 @@ export default function RetrospectivePage() {
 
   // ── Sync typing status ────────────────────────────────────
   useEffect(() => {
-    if (!session || !participantName || view !== "board") return;
-    const isTyping = !!(activeCompose || dropCol);
-    const columnType = activeCompose || dropCol;
-    
-    const sync = async () => {
-      try {
-        await fetch("/api/retro", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "sync_activity",
-            sessionId: session.id,
-            participantName,
-            columnType,
-            isTyping
-          })
-        });
-      } catch (_) {}
-    };
-
-    sync();
-    // Cleanup on unmount or state change
-    return () => {
-      if (isTyping) {
+    if (!session || !participantName || view !== "board") {
+      if (isTypingRef.current) {
         fetch("/api/retro", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "sync_activity",
-            sessionId: session.id,
-            participantName,
-            isTyping: false
-          })
-        });
+          body: JSON.stringify({ action: "sync_activity", sessionId: session?.id, participantName, isTyping: false })
+        }).catch(() => {});
+        isTypingRef.current = false;
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
       }
+      return;
+    }
+
+    if (!activeCompose && !dropCol) {
+      if (isTypingRef.current) {
+        fetch("/api/retro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync_activity", sessionId: session.id, participantName, isTyping: false })
+        }).catch(() => {});
+        isTypingRef.current = false;
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
+      }
+      return;
+    }
+
+    const columnType = activeCompose || dropCol;
+    
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      fetch("/api/retro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync_activity",
+          sessionId: session.id,
+          participantName,
+          columnType,
+          isTyping: true
+        })
+      }).catch(() => {});
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      fetch("/api/retro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync_activity", sessionId: session.id, participantName, isTyping: false })
+      }).catch(() => {});
+    }, 5000);
+
+    return () => {
+      // Allow the latest timeout to run its course. On full unmount or modal close, 
+      // the first blockers in this useEffect will properly send isTyping: false and clear the timeout.
     };
-  }, [activeCompose, dropCol, session, participantName, view]);
+  }, [activeCompose, dropCol, composeText, dropText, session, participantName, view]);
 
   // ── Create / Join ────────────────────────────────────────
   const handleCreate = async () => {
@@ -268,6 +395,29 @@ export default function RetrospectivePage() {
     try { await fetch(`/api/retro?cardId=${cardId}`, { method: "DELETE" }); setCards(prev => prev.filter(c => c.id !== cardId)); } catch (_) {}
   };
 
+  const handleEditCard = async (cardId) => {
+    if (!editText.trim()) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch("/api/retro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "edit_card", cardId, content: editText, author: participantName })
+      });
+      if (res.ok) {
+        setCards(prev => prev.map(c => c.id === cardId ? { ...c, content: editText.trim() } : c));
+        setEditingCardId(null);
+        setEditText("");
+        setError("");
+      } else {
+        const data = await res.json();
+        setError(`Failed to save edit: ${data.error || res.statusText}`);
+      }
+    } catch (err) {
+      setError(`Network error: ${err.message}`);
+    } finally { setSavingEdit(false); }
+  };
+
   // ── Vote ─────────────────────────────────────────────────
   const handleVoteCard = async (cardId) => {
     if (!participantName) return;
@@ -342,8 +492,17 @@ export default function RetrospectivePage() {
         </button>
       </div>
 
+      {isRestoring && (
+        <div className="retro-ended-overlay">
+          <div className="retro-ended-message" style={{ background: 'transparent', boxShadow: 'none' }}>
+            <span className="poker-spinner" style={{ width: '40px', height: '40px', borderTopColor: 'var(--accent-indigo)' }}></span>
+            <h2 style={{ marginTop: '20px' }}>Loading your session...</h2>
+          </div>
+        </div>
+      )}
+
       {/* ── HOME ── */}
-      {view === "home" && (
+      {!isRestoring && view === "home" && (
         <div className="retro-home">
           <div className="retro-hero">
             <span className="retro-hero-icon">🗂️</span>
@@ -466,6 +625,20 @@ export default function RetrospectivePage() {
       {/* ── BOARD ── */}
       {view === "board" && session && (
         <div className="retro-board-view">
+          {error && (
+            <div className="poker-error" style={{ 
+              position: 'fixed', 
+              top: '20px', 
+              left: '50%', 
+              transform: 'translateX(-50%)', 
+              zIndex: 9999,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+              minWidth: '300px'
+            }}>
+              {error} 
+              <button onClick={() => setError("")} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', float: 'right', marginLeft: '10px' }}>✕</button>
+            </div>
+          )}
           {/* Header */}
           <div className="retro-board-header">
             <div className="retro-board-meta">
@@ -496,7 +669,11 @@ export default function RetrospectivePage() {
                     <code className="poker-session-id">{session.id}</code>
                   </div>
                 </div>
-                {!session.is_ended && (
+                {session.is_ended ? (
+                  <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
+                    Back to Hub
+                  </button>
+                ) : (
                   <button className="retro-end-session-btn" onClick={handleEndSession}>
                     🏁 End Session
                   </button>
@@ -505,22 +682,8 @@ export default function RetrospectivePage() {
             )}
           </div>
 
-          {/* Session Ended Overlay */}
-          {session.is_ended && (
-            <div className="retro-ended-overlay">
-              <div className="retro-ended-message">
-                <span className="retro-ended-icon">🏁</span>
-                <h2>This Retrospective has ended</h2>
-                <p>The facilitator has concluded this session. Thank you for your contributions!</p>
-                <p className="retro-ended-sub">Please wait for the next sprint's session to begin.</p>
-                <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
-                  Back to Hub
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Card Stacks — draggable */}
+          {!session.is_ended && (
           <div className="retro-stack-tray">
             <p className="retro-stack-tray-label">
               {participantName ? <>Hi <strong>{participantName}</strong> — <span className="retro-drag-hint">↕ drag</span> a card to the matching column, or click to compose:</> : "Pick a card to add your thought:"}
@@ -545,9 +708,10 @@ export default function RetrospectivePage() {
               ))}
             </div>
           </div>
+          )}
 
           {/* Global compose panel */}
-          {activeCompose && (() => {
+          {activeCompose && !session.is_ended && (() => {
             const col = currentColumns.find(c => c.key === activeCompose);
             return (
               <div className="retro-compose-panel">
@@ -626,19 +790,55 @@ export default function RetrospectivePage() {
                       </div>
                     )}
                     {colCards.map((card, idx) => {
-                      const votes  = voteCountFor(card.id);
+                      const cardVoteCount  = voteCountFor(card.id);
                       const iVoted = hasVotedFor(card.id);
+                      const isEditing = editingCardId === card.id;
+                      const isMine = card.author === participantName;
+
+                      // Render content with @mention highlights
+                      const renderContent = (text) => {
+                        const parts = text.split(/(@\w[\w\s]*?\b)/g);
+                        return parts.map((part, i) =>
+                          part.startsWith("@")
+                            ? <span key={i} className="retro-mention">{part}</span>
+                            : part
+                        );
+                      };
+
                       return (
                         <div key={card.id} className={`retro-sticky retro-sticky-${col.color}`} style={{ "--card-rotate": `${(idx % 2 === 0 ? 1 : -1) * (0.5 + (idx % 3) * 0.4)}deg` }}>
                           <div className="retro-sticky-pin">📌</div>
-                          <p className="retro-sticky-content">{card.content}</p>
+
+                          {isEditing ? (
+                            <MentionTextarea
+                              value={editText}
+                              onChange={setEditText}
+                              employeeNames={employeeNames}
+                              className="retro-compose-textarea retro-edit-textarea"
+                              maxLength={280}
+                              rows={3}
+                              onSave={() => handleEditCard(card.id)}
+                              onCancel={() => { setEditingCardId(null); setEditText(""); }}
+                              saving={savingEdit}
+                            />
+                          ) : (
+                            <p className="retro-sticky-content">{renderContent(card.content)}</p>
+                          )}
+
                           <div className="retro-sticky-footer">
                             <span className="retro-sticky-author">— {card.author}</span>
                             <div className="retro-sticky-actions">
-                              <button className={`retro-vote-btn${iVoted ? " retro-vote-btn-active" : ""}`} onClick={() => handleVoteCard(card.id)} title={iVoted ? "Remove vote" : "Vote — mark as important"}>
-                                👍{votes > 0 && <span className="retro-vote-count">{votes}</span>}
+                              <button className={`retro-vote-btn${iVoted ? " retro-vote-btn-active" : ""}`} onClick={() => !session.is_ended && handleVoteCard(card.id)} title={session.is_ended ? "" : (iVoted ? "Remove vote" : "Vote — mark as important")} disabled={session.is_ended}>
+                                👍{cardVoteCount > 0 && <span className="retro-vote-count">{cardVoteCount}</span>}
                               </button>
-                              {(card.author === participantName || isHost) && (
+                              {!session.is_ended && isMine && !card.id.toString().startsWith("temp_") && !isEditing && (
+                                <button className="retro-sticky-edit" onClick={() => {
+                                  setEditingCardId(card.id);
+                                  setEditText(card.content);
+                                  setSavingEdit(false);
+                                }} title="Edit">✏️</button>
+                              )}
+                              {(card.author === participantName || isHost) && !session.is_ended && !isEditing && (
                                 <button className="retro-sticky-delete" onClick={() => handleDelete(card.id)} title="Remove">✕</button>
                               )}
                             </div>
@@ -646,6 +846,7 @@ export default function RetrospectivePage() {
                         </div>
                       );
                     })}
+
                   </div>
                     </>
                   )}
