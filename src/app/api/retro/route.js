@@ -89,11 +89,18 @@ export async function GET(request) {
 
   const activity = [];
   const actualCards = [];
+  let timerState = null;
   
   let isEnded = false;
   (cards || []).forEach(c => {
     if (c.content === '__SESSION_ENDED__') {
       isEnded = true;
+    } else if (c.author === 'SYSTEM:TIMER') {
+      try {
+        timerState = JSON.parse(c.content);
+      } catch (e) {
+        // ignore malformed timer state
+      }
     } else if (c.content === '__THINKING__') {
       const idx = DB_COLS.indexOf(c.column_type);
       const uiCol = idx >= 0 ? sessionCols[idx] : c.column_type;
@@ -109,7 +116,8 @@ export async function GET(request) {
     session: { ...session, is_ended: isEnded }, 
     cards: actualCards, 
     cardVotes: cardVotes || [], 
-    activity 
+    activity,
+    timerState
   });
 }
 
@@ -234,14 +242,12 @@ export async function POST(request) {
   if (body.action === 'edit_card') {
     try {
       const { cardId, content, author } = body;
-      console.log("[RETRO_API] edit_card request:", { cardId, author, contentLength: content?.length });
       
       if (!cardId || !content?.trim()) return NextResponse.json({ error: 'cardId and content required' }, { status: 400 });
       
       // 1. Fetch current card and its votes to prepare for "edit via replace"
       const { data: card, error: fetchErr } = await supabase.from('retro_cards').select('*').eq('id', cardId).single();
       if (fetchErr) {
-        console.error("[RETRO_API] fetch error:", fetchErr);
         return NextResponse.json({ error: 'Card fetch failed: ' + fetchErr.message }, { status: 500 });
       }
       if (!card) return NextResponse.json({ error: 'Card not found' }, { status: 404 });
@@ -251,21 +257,18 @@ export async function POST(request) {
       const isOwner = cardAuthor === reqAuthor;
       
       if (!isOwner) {
-        console.warn("[RETRO_API] Forbidden: owner mismatch", { cardAuthor, reqAuthor });
         return NextResponse.json({ error: 'Forbidden: You can only edit your own cards' }, { status: 403 });
       }
 
       // 2. Fetch votes to preserve them
       const { data: votes, error: votesErr } = await supabase.from('retro_card_votes').select('*').eq('card_id', cardId);
       if (votesErr) {
-        console.error("[RETRO_API] votes fetch error:", votesErr);
         return NextResponse.json({ error: 'Failed to backup votes: ' + votesErr.message }, { status: 500 });
       }
 
       // 3. Delete the old card (cascades to votes)
       const { error: delErr } = await supabase.from('retro_cards').delete().eq('id', cardId);
       if (delErr) {
-        console.error("[RETRO_API] delete error:", delErr);
         return NextResponse.json({ error: 'Failed to prepare edit: ' + delErr.message }, { status: 500 });
       }
 
@@ -280,7 +283,6 @@ export async function POST(request) {
       }).select().single();
 
       if (insertErr) {
-        console.error("[RETRO_API] insert error:", insertErr);
         return NextResponse.json({ error: 'Failed to re-insert card: ' + insertErr.message }, { status: 500 });
       }
 
@@ -295,7 +297,6 @@ export async function POST(request) {
         }));
         const { error: restoreVotesErr } = await supabase.from('retro_card_votes').insert(votesToInsert);
         if (restoreVotesErr) {
-          console.error("[RETRO_API] restore votes error:", restoreVotesErr);
           // Note: The card is already updated, so we might want to warn rather than fail completely,
           // but for consistency we'll report the error.
         }
@@ -303,9 +304,30 @@ export async function POST(request) {
       
       return NextResponse.json({ card: newData });
     } catch (e) {
-      console.error("[RETRO_API] Catch-all error:", e);
       return NextResponse.json({ error: e.message }, { status: 500 });
     }
+  }
+
+  if (body.action === 'upsert_timer') {
+    const { sessionId, timerState } = body;
+    if (!sessionId || !timerState) return NextResponse.json({ error: 'sessionId and timerState required' }, { status: 400 });
+
+    // Check if timer card already exists
+    const { data: timerCard } = await supabase.from('retro_cards').select('id').eq('session_id', sessionId).eq('author', 'SYSTEM:TIMER').maybeSingle();
+
+    if (timerCard) {
+      const { error } = await supabase.from('retro_cards').update({ content: JSON.stringify(timerState) }).eq('id', timerCard.id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    } else {
+      const { error } = await supabase.from('retro_cards').insert({
+        session_id: sessionId,
+        column_type: 'went_well',
+        content: JSON.stringify(timerState),
+        author: 'SYSTEM:TIMER'
+      });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
   }
 
   if (body.action === 'end_session') {

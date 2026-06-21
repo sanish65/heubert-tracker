@@ -66,7 +66,7 @@ export default function HumanLoader() {
 
   const hairParam = isGirl ? girlHair : boyHair;
 
-  const wearsGlasses = ["sanish", "bikesh", "merisha", "jenish", "nikhil", "pratisha", "prativa"].includes(nameKey);
+  const wearsGlasses = ["sanish", "bikesh", "merisha", "jenish", "nikhil", "pratisha", "prativa", "amogh"].includes(nameKey);
   const glassesParam = wearsGlasses ? "&glassesProbability=100" : "&glassesProbability=0";
   
   const hasBeard = ["sanish"].includes(nameKey);
@@ -77,17 +77,19 @@ export default function HumanLoader() {
 
   let displayGreeting = greetings[greetingIndex];
   if (nameKey === "dinesh") displayGreeting = "Mero ghar ma dell ko monitor cha!";
-  else if (nameKey === "jenish") displayGreeting = "Jenny is here!";
+  else if (nameKey === "jenish") displayGreeting = "so guys, how's the prediction going?!";
   else if (nameKey === "nitesh") displayGreeting = "Hi, Its me Nitesh!";
   else if (nameKey === "bikesh") displayGreeting = "They call me Don! Biiku Don!";
   else if (nameKey === "pranay") displayGreeting = "Pranam from Pranay!";
-  else if (nameKey === "sanish") displayGreeting = "AC kholam ?";
+  else if (nameKey === "sanish") displayGreeting = "Hey, are we the birds of same feather ?";
   else if (nameKey === "aashish") displayGreeting = "Netherland Firiri......";
-  else if (nameKey === "nikhil") displayGreeting = "Team spirit guys , and a large coffee!";
+  else if (nameKey === "nikhil") displayGreeting = "श्वानः मित्रं नित्यं विश्वस्तम्।";
   else if (nameKey === "prativa") displayGreeting = "Data is my game";
-  else if (nameKey === "pratisha") displayGreeting = "Oi Hoi!";
-  else if (nameKey === "isha") displayGreeting = "I am a dancing spirit!";
+  else if (nameKey === "pratisha") displayGreeting = "काआ तरुवर पंच बिडाल,चंचल चित्त पइठो काल।";
+  else if (nameKey === "isha") displayGreeting = "वक्रतुण्ड महाकाय सूर्यकोटि समप्रभ । निर्विघ्नं कुरु मे देव सर्वकार्येषु सर्वदा ॥";
   else if (nameKey === "merisha") displayGreeting = "Jindagi sarara scooter ma!";
+  else if (nameKey === "amogh") displayGreeting = "sabailai namastey!";
+
 
   if (!isMounted || animationsEnabled === false) {
     return (

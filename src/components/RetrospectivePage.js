@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
+import RetroTimer from "./RetroTimer";
 
 const RETRO_TEMPLATES = {
   standard: [
@@ -128,6 +129,7 @@ export default function RetrospectivePage() {
   const [editingCardId, setEditingCardId] = useState(null);
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [timerState, setTimerState] = useState(null);
 
   const { employees } = useApp();
   const employeeNames = employees.map(e => e.name);
@@ -160,6 +162,7 @@ export default function RetrospectivePage() {
       setCards(data.cards || []);
       setCardVotes(data.cardVotes || []);
       setActivity(data.activity || []);
+      setTimerState(data.timerState);
     } catch (_) {}
   }, []);
 
@@ -430,6 +433,20 @@ export default function RetrospectivePage() {
     await fetch("/api/retro", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: hasVoted ? "unvote_card" : "vote_card", cardId, sessionId: session.id, participantName }) });
   };
 
+  const handleTimerAction = async (payload) => {
+    try {
+      const res = await fetch("/api/retro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        // Optimistically update or just wait for poll
+        if (payload.timerState) setTimerState(payload.timerState);
+      }
+    } catch (_) {}
+  };
+
   // ── Drag handlers ─────────────────────────────────────────
   const handleDragStart = (e, colKey) => { setDragType(colKey); e.dataTransfer.effectAllowed = "copy"; e.dataTransfer.setData("text/plain", colKey); };
   const handleDragEnd   = () => { setDragType(null); setDragOver(null); };
@@ -653,7 +670,15 @@ export default function RetrospectivePage() {
               }}>← Exit Board</button>
               <div>
                 <h2 className="retro-board-title">{session.title}</h2>
-                <span className="retro-board-badge">{isHost ? "🎯 Facilitator" : "👤 Participant"} · {cards.length} card{cards.length !== 1 ? "s" : ""}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <span className="retro-board-badge">{isHost ? "🎯 Facilitator" : "👤 Participant"} · {cards.length} card{cards.length !== 1 ? "s" : ""}</span>
+                  <RetroTimer 
+                    session={session} 
+                    isHost={isHost} 
+                    timerState={timerState} 
+                    onUpdate={handleTimerAction} 
+                  />
+                </div>
               </div>
             </div>
             {isHost && shareUrl && (

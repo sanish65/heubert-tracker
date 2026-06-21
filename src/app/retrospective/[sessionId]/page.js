@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import RetroTimer from "@/components/RetroTimer";
 
 const RETRO_TEMPLATES = {
   standard: [
@@ -38,6 +39,7 @@ export default function RetroSessionPage() {
   const [isHost, setIsHost]           = useState(false);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
+  const [timerState, setTimerState] = useState(null);
 
   // ── Compose state (click-to-open panel) ─────────────────
   const [activeCompose, setActiveCompose] = useState(null);
@@ -65,6 +67,7 @@ export default function RetroSessionPage() {
       setCards(data.cards || []);
       setCardVotes(data.cardVotes || []);
       setActivity(data.activity || []);
+      setTimerState(data.timerState);
 
       if (participantName && data.session?.created_by === participantName) {
         setIsHost(true);
@@ -188,7 +191,31 @@ export default function RetroSessionPage() {
       setPinning(false);
     }
   };
+  const handleEndSession = async () => {
+    if (!session || !isHost) return;
+    if (!confirm("Are you sure you want to end this session? This will lock the board for everyone.")) return;
+    try {
+      await fetch("/api/retro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "end_session", sessionId: session.id })
+      });
+      await fetchBoard();
+    } catch (_) {}
+  };
 
+  const handleTimerAction = async (payload) => {
+    try {
+      const res = await fetch("/api/retro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        if (payload.timerState) setTimerState(payload.timerState);
+      }
+    } catch (_) {}
+  };
 
   // ── Delete card ─────────────────────────────────────────
   const handleDelete = async (cardId) => {
@@ -302,7 +329,15 @@ export default function RetroSessionPage() {
 
       <main className="retro-standalone-main">
         <div className="retro-standalone-header-row">
-          <h2 className="retro-standalone-title">{session.title}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <h2 className="retro-standalone-title">{session.title}</h2>
+            <RetroTimer 
+              session={session} 
+              isHost={isHost} 
+              timerState={timerState} 
+              onUpdate={handleTimerAction} 
+            />
+          </div>
           {isHost && !session.is_ended && (
             <button className="retro-end-session-btn" onClick={handleEndSession}>
               🏁 End Session

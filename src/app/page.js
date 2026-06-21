@@ -272,12 +272,12 @@ export default function Home() {
         >
           🏖️ Leaves
         </button>
-        <button
+        {/* <button
           className={`nav-tab ${activeTab === "capacity" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("capacity")}
         >
           🏗️ Capacity
-        </button>
+        </button> */}
         <button
           className={`nav-tab ${activeTab === "words" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("words")}
