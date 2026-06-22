@@ -4881,8 +4881,8 @@ a.jira-tag-key:hover {
 @keyframes waitBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
 
 /* Standalone Participant Page */
-.poker-standalone-shell { min-height: 100vh; background: var(--bg-primary); background-image: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99,102,241,0.12), transparent), radial-gradient(ellipse 60% 50% at 80% 60%, rgba(139,92,246,0.06), transparent); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; }
-.poker-standalone-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 32px; border-bottom: 1px solid var(--border-color); }
+.poker-standalone-shell { min-height: 100vh; position: relative; z-index: 1; background: var(--bg-primary); background-image: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99,102,241,0.12), transparent), radial-gradient(ellipse 60% 50% at 80% 60%, rgba(139,92,246,0.06), transparent); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; }
+.poker-standalone-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 32px; border-bottom: 1px solid var(--border-color); position: relative; z-index: 1; }
 .poker-standalone-logo { display: flex; align-items: center; gap: 10px; }
 .poker-standalone-logo span:first-child { font-size: 1.6rem; }
 .poker-standalone-logo-text { font-weight: 800; font-size: 1.1rem; background: linear-gradient(135deg, #fff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -4898,7 +4898,7 @@ a.jira-tag-key:hover {
 .poker-standalone-loading { display: flex; align-items: center; justify-content: center; gap: 16px; flex: 1; color: var(--text-muted); font-size: 0.9rem; }
 .poker-standalone-error { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; flex: 1; text-align: center; color: var(--text-secondary); padding: 40px; }
 .poker-error-icon { font-size: 3rem; }
-.poker-standalone-footer { border-top: 1px solid var(--border-color); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); }
+.poker-standalone-footer { border-top: 1px solid var(--border-color); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); position: relative; z-index: 1; }
 .poker-pulse { display: flex; align-items: center; gap: 6px; color: var(--accent-green); font-weight: 600; }
 
 /* Poker topbar (enlarge button row) */
@@ -4994,15 +4994,15 @@ a.jira-tag-key:hover {
 .retro-col-violet  { background: rgba(139,92,246,0.07);  border-color: rgba(139,92,246,0.2);  }
 
 /* Board view */
-.retro-board-view { display: flex; flex-direction: column; gap: 20px; }
-.retro-board-header { display: flex; flex-direction: column; gap: 12px; }
+.retro-board-view { display: flex; flex-direction: column; gap: 20px; position: relative; z-index: 1; }
+.retro-board-header { display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 1; }
 .retro-board-toprow { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .retro-board-meta { display: flex; align-items: center; gap: 16px; }
 .retro-board-title { font-size: 1.4rem; font-weight: 800; }
 .retro-board-badge { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
 
 /* ── Card stacks tray ── */
-.retro-stack-tray { background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.retro-stack-tray { background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; }
 .retro-stack-tray-label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
 .retro-stacks { display: flex; gap: 20px; flex-wrap: wrap; }
 
@@ -5053,7 +5053,7 @@ a.jira-tag-key:hover {
 .retro-stack-hint { font-size: 0.68rem; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* ── Compose panel ── */
-.retro-compose-panel { animation: retroSlideIn 0.2s ease; }
+.retro-compose-panel { animation: retroSlideIn 0.2s ease; position: relative; z-index: 1; }
 @keyframes retroSlideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
 .retro-compose-card { border-radius: 12px; padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 12px; max-width: 520px; box-shadow: 0 8px 32px rgba(0,0,0,0.35); position: relative; }
@@ -5099,7 +5099,7 @@ a.jira-tag-key:hover {
 .retro-btn-pin-violet:hover:not(:disabled)  { background: #6d28d9; box-shadow: 0 4px 12px rgba(139,92,246,0.4); }
 
 /* ── Three-column board ── */
-.retro-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+.retro-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; position: relative; z-index: 1; }
 @media (max-width: 900px) { .retro-columns { grid-template-columns: 1fr; } }
 
 .retro-column { border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--bg-card); backdrop-filter: blur(20px); display: flex; flex-direction: column; min-height: 300px; }
@@ -5269,7 +5269,7 @@ a.jira-tag-key:hover {
 .retro-inline-compose-violet  { background: #ede9fe; border: 2px solid #7c3aed; }
 
 /* Standalone main */
-.retro-standalone-main  { flex: 1; display: flex; flex-direction: column; gap: 24px; padding: 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+.retro-standalone-main  { flex: 1; display: flex; flex-direction: column; gap: 24px; padding: 32px; max-width: 1100px; margin: 0 auto; width: 100%; position: relative; z-index: 1; }
 .retro-standalone-title { font-size: 1.6rem; font-weight: 800; }
 .retro-standalone-name  { display: flex; flex-direction: column; gap: 10px; max-width: 480px; }
 
@@ -5481,6 +5481,8 @@ a.jira-tag-key:hover {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
+  position: relative;
+  z-index: 1;
 }
 
 .retro-board-view, .retro-standalone-main {

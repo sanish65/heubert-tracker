@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import RetroTimer from "./RetroTimer";
 import ShareQRModal from "@/components/ShareQRModal";
+import SailboatScene from "@/components/SailboatScene";
+import SpaceScene    from "@/components/SpaceScene";
 
 const RETRO_TEMPLATES = {
   standard: [
@@ -644,6 +646,8 @@ export default function RetrospectivePage() {
       {/* ── BOARD ── */}
       {view === "board" && session && (
         <div className="retro-board-view">
+          {session.template === "sailboat"    && <SailboatScene />}
+          {session.template === "start_stop" && <SpaceScene />}
           {error && (
             <div className="poker-error" style={{ 
               position: 'fixed', 

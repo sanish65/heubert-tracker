@@ -100,6 +100,13 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
   };
 
+  // Stop music and reset running state when timer naturally expires
+  useEffect(() => {
+    if (!isHost || timeLeft !== 0 || !isRunning) return;
+    setIsRunning(false);
+    ytCmd("pauseVideo");
+  }, [timeLeft, isHost, isRunning]);
+
   // --- countdown interval ---
   useEffect(() => {
     clearTimerInterval();

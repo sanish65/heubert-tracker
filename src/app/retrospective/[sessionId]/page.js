@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import RetroTimer from "@/components/RetroTimer";
+import SailboatScene from "@/components/SailboatScene";
+import SpaceScene    from "@/components/SpaceScene";
 
 const RETRO_TEMPLATES = {
   standard: [
@@ -319,6 +321,8 @@ export default function RetroSessionPage() {
   // ── Render ───────────────────────────────────────────────
   return (
     <div className="poker-standalone-shell">
+      {session?.template === "sailboat"    && <SailboatScene />}
+      {session?.template === "start_stop" && <SpaceScene />}
       <header className="poker-standalone-header">
         <div className="poker-standalone-logo">
           <span>🗂️</span>
