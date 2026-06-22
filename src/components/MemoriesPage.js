@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { transformGoogleDriveLink } from "@/lib/utils";
 
 export default function MemoriesPage({ onAddMemory, onBack }) {
-  const { memories, animationsEnabled, deleteMemory, updateMemory } = useApp();
+  const { memories, animationsEnabled, deleteMemory, updateMemory, user } = useApp();
   const [visibleItems, setVisibleItems] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [editing, setEditing] = useState(null); // {id, type, content, caption}
@@ -110,19 +110,21 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
               >
                 <div className="memory-pin-classic"></div>
 
-                {/* Hover action buttons */}
-                <div className="memory-card-actions">
-                  <button
-                    className="card-action-btn edit-btn-card"
-                    onClick={(e) => openEdit(e, memory)}
-                    title="Edit memory"
-                  >✏️</button>
-                  <button
-                    className="card-action-btn delete-btn-card"
-                    onClick={(e) => handleDelete(e, memory)}
-                    title="Delete memory"
-                  >🗑️</button>
-                </div>
+                {/* Action buttons — only for the uploader */}
+                {user && memory.author_email === user.email && (
+                  <div className="memory-card-actions">
+                    <button
+                      className="card-action-btn edit-btn-card"
+                      onClick={(e) => openEdit(e, memory)}
+                      title="Edit memory"
+                    >✏️</button>
+                    <button
+                      className="card-action-btn delete-btn-card"
+                      onClick={(e) => handleDelete(e, memory)}
+                      title="Delete memory"
+                    >🗑️</button>
+                  </div>
+                )}
 
                 <div className="memory-card-classic">
                   {memory.type === 'image' && (

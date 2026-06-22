@@ -588,20 +588,33 @@ export function AppProvider({ children }) {
     return { data, error };
   };
 
+  const getAuthToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  };
+
   const deleteMemory = async (id) => {
-    const { error } = await supabase.from("memories").delete().eq("id", id);
-    if (error) throw error;
+    const token = await getAuthToken();
+    const res = await fetch(`/api/memories?id=${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Delete failed");
     setMemories(prev => prev.filter(m => m.id !== id));
-    return { error };
   };
 
   const updateMemory = async (id, updates) => {
-    const { data, error } = await supabase.from("memories").update(updates).eq("id", id).select();
-    if (error) throw error;
-    if (data && data.length > 0) {
-      setMemories(prev => prev.map(m => m.id === id ? data[0] : m));
-    }
-    return { data, error };
+    const token = await getAuthToken();
+    const res = await fetch("/api/memories", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, ...updates }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Update failed");
+    setMemories(prev => prev.map(m => m.id === id ? json.data : m));
+    return { data: json.data };
   };
   const seedWordsTable = async () => {
     if (wordSeasons.length > 0) return;
