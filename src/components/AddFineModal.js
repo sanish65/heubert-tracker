@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 
 export default function AddFineModal({ isOpen, onClose }) {
-  const { addFine, employees, currentEmployee } = useApp();
+  const { addFine, employees, currentEmployee, fines } = useApp();
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
     name: "",
@@ -13,8 +13,8 @@ export default function AddFineModal({ isOpen, onClose }) {
     status: "unpaid",
   });
   const [error, setError] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
 
-  // Auto-select current employee if available
   useEffect(() => {
     if (isOpen && currentEmployee && !form.name) {
       setForm(prev => ({ ...prev, name: currentEmployee.name }));
@@ -26,25 +26,33 @@ export default function AddFineModal({ isOpen, onClose }) {
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
     setError("");
+    setDuplicateWarning(false);
+  };
+
+  const doAdd = () => {
+    addFine({ ...form, amount: Number(form.amount), createdAt: new Date().toISOString() });
+    setForm({ name: "", date: today, amount: 25, status: "unpaid" });
+    setDuplicateWarning(false);
+    onClose();
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name) {
-      setError("Please select an employee");
+    if (!form.name) { setError("Please select an employee"); return; }
+    if (!form.amount) { setError("Please fill all required fields"); return; }
+
+    const isDuplicate = fines.some(f =>
+      f.employee_name === form.name &&
+      f.date === form.date &&
+      Number(f.amount) === Number(form.amount)
+    );
+
+    if (isDuplicate && !duplicateWarning) {
+      setDuplicateWarning(true);
       return;
     }
-    if (!form.name || !form.amount) {
-      setError("Please fill all required fields");
-      return;
-    }
-    addFine({
-      ...form,
-      amount: Number(form.amount),
-      createdAt: new Date().toISOString(),
-    });
-    setForm({ name: "", date: today, amount: 25, status: "unpaid" });
-    onClose();
+
+    doAdd();
   };
 
   return (
@@ -68,9 +76,7 @@ export default function AddFineModal({ isOpen, onClose }) {
                 >
                   <option value="">Select employee</option>
                   {employees.map((emp) => (
-                    <option key={emp.id} value={emp.name}>
-                      {emp.name}
-                    </option>
+                    <option key={emp.id} value={emp.name}>{emp.name}</option>
                   ))}
                 </select>
               </div>
@@ -88,12 +94,12 @@ export default function AddFineModal({ isOpen, onClose }) {
                 <div className="amount-preset-options">
                   {[25, 50].map(val => (
                     <label key={val} className={`amount-chip ${form.amount == val ? 'active' : ''}`}>
-                      <input 
-                        type="radio" 
-                        name="fineAmount" 
-                        value={val} 
-                        checked={form.amount == val} 
-                        onChange={() => setForm(prev => ({ ...prev, amount: val }))} 
+                      <input
+                        type="radio"
+                        name="fineAmount"
+                        value={val}
+                        checked={form.amount == val}
+                        onChange={() => { setForm(prev => ({ ...prev, amount: val })); setDuplicateWarning(false); }}
                       />
                       <span>RS {val}</span>
                     </label>
@@ -113,14 +119,32 @@ export default function AddFineModal({ isOpen, onClose }) {
               </div>
             </div>
           </div>
+
           {error && <span className="form-error">{error}</span>}
+
+          {duplicateWarning && (
+            <div className="duplicate-warning">
+              <span className="duplicate-warning-icon">⚠️</span>
+              <div className="duplicate-warning-text">
+                <strong>Duplicate entry detected</strong>
+                <p>A RS {form.amount} fine for <strong>{form.name}</strong> on <strong>{form.date}</strong> already exists. Add it anyway?</p>
+              </div>
+            </div>
+          )}
+
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              Add Fine
-            </button>
+            {duplicateWarning ? (
+              <button type="submit" className="btn btn-warning">
+                Add Anyway
+              </button>
+            ) : (
+              <button type="submit" className="btn btn-primary">
+                Add Fine
+              </button>
+            )}
           </div>
         </form>
       </div>

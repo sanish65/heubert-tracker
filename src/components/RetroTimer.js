@@ -12,8 +12,9 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
   const [timeLeft, setTimeLeft] = useState(300);
   const [isRunning, setIsRunning] = useState(false);
 
-  const intervalRef = useRef(null);
-  const audioCtxRef = useRef(null);
+  const intervalRef  = useRef(null);
+  const audioCtxRef  = useRef(null);
+  const endTimeRef   = useRef(null); // participant-side authoritative endTime from DB
 
   const initAudio = () => {
     if (!audioCtxRef.current) {
@@ -48,15 +49,25 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
 
   useEffect(() => {
     clearTimerInterval();
-    if (!isHost || !isRunning) return;
+    if (!isRunning) return;
 
     intervalRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        const next = prev - 1;
-        if (next <= 0) { clearTimerInterval(); return 0; }
-        if (next <= 10) playTickSound();
-        return next;
-      });
+      if (!isHost) {
+        // Participants: drive countdown from endTimeRef so reset/stop syncs within 1s
+        const et = endTimeRef.current;
+        if (!et) { clearTimerInterval(); return; }
+        const remaining = Math.max(0, Math.floor((new Date(et).getTime() - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining <= 0) { clearTimerInterval(); return; }
+        if (remaining <= 10) playTickSound();
+      } else {
+        setTimeLeft(prev => {
+          const next = prev - 1;
+          if (next <= 0) { clearTimerInterval(); return 0; }
+          if (next <= 10) playTickSound();
+          return next;
+        });
+      }
     }, 1000);
 
     return clearTimerInterval;
@@ -68,10 +79,12 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
 
     const { endTime, status, duration: dbDur } = timerState;
     if (status === "running" && endTime) {
+      endTimeRef.current = endTime;
       const remaining = Math.max(0, Math.floor((new Date(endTime).getTime() - Date.now()) / 1000));
       setTimeLeft(remaining);
       setIsRunning(true);
     } else if (status === "stopped") {
+      endTimeRef.current = null;
       setIsRunning(false);
       if (typeof dbDur === "number") { setSelectedDuration(dbDur); setTimeLeft(dbDur); }
     }

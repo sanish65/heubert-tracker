@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useApp } from "@/context/AppContext";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
 
@@ -23,8 +24,41 @@ export default function PlanningPokerPage() {
   const [showMorePoints, setShowMorePoints] = useState(false);
   const [recentSessions, setRecentSessions] = useState([]);
   const [isRestoring, setIsRestoring] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem("heubert_poker_sound") !== "off");
   const pollRef = useRef(null);
   const [shareUrl, setShareUrl] = useState("");
+  const prevRevealedRef = useRef(false);
+
+  const { isAdmin } = useApp();
+
+  const playChime = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [[523.25, 0], [659.25, 0.18], [783.99, 0.36], [1046.5, 0.54]].forEach(([freq, delay]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        const t = ctx.currentTime + delay;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.28, t + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.7);
+      });
+      setTimeout(() => ctx.close(), 2000);
+    } catch (_) {}
+  };
+
+  const toggleSound = () => {
+    setSoundEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem("heubert_poker_sound", next ? "on" : "off");
+      return next;
+    });
+  };
 
   const startPolling = useCallback((sid) => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -44,6 +78,12 @@ export default function PlanningPokerPage() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    const revealed = session?.revealed ?? false;
+    if (revealed && !prevRevealedRef.current && soundEnabled) playChime();
+    prevRevealedRef.current = revealed;
+  }, [session?.revealed, soundEnabled]);
 
   useEffect(() => {
     if (view === "home") {
@@ -254,7 +294,7 @@ export default function PlanningPokerPage() {
   };
 
   const handleEndSession = async () => {
-    if (!session || !isHost) return;
+    if (!session || (!isHost && !isAdmin)) return;
     if (!confirm("Are you sure you want to end this session? This will lock the board for everyone.")) return;
     try {
       await fetch("/api/poker", {
@@ -262,12 +302,12 @@ export default function PlanningPokerPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "end", sessionId: session.id }),
       });
-      // Trigger update
-      const res = await fetch(`/api/poker?sessionId=${session.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSession(data.session);
-      }
+      if (pollRef.current) clearInterval(pollRef.current);
+      setView("home");
+      setSession(null);
+      setVotes([]);
+      setMyVote(null);
+      localStorage.removeItem("heubert_poker_session_id");
     } catch (_) {}
   };
 
@@ -429,61 +469,46 @@ export default function PlanningPokerPage() {
 
           {error && <div className="poker-error">{error}</div>}
 
-          {recentSessions.length > 0 && (() => {
-            const active = recentSessions.filter(s => !s.is_ended);
-            const ended  = recentSessions.filter(s => s.is_ended);
-            
-            const renderCard = (s) => (
-              <button key={s.id} className={`retro-recent-card ${s.is_ended ? 'retro-recent-card-ended' : ''}`} onClick={() => {
-                setJoinSessionId(s.id);
-                setJoinName(participantName || "");
-                if (participantName) {
-                    setLoading(true);
-                    fetch(`/api/poker?sessionId=${s.id}`)
-                      .then(res => res.json())
-                      .then(data => {
-                        if (data.error) throw new Error(data.error);
-                        setSession(data.session);
-                        setVotes(data.votes || []);
-                        setParticipantName(participantName);
-                        localStorage.setItem("heubert_poker_session_id", data.session.id);
-                        localStorage.setItem("heubert_collab_name", participantName);
-                        setView("host"); // For poker, host/join view is same-ish logic here
-                        startPolling(s.id);
-                      })
-                      .catch(e => setError(e.message))
-                      .finally(() => setLoading(false));
-                } else {
-                  document.querySelector('.retro-entry-card-join').scrollIntoView({ behavior: 'smooth' });
-                }
-              }}>
-                <div className="retro-recent-card-top">
-                  <span className="retro-recent-emoji">🗳️</span>
-                  <div className="retro-recent-meta">
-                    <h4>{s.title} {s.is_ended && <span className="retro-ended-tag">Ended</span>}</h4>
-                    <span>By {s.created_by} · {new Date(s.created_at).toLocaleDateString()}</span>
-                  </div>
+          {recentSessions.filter(s => !s.is_ended).length > 0 && (
+            <div className="retro-recent-sessions">
+              <div className="retro-recent-section">
+                <h3 className="retro-recent-title">🌐 Active Sessions</h3>
+                <div className="retro-recent-grid">
+                  {recentSessions.filter(s => !s.is_ended).map(s => (
+                    <button key={s.id} className="retro-recent-card" onClick={() => {
+                      setJoinSessionId(s.id);
+                      setJoinName(participantName || "");
+                      if (participantName) {
+                        setLoading(true);
+                        fetch(`/api/poker?sessionId=${s.id}`)
+                          .then(res => res.json())
+                          .then(data => {
+                            if (data.error) throw new Error(data.error);
+                            setSession(data.session);
+                            setVotes(data.votes || []);
+                            setParticipantName(participantName);
+                            localStorage.setItem("heubert_poker_session_id", data.session.id);
+                            localStorage.setItem("heubert_collab_name", participantName);
+                            setView("host");
+                            startPolling(s.id);
+                          })
+                          .catch(e => setError(e.message))
+                          .finally(() => setLoading(false));
+                      }
+                    }}>
+                      <div className="retro-recent-card-top">
+                        <span className="retro-recent-emoji">🗳️</span>
+                        <div className="retro-recent-meta">
+                          <h4>{s.title}</h4>
+                          <span>By {s.created_by} · {new Date(s.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </button>
-            );
-
-            return (
-              <div className="retro-recent-sessions">
-                {active.length > 0 && (
-                  <div className="retro-recent-section">
-                    <h3 className="retro-recent-title">🌐 Active Sessions</h3>
-                    <div className="retro-recent-grid">{active.map(renderCard)}</div>
-                  </div>
-                )}
-                {ended.length > 0 && (
-                  <div className="retro-recent-section" style={{ marginTop: '40px' }}>
-                    <h3 className="retro-recent-title">🏁 Completed Sessions</h3>
-                    <div className="retro-recent-grid">{ended.map(renderCard)}</div>
-                  </div>
-                )}
               </div>
-            );
-          })()}
+            </div>
+          )}
 
           {/* How it works */}
           <div className="poker-howto">
@@ -510,59 +535,55 @@ export default function PlanningPokerPage() {
         <div className="poker-session">
           {/* Session Header */}
           <div className="poker-session-header">
-            <div className="poker-session-meta">
-              <button
-                className="poker-back-btn"
-                onClick={() => {
-                  if (pollRef.current) clearInterval(pollRef.current);
-                  setView("home");
-                  setSession(null);
-                  setVotes([]);
-                  setMyVote(null);
-                  setError("");
-                  localStorage.removeItem("heubert_poker_session_id");
-                }}
-              >
-                ← Exit Session
-              </button>
-              <div>
-                <h2 className="poker-session-title">{session.title}</h2>
-                <span className="poker-session-badge">
-                  {isHost ? "🎯 Host" : "👤 Participant"}
-                </span>
+            {/* Row 1: exit | title + badge | end/back action */}
+            <div className="poker-session-toprow">
+              <div className="poker-session-meta">
+                <button
+                  className="poker-back-btn"
+                  onClick={() => {
+                    if (pollRef.current) clearInterval(pollRef.current);
+                    setView("home");
+                    setSession(null);
+                    setVotes([]);
+                    setMyVote(null);
+                    setError("");
+                    localStorage.removeItem("heubert_poker_session_id");
+                  }}
+                >
+                  ← Exit
+                </button>
+                <div>
+                  <h2 className="poker-session-title">{session.title}</h2>
+                  <span className="poker-session-badge">
+                    {isHost ? "🎯 Host" : isAdmin ? "🛡️ Admin" : "👤 Participant"}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Share Link */}
-            {isHost && shareUrl && (
-              <div className="poker-share-box">
-                <span className="poker-share-label">🔗 Shareable Link</span>
-                <div className="poker-share-row">
-                  <input
-                    className="poker-share-input"
-                    readOnly
-                    value={shareUrl}
-                  />
-                  <button
-                    className={`poker-copy-btn ${copied ? "copied" : ""}`}
-                    onClick={handleCopy}
-                  >
-                    {copied ? "✅ Copied!" : "📋 Copy"}
-                  </button>
-                </div>
-                <div className="poker-session-id-row">
-                  <span className="poker-session-id-label">Session ID:</span>
-                  <code className="poker-session-id">{session.id}</code>
-                </div>
-                {session.is_ended ? (
-                  <button className="btn-poker-primary" style={{marginTop: '10px'}} onClick={() => { setView("home"); setSession(null); }}>
-                    Back to Hub
-                  </button>
-                ) : (
-                  <button className="retro-end-session-btn" style={{marginTop: '10px'}} onClick={handleEndSession}>
+              <div className="poker-session-actions">
+                {(isHost || isAdmin) && !session.is_ended && (
+                  <button className="retro-end-session-btn" onClick={handleEndSession}>
                     🏁 End Session
                   </button>
                 )}
+                {(isHost || isAdmin) && session.is_ended && (
+                  <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
+                    ← Back to Hub
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Row 2: share strip (host only) */}
+            {isHost && shareUrl && (
+              <div className="poker-share-strip">
+                <span className="poker-share-label">🔗 Share</span>
+                <input className="poker-share-input" readOnly value={shareUrl} />
+                <button className={`poker-copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>
+                  {copied ? "✅ Copied!" : "📋 Copy"}
+                </button>
+                <span className="poker-session-id-label">ID:</span>
+                <code className="poker-session-id">{session.id}</code>
               </div>
             )}
           </div>
@@ -583,23 +604,32 @@ export default function PlanningPokerPage() {
                 {session.revealed ? "🔓 Results Revealed" : "🔒 Voting in Progress"}
               </span>
             </div>
-            {isHost && !session.is_ended && (
-              <div className="poker-host-actions">
-                {!session.revealed ? (
-                  <button
-                    className="btn-poker-reveal"
-                    onClick={handleReveal}
-                    disabled={votes.filter(v => v.vote !== 'waiting').length === 0}
-                  >
-                    📢 Publish Results
-                  </button>
-                ) : (
-                  <button className="btn-poker-reset" onClick={handleReset}>
-                    🔄 New Round
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="poker-host-actions">
+              {isHost && !session.is_ended && (
+                <>
+                  {!session.revealed ? (
+                    <button
+                      className="btn-poker-reveal"
+                      onClick={handleReveal}
+                      disabled={votes.filter(v => v.vote !== 'waiting').length === 0}
+                    >
+                      📢 Publish Results
+                    </button>
+                  ) : (
+                    <button className="btn-poker-reset" onClick={handleReset}>
+                      🔄 New Round
+                    </button>
+                  )}
+                </>
+              )}
+              <button
+                className="poker-sound-toggle"
+                onClick={toggleSound}
+                title={soundEnabled ? "Mute reveal sound" : "Unmute reveal sound"}
+              >
+                {soundEnabled ? "🔔" : "🔕"}
+              </button>
+            </div>
           </div>
 
           {/* Active Participants Tracking (Before Reveal) */}

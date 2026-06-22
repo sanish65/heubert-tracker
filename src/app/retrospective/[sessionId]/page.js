@@ -331,12 +331,14 @@ export default function RetroSessionPage() {
         <div className="retro-standalone-header-row">
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <h2 className="retro-standalone-title">{session.title}</h2>
-            <RetroTimer 
-              session={session} 
-              isHost={isHost} 
-              timerState={timerState} 
-              onUpdate={handleTimerAction} 
-            />
+            {isHost && (
+              <RetroTimer
+                session={session}
+                isHost={isHost}
+                timerState={timerState}
+                onUpdate={handleTimerAction}
+              />
+            )}
           </div>
           {isHost && !session.is_ended && (
             <button className="retro-end-session-btn" onClick={handleEndSession}>

@@ -658,51 +658,53 @@ export default function RetrospectivePage() {
           )}
           {/* Header */}
           <div className="retro-board-header">
-            <div className="retro-board-meta">
-              <button className="poker-back-btn" onClick={() => { 
-                if (pollRef.current) clearInterval(pollRef.current); 
-                setView("home"); 
-                setSession(null); 
-                setCards([]); 
-                setCardVotes([]); 
-                setError(""); 
-                localStorage.removeItem("heubert_retro_session_id");
-              }}>← Exit Board</button>
-              <div>
-                <h2 className="retro-board-title">{session.title}</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Row 1: exit | title + badge | timer + end action */}
+            <div className="retro-board-toprow">
+              <div className="retro-board-meta">
+                <button className="poker-back-btn" onClick={() => {
+                  if (pollRef.current) clearInterval(pollRef.current);
+                  setView("home");
+                  setSession(null);
+                  setCards([]);
+                  setCardVotes([]);
+                  setError("");
+                  localStorage.removeItem("heubert_retro_session_id");
+                }}>← Exit</button>
+                <div>
+                  <h2 className="retro-board-title">{session.title}</h2>
                   <span className="retro-board-badge">{isHost ? "🎯 Facilitator" : "👤 Participant"} · {cards.length} card{cards.length !== 1 ? "s" : ""}</span>
-                  <RetroTimer 
-                    session={session} 
-                    isHost={isHost} 
-                    timerState={timerState} 
-                    onUpdate={handleTimerAction} 
-                  />
                 </div>
               </div>
-            </div>
-            {isHost && shareUrl && (
-              <div className="retro-header-actions">
-                <div className="poker-share-box">
-                  <span className="poker-share-label">🔗 Shareable Link</span>
-                  <div className="poker-share-row">
-                    <input className="poker-share-input" readOnly value={shareUrl} />
-                    <button className={`poker-copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>{copied ? "✅ Copied!" : "📋 Copy"}</button>
-                  </div>
-                  <div className="poker-session-id-row">
-                    <span className="poker-session-id-label">Session ID:</span>
-                    <code className="poker-session-id">{session.id}</code>
-                  </div>
-                </div>
-                {session.is_ended ? (
-                  <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
-                    Back to Hub
-                  </button>
-                ) : (
+              <div className="poker-session-actions">
+                {isHost && (
+                  <RetroTimer
+                    session={session}
+                    isHost={isHost}
+                    timerState={timerState}
+                    onUpdate={handleTimerAction}
+                  />
+                )}
+                {isHost && !session.is_ended && (
                   <button className="retro-end-session-btn" onClick={handleEndSession}>
                     🏁 End Session
                   </button>
                 )}
+                {isHost && session.is_ended && (
+                  <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
+                    ← Back to Hub
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Row 2: share strip (host only) */}
+            {isHost && shareUrl && (
+              <div className="poker-share-strip">
+                <span className="poker-share-label">🔗 Share</span>
+                <input className="poker-share-input" readOnly value={shareUrl} />
+                <button className={`poker-copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>{copied ? "✅ Copied!" : "📋 Copy"}</button>
+                <span className="poker-session-id-label">ID:</span>
+                <code className="poker-session-id">{session.id}</code>
               </div>
             )}
           </div>

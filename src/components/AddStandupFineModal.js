@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 
 export default function AddStandupFineModal({ isOpen, onClose }) {
-  const { addStandupFine, employees, currentEmployee } = useApp();
+  const { addStandupFine, employees, currentEmployee, standupFines } = useApp();
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
     name: "",
@@ -12,8 +12,8 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
     status: "unpaid",
   });
   const [error, setError] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
 
-  // Auto-select current employee if available
   useEffect(() => {
     if (isOpen && currentEmployee && !form.name) {
       setForm(prev => ({ ...prev, name: currentEmployee.name }));
@@ -22,18 +22,28 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const doAdd = () => {
+    addStandupFine({ ...form, createdAt: new Date().toISOString() });
+    setForm({ name: "", date: today, status: "unpaid" });
+    setDuplicateWarning(false);
+    onClose();
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name) {
-      setError("Please select an employee");
+    if (!form.name) { setError("Please select an employee"); return; }
+
+    const isDuplicate = standupFines.some(s =>
+      s.employee_name === form.name &&
+      s.date === form.date
+    );
+
+    if (isDuplicate && !duplicateWarning) {
+      setDuplicateWarning(true);
       return;
     }
-    addStandupFine({
-      ...form,
-      createdAt: new Date().toISOString(),
-    });
-    setForm({ name: "", date: today, status: "unpaid" });
-    onClose();
+
+    doAdd();
   };
 
   return (
@@ -52,7 +62,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
                 <select
                   id="standup-employee"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, name: e.target.value }); setError(""); setDuplicateWarning(false); }}
                   autoFocus
                 >
                   <option value="">Choose...</option>
@@ -67,7 +77,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
                   id="standup-date"
                   type="date"
                   value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, date: e.target.value }); setDuplicateWarning(false); }}
                 />
               </div>
               <div className="form-group-interactive">
@@ -83,10 +93,32 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
               </div>
             </div>
           </div>
+
           {error && <span className="form-error">{error}</span>}
+
+          {duplicateWarning && (
+            <div className="duplicate-warning">
+              <span className="duplicate-warning-icon">⚠️</span>
+              <div className="duplicate-warning-text">
+                <strong>Duplicate entry detected</strong>
+                <p>A standup fine for <strong>{form.name}</strong> on <strong>{form.date}</strong> already exists. Add it anyway?</p>
+              </div>
+            </div>
+          )}
+
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Record Fine</button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>
+              Cancel
+            </button>
+            {duplicateWarning ? (
+              <button type="submit" className="btn btn-warning">
+                Add Anyway
+              </button>
+            ) : (
+              <button type="submit" className="btn btn-primary">
+                Record Fine
+              </button>
+            )}
           </div>
         </form>
       </div>

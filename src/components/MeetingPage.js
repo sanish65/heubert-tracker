@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import EditFineModal from "@/components/EditFineModal";
 import EditStandupModal from "@/components/EditStandupModal";
 import EditWordModal from "@/components/EditWordModal";
+import EditLeaveModal from "@/components/EditLeaveModal";
 import HumanLoader from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
 
@@ -24,9 +25,11 @@ export default function MeetingPage() {
     deleteFine,
     deleteStandupFine,
     deleteWord,
+    deleteLeave,
     updateFine,
     updateStandupFine,
     updateWord,
+    updateLeave,
     employees,
     isAdmin,
     isLoaded,
@@ -342,6 +345,8 @@ export default function MeetingPage() {
   const [editingStandup, setEditingStandup] = useState(null);
   const [showEditWord, setShowEditWord] = useState(false);
   const [editingWord, setEditingWord] = useState(null);
+  const [showEditLeave, setShowEditLeave] = useState(false);
+  const [editingLeave, setEditingLeave] = useState(null);
 
   if (!isClient || !isLoaded || !isAuthReady || (user && !isAuthorized)) {
     return <HumanLoader />;
@@ -445,6 +450,12 @@ export default function MeetingPage() {
                 <div key={`leave-item-${index}`} className="meeting-item group">
                   <span className="item-name">{l.employee_name}</span>
                   <span className="leave-type-tag">{l.type}</span>
+                  {isAdmin && (
+                    <div className="item-actions">
+                      <button onClick={() => { setEditingLeave(l); setShowEditLeave(true); }} title="Edit">✏️</button>
+                      <button onClick={() => { if(confirm("Delete leave?")) deleteLeave(l.id); }} title="Delete">🗑</button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -643,21 +654,23 @@ export default function MeetingPage() {
 
       {/* QUICK MODALS - REUSING LOGIC AND CLASSES */}
       {showAddFine && (
-        <QuickAddFineModal 
-          isOpen={showAddFine} 
-          onClose={() => setShowAddFine(false)} 
-          addFine={addFine} 
+        <QuickAddFineModal
+          isOpen={showAddFine}
+          onClose={() => setShowAddFine(false)}
+          addFine={addFine}
           employees={employees}
           today={today}
+          fines={fines}
         />
       )}
       {showAddStandup && (
-        <QuickAddStandupModal 
-          isOpen={showAddStandup} 
-          onClose={() => setShowAddStandup(false)} 
-          addStandupFine={addStandupFine} 
+        <QuickAddStandupModal
+          isOpen={showAddStandup}
+          onClose={() => setShowAddStandup(false)}
+          addStandupFine={addStandupFine}
           employees={employees}
           today={today}
+          standupFines={standupFines}
         />
       )}
 
@@ -679,6 +692,12 @@ export default function MeetingPage() {
         word={editingWord}
       />
 
+      <EditLeaveModal
+        isOpen={showEditLeave}
+        onClose={() => { setShowEditLeave(false); setEditingLeave(null); }}
+        leave={editingLeave}
+      />
+
       {showAddWord && (
         <QuickAddWordModal 
           isOpen={showAddWord} 
@@ -688,12 +707,13 @@ export default function MeetingPage() {
         />
       )}
       {showAddLeave && (
-        <QuickAddLeaveModal 
-          isOpen={showAddLeave} 
-          onClose={() => setShowAddLeave(false)} 
-          addLeave={addLeave} 
+        <QuickAddLeaveModal
+          isOpen={showAddLeave}
+          onClose={() => setShowAddLeave(false)}
+          addLeave={addLeave}
           employees={employees}
           today={today}
+          leaves={leaves}
         />
       )}
     </div>
@@ -701,13 +721,26 @@ export default function MeetingPage() {
 }
 
 // COMPACT INLINE MODALS FOR MEETING MODE
-function QuickAddFineModal({ isOpen, onClose, addFine, employees, today }) {
+function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState(25);
-  
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
+
   const hSubmit = (e) => {
     e.preventDefault();
     if (!name) return;
+
+    const isDuplicate = fines.some(f =>
+      f.employee_name === name &&
+      f.date === today &&
+      Number(f.amount) === Number(amount)
+    );
+
+    if (isDuplicate && !duplicateWarning) {
+      setDuplicateWarning(true);
+      return;
+    }
+
     addFine({ name, amount: parseFloat(amount), date: today, status: "unpaid" });
     onClose();
   };
@@ -719,7 +752,7 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today }) {
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
             <label>Employee</label>
-            <select value={name} onChange={e => setName(e.target.value)} required>
+            <select value={name} onChange={e => { setName(e.target.value); setDuplicateWarning(false); }} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
@@ -729,21 +762,34 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today }) {
             <div className="amount-preset-options">
               {[25, 50].map(val => (
                 <label key={val} className={`amount-chip ${amount == val ? 'active' : ''}`}>
-                  <input 
-                    type="radio" 
-                    name="fineAmount" 
-                    value={val} 
-                    checked={amount == val} 
-                    onChange={() => setAmount(val)} 
+                  <input
+                    type="radio"
+                    name="fineAmount"
+                    value={val}
+                    checked={amount == val}
+                    onChange={() => { setAmount(val); setDuplicateWarning(false); }}
                   />
                   <span>RS {val}</span>
                 </label>
               ))}
             </div>
           </div>
+          {duplicateWarning && (
+            <div className="duplicate-warning">
+              <span className="duplicate-warning-icon">⚠️</span>
+              <div className="duplicate-warning-text">
+                <strong>Duplicate entry detected</strong>
+                <p>A RS {amount} fine for <strong>{name}</strong> today already exists. Add it anyway?</p>
+              </div>
+            </div>
+          )}
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Save Fine</button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
+            {duplicateWarning ? (
+              <button type="submit" className="btn btn-warning">Add Anyway</button>
+            ) : (
+              <button type="submit" className="btn btn-primary">Save Fine</button>
+            )}
           </div>
         </form>
       </div>
@@ -914,11 +960,12 @@ function IdleNudge({ phrases }) {
   );
 }
 
-function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
+function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves }) {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("full");   // full | half | early
   const [segment, setSegment] = useState("first");    // first | second
   const [category, setCategory] = useState("Casual"); // Casual | Sick | Project Holiday
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
 
   const DURATION_OPTS = [
     { value: "full",  label: "Full Day",     icon: "📅" },
@@ -929,7 +976,17 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
   const hSubmit = (e) => {
     e.preventDefault();
     if (!name) return;
-    
+
+    const isDuplicate = leaves.some(l =>
+      l.employee_name === name &&
+      l.start_date === today
+    );
+
+    if (isDuplicate && !duplicateWarning) {
+      setDuplicateWarning(true);
+      return;
+    }
+
     let finalReason = category;
     if (duration === "half") {
       finalReason = (segment === "first" ? "[First Half] " : "[Second Half] ") + finalReason;
@@ -937,10 +994,10 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
 
     addLeave({
       name,
-      type: duration,          // "full" | "half" | "early" → stored in leaves.type
+      type: duration,
       startDate: today,
       endDate: today,
-      reason: finalReason,     // e.g. "[First Half] Casual" → stored in leaves.reason
+      reason: finalReason,
     });
     onClose();
   };
@@ -952,7 +1009,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
             <label>Employee</label>
-            <select value={name} onChange={e => setName(e.target.value)} required>
+            <select value={name} onChange={e => { setName(e.target.value); setDuplicateWarning(false); }} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
@@ -1013,21 +1070,47 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today }) {
             </select>
           </div>
 
+          {duplicateWarning && (
+            <div className="duplicate-warning">
+              <span className="duplicate-warning-icon">⚠️</span>
+              <div className="duplicate-warning-text">
+                <strong>Duplicate entry detected</strong>
+                <p>A leave for <strong>{name}</strong> today already exists. Add it anyway?</p>
+              </div>
+            </div>
+          )}
+
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-accent">Save Leave</button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
+            {duplicateWarning ? (
+              <button type="submit" className="btn btn-warning">Add Anyway</button>
+            ) : (
+              <button type="submit" className="btn btn-accent">Save Leave</button>
+            )}
           </div>
         </form>
       </div>
     </div>
   );
 }
-function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, today }) {
+function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, today, standupFines }) {
   const [name, setName] = useState("");
-  
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
+
   const hSubmit = (e) => {
     e.preventDefault();
     if (!name) return;
+
+    const isDuplicate = standupFines.some(s =>
+      s.employee_name === name &&
+      s.date === today
+    );
+
+    if (isDuplicate && !duplicateWarning) {
+      setDuplicateWarning(true);
+      return;
+    }
+
     addStandupFine({ name, date: today, status: "unpaid" });
     onClose();
   };
@@ -1039,14 +1122,27 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
             <label>Employee</label>
-            <select value={name} onChange={e => setName(e.target.value)} required>
+            <select value={name} onChange={e => { setName(e.target.value); setDuplicateWarning(false); }} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
           </div>
+          {duplicateWarning && (
+            <div className="duplicate-warning">
+              <span className="duplicate-warning-icon">⚠️</span>
+              <div className="duplicate-warning-text">
+                <strong>Duplicate entry detected</strong>
+                <p>A standup fine for <strong>{name}</strong> today already exists. Add it anyway?</p>
+              </div>
+            </div>
+          )}
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-warning">Save Standup Fine</button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
+            {duplicateWarning ? (
+              <button type="submit" className="btn btn-warning">Add Anyway</button>
+            ) : (
+              <button type="submit" className="btn btn-primary">Save Standup Fine</button>
+            )}
           </div>
         </form>
       </div>

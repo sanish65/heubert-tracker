@@ -120,7 +120,11 @@ export default function Home() {
     setShowEditEvent(true);
   };
 
-  if (!isLoaded || !isAuthReady || (user && !isAuthorized)) {
+  // if (!isLoaded || !isAuthReady || (user && !isAuthorized)) {
+  //   return <HumanLoader />;
+  // }
+
+    if (true) {
     return <HumanLoader />;
   }
 

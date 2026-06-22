@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
@@ -21,6 +21,7 @@ export default function HumanLoader() {
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [shuffledDefaults, setShuffledDefaults] = useState([]);
   const [isMounted, setIsMounted] = useState(false);
+  const isPausedRef = useRef(false);
 
   useEffect(() => {
     setShuffledDefaults(shuffle(defaultNames));
@@ -40,11 +41,11 @@ export default function HumanLoader() {
 
   useEffect(() => {
     const cycleInterval = setInterval(() => {
-      setIndex(prev => (prev + 1) % names.length);
+      if (!isPausedRef.current) setIndex(prev => (prev + 1) % names.length);
     }, 1500); // Change person every 1.5s
 
     const greetInterval = setInterval(() => {
-      setGreetingIndex(prev => (prev + 1) % greetings.length);
+      if (!isPausedRef.current) setGreetingIndex(prev => (prev + 1) % greetings.length);
     }, 3000); // Change greeting every 3s
 
     return () => {
@@ -142,8 +143,10 @@ export default function HumanLoader() {
 
   return (
     <div className="loading-splash">
-      <div 
-        className="human-loader-container" 
+      <div
+        className="human-loader-container"
+        onMouseEnter={() => { isPausedRef.current = true; }}
+        onMouseLeave={() => { isPausedRef.current = false; }}
         style={{
           display: 'flex',
           flexDirection: 'column',
