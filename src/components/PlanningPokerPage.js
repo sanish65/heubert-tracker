@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
+import ShareQRModal from "@/components/ShareQRModal";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
 
@@ -20,6 +21,7 @@ export default function PlanningPokerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
   const [participantName, setParticipantName] = useState("");
   const [showMorePoints, setShowMorePoints] = useState(false);
   const [recentSessions, setRecentSessions] = useState([]);
@@ -582,6 +584,9 @@ export default function PlanningPokerPage() {
                 <button className={`poker-copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>
                   {copied ? "✅ Copied!" : "📋 Copy"}
                 </button>
+                <button className="poker-qr-btn" onClick={() => setShowQR(true)} title="Show QR code">
+                  📱 QR
+                </button>
                 <span className="poker-session-id-label">ID:</span>
                 <code className="poker-session-id">{session.id}</code>
               </div>
@@ -747,6 +752,13 @@ export default function PlanningPokerPage() {
           </div>
         </div>
       )}
+
+      <ShareQRModal
+        isOpen={showQR}
+        onClose={() => setShowQR(false)}
+        url={shareUrl}
+        title={session?.title}
+      />
     </div>
   );
 }

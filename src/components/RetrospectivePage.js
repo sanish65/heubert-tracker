@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import RetroTimer from "./RetroTimer";
+import ShareQRModal from "@/components/ShareQRModal";
 
 const RETRO_TEMPLATES = {
   standard: [
@@ -119,6 +120,7 @@ export default function RetrospectivePage() {
   const [isHost, setIsHost]   = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied]   = useState(false);
+  const [showQR, setShowQR]   = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("standard");
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
@@ -703,6 +705,7 @@ export default function RetrospectivePage() {
                 <span className="poker-share-label">🔗 Share</span>
                 <input className="poker-share-input" readOnly value={shareUrl} />
                 <button className={`poker-copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>{copied ? "✅ Copied!" : "📋 Copy"}</button>
+                <button className="poker-qr-btn" onClick={() => setShowQR(true)} title="Show QR code">📱 QR</button>
                 <span className="poker-session-id-label">ID:</span>
                 <code className="poker-session-id">{session.id}</code>
               </div>
@@ -922,6 +925,13 @@ export default function RetrospectivePage() {
           )}
         </div>
       )}
+
+      <ShareQRModal
+        isOpen={showQR}
+        onClose={() => setShowQR(false)}
+        url={shareUrl}
+        title={session?.title}
+      />
     </div>
   );
 }
