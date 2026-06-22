@@ -120,13 +120,13 @@ export default function Home() {
     setShowEditEvent(true);
   };
 
-  // if (!isLoaded || !isAuthReady || (user && !isAuthorized)) {
-  //   return <HumanLoader />;
-  // }
-
-    if (true) {
+  if (!isLoaded || !isAuthReady || (user && !isAuthorized)) {
     return <HumanLoader />;
   }
+
+  //   if (true) {
+  //   return <HumanLoader />;
+  // }
 
   if (activeTab === "memories") {
     return (
