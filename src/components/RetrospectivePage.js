@@ -643,11 +643,13 @@ export default function RetrospectivePage() {
         </div>
       )}
 
+      {/* ── Themed backgrounds (persist across board + actions views) ── */}
+      {session && session.template === "sailboat"    && <SailboatScene />}
+      {session && session.template === "start_stop" && <SpaceScene />}
+
       {/* ── BOARD ── */}
       {view === "board" && session && (
         <div className="retro-board-view">
-          {session.template === "sailboat"    && <SailboatScene />}
-          {session.template === "start_stop" && <SpaceScene />}
           {error && (
             <div className="poker-error" style={{ 
               position: 'fixed', 
