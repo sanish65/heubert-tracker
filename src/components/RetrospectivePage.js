@@ -135,8 +135,10 @@ export default function RetrospectivePage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [timerState, setTimerState] = useState(null);
 
-  const { employees } = useApp();
+  const { employees, currentEmployee, user, isAdmin } = useApp();
   const employeeNames = employees.map(e => e.name);
+  const loggedInName = currentEmployee?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
+  const canEndSession = isHost || !!isAdmin;
 
   // compose
   const [activeCompose, setActiveCompose] = useState(null);
@@ -155,13 +157,15 @@ export default function RetrospectivePage() {
   const dropComposeRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef      = useRef(false);
+  const onBoardRef       = useRef(false); // guard against stale fetch responses after exit
 
   // ── Fetch board ──────────────────────────────────────────
   const fetchBoard = useCallback(async (sid) => {
     try {
       const res = await fetch(`/api/retro?sessionId=${sid}`);
-      if (!res.ok) return;
+      if (!res.ok || !onBoardRef.current) return;
       const data = await res.json();
+      if (!onBoardRef.current) return; // check again after second await
       setSession(data.session);
       setCards(data.cards || []);
       setCardVotes(data.cardVotes || []);
@@ -172,13 +176,42 @@ export default function RetrospectivePage() {
 
   const startPolling = useCallback((sid) => {
     if (pollRef.current) clearInterval(pollRef.current);
+    onBoardRef.current = true;
     pollRef.current = setInterval(() => fetchBoard(sid), 2500);
   }, [fetchBoard]);
+
+  const resetToHome = useCallback(() => {
+    onBoardRef.current = false;
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (typingTimeoutRef.current) { clearTimeout(typingTimeoutRef.current); typingTimeoutRef.current = null; }
+    isTypingRef.current = false;
+    setView("home");
+    setSession(null);
+    setCards([]);
+    setCardVotes([]);
+    setActivity([]);
+    setError("");
+    setIsHost(false);
+    setShareUrl("");
+    setCopied(false);
+    setShowQR(false);
+    setActiveCompose(null);
+    setComposeText("");
+    setDropCol(null);
+    setDropText("");
+    setEditingCardId(null);
+    setEditText("");
+    setTimerState(null);
+    setDragType(null);
+    setDragOver(null);
+    setRejectedCol(null);
+    localStorage.removeItem("heubert_retro_session_id");
+  }, []);
 
   // ── Auto-restore session from localStorage ──────────────────
   useEffect(() => {
     const savedId = localStorage.getItem("heubert_retro_session_id");
-    const savedName = localStorage.getItem("heubert_collab_name");
+    const savedName = localStorage.getItem("heubert_collab_name") || loggedInName;
     if (savedName) {
       setParticipantName(savedName);
       setJoinName(savedName);
@@ -386,7 +419,7 @@ export default function RetrospectivePage() {
   };
 
   const handleEndSession = async () => {
-    if (!session || !isHost) return;
+    if (!session || !canEndSession) return;
     if (!confirm("Are you sure you want to end this session? This will lock the board for everyone.")) return;
     try {
       await fetch("/api/retro", {
@@ -394,8 +427,8 @@ export default function RetrospectivePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "end_session", sessionId: session.id })
       });
-      await fetchBoard(session.id);
     } catch (_) {}
+    resetToHome();
   };
 
   const handleDelete = async (cardId) => {
@@ -581,28 +614,26 @@ export default function RetrospectivePage() {
             
             const renderCard = (s) => (
               <button key={s.id} className={`retro-recent-card ${s.is_ended ? 'retro-recent-card-ended' : ''}`} onClick={() => {
+                const nameToUse = participantName || joinName || creatorName || loggedInName || window.prompt("Enter your name to join this board:");
+                if (!nameToUse?.trim()) return;
                 setJoinSessionId(s.id);
-                setJoinName(participantName || "");
-                if (participantName) {
-                  setLoading(true);
-                  fetch(`/api/retro?sessionId=${s.id}`)
-                    .then(res => res.json())
-                    .then(data => {
-                      if (data.error) throw new Error(data.error);
-                      setSession(data.session);
-                      setCards(data.cards || []);
-                      setCardVotes(data.cardVotes || []);
-                      setParticipantName(participantName);
-                      localStorage.setItem("heubert_retro_session_id", data.session.id);
-                      localStorage.setItem("heubert_collab_name", participantName);
-                      setView("board");
-                      startPolling(s.id);
-                    })
-                    .catch(e => setError(e.message))
-                    .finally(() => setLoading(false));
-                } else {
-                  document.querySelector('.retro-entry-card-join').scrollIntoView({ behavior: 'smooth' });
-                }
+                setJoinName(nameToUse.trim());
+                setLoading(true);
+                fetch(`/api/retro?sessionId=${s.id}`)
+                  .then(res => res.json())
+                  .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    setSession(data.session);
+                    setCards(data.cards || []);
+                    setCardVotes(data.cardVotes || []);
+                    setParticipantName(nameToUse.trim());
+                    localStorage.setItem("heubert_retro_session_id", data.session.id);
+                    localStorage.setItem("heubert_collab_name", nameToUse.trim());
+                    setView("board");
+                    startPolling(s.id);
+                  })
+                  .catch(e => setError(e.message))
+                  .finally(() => setLoading(false));
               }}>
                 <div className="retro-recent-card-top">
                   <span className="retro-recent-emoji">{RETRO_TEMPLATES[s.template]?.[0]?.emoji || "📋"}</span>
@@ -644,8 +675,8 @@ export default function RetrospectivePage() {
       )}
 
       {/* ── Themed backgrounds (persist across board + actions views) ── */}
-      {session && session.template === "sailboat"    && <SailboatScene />}
-      {session && session.template === "start_stop" && <SpaceScene />}
+      {(view === "board" || view === "actions") && session?.template === "sailboat"    && <SailboatScene />}
+      {(view === "board" || view === "actions") && session?.template === "start_stop" && <SpaceScene />}
 
       {/* ── BOARD ── */}
       {view === "board" && session && (
@@ -669,15 +700,7 @@ export default function RetrospectivePage() {
             {/* Row 1: exit | title + badge | timer + end action */}
             <div className="retro-board-toprow">
               <div className="retro-board-meta">
-                <button className="poker-back-btn" onClick={() => {
-                  if (pollRef.current) clearInterval(pollRef.current);
-                  setView("home");
-                  setSession(null);
-                  setCards([]);
-                  setCardVotes([]);
-                  setError("");
-                  localStorage.removeItem("heubert_retro_session_id");
-                }}>← Exit</button>
+                <button className="poker-back-btn" onClick={resetToHome}>← Exit</button>
                 <div>
                   <h2 className="retro-board-title">{session.title}</h2>
                   <span className="retro-board-badge">{isHost ? "🎯 Facilitator" : "👤 Participant"} · {cards.length} card{cards.length !== 1 ? "s" : ""}</span>
@@ -692,14 +715,9 @@ export default function RetrospectivePage() {
                     onUpdate={handleTimerAction}
                   />
                 )}
-                {isHost && !session.is_ended && (
+                {canEndSession && !session.is_ended && (
                   <button className="retro-end-session-btn" onClick={handleEndSession}>
                     🏁 End Session
-                  </button>
-                )}
-                {isHost && session.is_ended && (
-                  <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
-                    ← Back to Hub
                   </button>
                 )}
               </div>
