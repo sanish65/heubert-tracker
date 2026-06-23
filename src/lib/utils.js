@@ -1,4 +1,44 @@
 /**
+ * Returns a Google Drive thumbnail image URL for use in <img> tags.
+ * Returns null if the URL is not a Google Drive link.
+ */
+export const getGoogleDriveThumbnailUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  const fileDMatch = url.match(/\/file\/d\/([^\/?#]+)/);
+  if (fileDMatch && fileDMatch[1]) {
+    return `https://drive.google.com/thumbnail?id=${fileDMatch[1]}&sz=w600`;
+  }
+  if (url.includes('drive.google.com')) {
+    try {
+      const urlObj = new URL(url);
+      const id = urlObj.searchParams.get('id');
+      if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w600`;
+    } catch (e) {}
+  }
+  return null;
+};
+
+/**
+ * Returns a Google Drive /preview embed URL for use in an <iframe> (video playback).
+ * Returns null if the URL is not a Google Drive link.
+ */
+export const getGoogleDriveEmbedUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  const fileDMatch = url.match(/\/file\/d\/([^\/?#]+)/);
+  if (fileDMatch && fileDMatch[1]) {
+    return `https://drive.google.com/file/d/${fileDMatch[1]}/preview`;
+  }
+  if (url.includes('drive.google.com')) {
+    try {
+      const urlObj = new URL(url);
+      const id = urlObj.searchParams.get('id');
+      if (id) return `https://drive.google.com/file/d/${id}/preview`;
+    } catch (e) {}
+  }
+  return null;
+};
+
+/**
  * Transforms a Google Drive sharing link into a direct link suitable for <img> and <video> tags.
  * Uses the highly reliable lh3.googleusercontent.com/d/[ID] format.
  */

@@ -1,6 +1,6 @@
 import { useApp } from "@/context/AppContext";
 import { useEffect, useState } from "react";
-import { transformGoogleDriveLink } from "@/lib/utils";
+import { transformGoogleDriveLink, getGoogleDriveEmbedUrl, getGoogleDriveThumbnailUrl } from "@/lib/utils";
 
 export default function MemoriesPage({ onAddMemory, onBack }) {
   const { memories, animationsEnabled, deleteMemory, updateMemory, user } = useApp();
@@ -142,7 +142,14 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
                   )}
                   {memory.type === 'video' && (
                     <div className="memory-media-classic video-container">
-                      <div className="video-thumb-overlay">▶ Click to play</div>
+                      <img
+                        src={getGoogleDriveThumbnailUrl(memory.content) || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}
+                        alt={memory.caption || 'Video'}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="video-thumb-img"
+                      />
+                      <div className="video-play-btn">▶</div>
                     </div>
                   )}
                   {memory.type === 'text' && (
@@ -184,12 +191,19 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
             )}
             {expanded.type === 'video' && (
               <div className="lightbox-media lightbox-video">
-                <video
-                  src={transformGoogleDriveLink(expanded.content)}
-                  controls
-                  autoPlay
-                  referrerPolicy="no-referrer"
-                />
+                {getGoogleDriveEmbedUrl(expanded.content) ? (
+                  <iframe
+                    src={getGoogleDriveEmbedUrl(expanded.content)}
+                    allow="autoplay"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    src={expanded.content}
+                    controls
+                    autoPlay
+                  />
+                )}
               </div>
             )}
             {expanded.type === 'text' && (
