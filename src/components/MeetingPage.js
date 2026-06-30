@@ -501,7 +501,12 @@ export default function MeetingPage() {
               allSubmissions.map((s, index) => {
                 const subId = s.id || `sub-${index}`;
                 const isIdleTarget = idleSubmissionId === subId;
-                
+                const HIDDEN_STATUSES = ['on hold', 'rejected', 'backlog'];
+                const visibleTickets = (s.jira_tickets || []).filter(t => {
+                  const st = (typeof t === 'object' ? t.status : null)?.toLowerCase() ?? '';
+                  return !HIDDEN_STATUSES.includes(st);
+                });
+
                 return (
                   <div key={`submission-row-${index}`} data-submission-id={subId} className={`submission-item ${s.isMissing ? 'missing' : ''}`}>
                     {isIdleTarget && <IdleNudge phrases={nudgePhrases} />}
@@ -559,11 +564,11 @@ export default function MeetingPage() {
                       )}
                     </div>
                     {/* Jira tickets rendered OUTSIDE submission-content so they're never hidden by 250px scroll cap */}
-                    {!s.isMissing && s.jira_tickets && s.jira_tickets.length > 0 && (
+                    {!s.isMissing && visibleTickets.length > 0 && (
                       <div className="jira-section">
                         <label className="qa-label">Jira Tickets</label>
-                        <div className={`jira-tags${s.jira_tickets.length > 5 ? ' jira-tags--multi-col' : ''}`}>
-                          {[...s.jira_tickets].sort((a, b) => {
+                        <div className={`jira-tags${visibleTickets.length > 5 ? ' jira-tags--multi-col' : ''}`}>
+                          {[...visibleTickets].sort((a, b) => {
                             const priority = {
                               'blocked':     0,
                               'in progress': 1,
