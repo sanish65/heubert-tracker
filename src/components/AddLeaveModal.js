@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { buildWorkingDates } from "@/lib/utils";
+import { buildWorkingDates, computeLeaveBalances } from "@/lib/utils";
 
 // Returns YYYY-MM-DD string from a local Date object
 function toDateStr(d) {
@@ -22,7 +22,7 @@ function parseLocalDate(str) {
 
 
 export default function AddLeaveModal({ isOpen, onClose }) {
-  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays } = useApp();
+  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes } = useApp();
   const today = toDateStr(new Date());
 
   const [form, setForm] = useState({
@@ -31,13 +31,19 @@ export default function AddLeaveModal({ isOpen, onClose }) {
     type: "full",
     segment: "first", // "first" or "second"
     reason: "",
+    leaveTypeId: "",
   });
   const [multiDay, setMultiDay] = useState(false);
   const [endDate, setEndDate] = useState("");
   const [error, setError] = useState("");
+  const [overrideBalance, setOverrideBalance] = useState(false);
 
   // Build a Set of public holiday date strings for fast lookup
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
+
+  const activeLeaveTypes = (leaveTypes || []).filter((t) => t.is_active);
+  const currentYear = new Date().getFullYear();
+  const balances = computeLeaveBalances(form.name, leaves, activeLeaveTypes, currentYear, holidaySet);
 
   // Auto-select current employee if not admin
   useEffect(() => {
@@ -46,12 +52,21 @@ export default function AddLeaveModal({ isOpen, onClose }) {
     }
   }, [isOpen, currentEmployee, form.name]);
 
+  // Default the leave category to the first active, non-unpaid type once loaded
+  useEffect(() => {
+    if (isOpen && !form.leaveTypeId && activeLeaveTypes.length > 0) {
+      const defaultType = activeLeaveTypes.find((t) => !t.is_unpaid) || activeLeaveTypes[0];
+      setForm((prev) => ({ ...prev, leaveTypeId: String(defaultType.id) }));
+    }
+  }, [isOpen, activeLeaveTypes, form.leaveTypeId]);
+
   // Reset to defaults when modal closes
   useEffect(() => {
     if (!isOpen) {
       setMultiDay(false);
       setEndDate("");
       setError("");
+      setOverrideBalance(false);
     }
   }, [isOpen]);
 
@@ -90,6 +105,15 @@ export default function AddLeaveModal({ isOpen, onClose }) {
       return;
     }
 
+    const requestedDays = form.type === "half" ? dates.length * 0.5 : dates.length;
+    const selectedBalance = balances.find((b) => String(b.id) === String(form.leaveTypeId));
+    if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
+      setError(
+        `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} day${selectedBalance.remaining === 1 ? "" : "s"} remaining). Consider Unpaid Leave instead.`
+      );
+      return;
+    }
+
     let finalReason = form.reason.trim();
     if (form.type === "half") {
       const segmentStr = form.segment === "first" ? "[First Half]" : "[Second Half]";
@@ -103,12 +127,14 @@ export default function AddLeaveModal({ isOpen, onClose }) {
       dates,
       type: form.type,
       reason: finalReason,
+      leaveTypeId: form.leaveTypeId ? Number(form.leaveTypeId) : null,
       createdAt: new Date().toISOString(),
     });
 
-    setForm({ name: "", startDate: today, type: "full", segment: "first", reason: "" });
+    setForm({ name: "", startDate: today, type: "full", segment: "first", reason: "", leaveTypeId: "" });
     setMultiDay(false);
     setEndDate("");
+    setOverrideBalance(false);
     onClose();
   };
 
@@ -195,6 +221,33 @@ export default function AddLeaveModal({ isOpen, onClose }) {
                         </label>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {activeLeaveTypes.length > 0 && (
+                  <div className="form-group-interactive">
+                    <label htmlFor="leave-category">Leave Category</label>
+                    <select
+                      id="leave-category"
+                      value={form.leaveTypeId}
+                      onChange={handleChange("leaveTypeId")}
+                    >
+                      {balances.map((b) => (
+                        <option key={b.id} value={b.id} disabled={!isAdmin && b.remaining <= 0}>
+                          {b.name} — {b.remaining}/{b.annual_days} left{b.is_unpaid ? " (unpaid)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {isAdmin && (
+                      <label className="leave-multiday-toggle" style={{ marginTop: "8px" }}>
+                        <input
+                          type="checkbox"
+                          checked={overrideBalance}
+                          onChange={(e) => setOverrideBalance(e.target.checked)}
+                        />
+                        <span>Override balance limit</span>
+                      </label>
+                    )}
                   </div>
                 )}
               </div>

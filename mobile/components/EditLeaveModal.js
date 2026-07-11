@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Text } from "react-native";
+import { Text, View, Switch } from "react-native";
 import { useApp } from "../context/AppContext";
-import { buildWorkingDates } from "../lib/utils";
+import { buildWorkingDates, computeLeaveBalances } from "../lib/utils";
 import { FormModal, TextField, Select, Button } from "./ui";
 import { useThemeColors } from "../lib/theme";
 
@@ -16,7 +16,7 @@ const SEGMENT_OPTIONS = [
 ];
 
 export default function EditLeaveModal({ isOpen, onClose, leave }) {
-  const { updateLeave, publicHolidays } = useApp();
+  const { updateLeave, publicHolidays, leaves, leaveTypes, isAdmin } = useApp();
   const t = useThemeColors();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -24,10 +24,16 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
   const [type, setType] = useState("full");
   const [segment, setSegment] = useState("first");
   const [reason, setReason] = useState("");
+  const [leaveTypeId, setLeaveTypeId] = useState("");
+  const [overrideBalance, setOverrideBalance] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
+  const activeLeaveTypes = (leaveTypes || []).filter((lt) => lt.is_active);
+  const otherLeaves = leave ? leaves.filter((l) => l.id !== leave.id) : leaves;
+  const balances = computeLeaveBalances(leave?.employee_name, otherLeaves, activeLeaveTypes, new Date().getFullYear(), holidaySet);
+  const selectableBalances = isAdmin ? balances : balances.filter((b) => b.remaining > 0 || String(b.id) === String(leaveTypeId));
 
   useEffect(() => {
     if (leave && isOpen) {
@@ -49,6 +55,8 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
       setSegment(initSegment);
       setReason(initReason);
       setMultiDay(isMulti);
+      setLeaveTypeId(leave.leave_type_id ? String(leave.leave_type_id) : "");
+      setOverrideBalance(false);
       setError("");
     }
   }, [leave, isOpen]);
@@ -67,6 +75,14 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
     const dates = buildWorkingDates(startDate, finalEnd, holidaySet);
     if (dates.length === 0) return setError("The selected range has no working days (all weekends or holidays).");
 
+    const requestedDays = type === "half" ? dates.length * 0.5 : dates.length;
+    const selectedBalance = balances.find((b) => String(b.id) === String(leaveTypeId));
+    if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
+      return setError(
+        `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`
+      );
+    }
+
     let finalReason = reason.trim();
     if (type === "half") {
       const segmentStr = segment === "first" ? "[First Half]" : "[Second Half]";
@@ -75,7 +91,13 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
 
     setSubmitting(true);
     try {
-      const { error } = await updateLeave(leave.id, { start_date: startDate, end_date: finalEnd, type, reason: finalReason, dates });
+      const { error } = await updateLeave(leave.id, {
+        start_date: startDate,
+        end_date: finalEnd,
+        type,
+        reason: finalReason,
+        leave_type_id: leaveTypeId ? Number(leaveTypeId) : null,
+      });
       if (!error) onClose();
       else setError("Failed to update leave record.");
     } catch (err) {
@@ -90,6 +112,28 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
       <TextField label="Employee" value={leave.employee_name} editable={false} />
       <Select label="Leave Type" value={type} onSelect={setType} options={TYPE_OPTIONS} />
       {type === "half" && <Select label="Half Day Segment" value={segment} onSelect={setSegment} options={SEGMENT_OPTIONS} />}
+      {selectableBalances.length > 0 && (
+        <>
+          <Select
+            label="Leave Category"
+            value={leaveTypeId}
+            onSelect={setLeaveTypeId}
+            options={[
+              { value: "", label: "Uncategorized" },
+              ...selectableBalances.map((b) => ({
+                value: String(b.id),
+                label: `${b.name} (${b.remaining}/${b.annual_days})`,
+              })),
+            ]}
+          />
+          {isAdmin && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <Text style={{ color: t.textPrimary, fontSize: 14 }}>Override balance limit</Text>
+              <Switch value={overrideBalance} onValueChange={setOverrideBalance} trackColor={{ true: t.accentIndigo }} />
+            </View>
+          )}
+        </>
+      )}
       <TextField label="Leave Date (YYYY-MM-DD)" value={startDate} onChangeText={setStartDate} />
       <Select
         label="Multiple Days?"

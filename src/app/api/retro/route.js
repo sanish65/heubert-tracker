@@ -6,8 +6,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-// GET  /api/retro?sessionId=xxx  → fetch session + cards + card votes
-// POST /api/retro               → create session | add card | vote_card | unvote_card
+// GET  /api/retro?sessionId=xxx  → fetch session + cards + card reactions
+// POST /api/retro               → create session | add card | react_card | unreact_card
 // DELETE /api/retro             → delete a card
 
 export async function GET(request) {
@@ -75,8 +75,8 @@ export async function GET(request) {
     .from('retro_cards').select('*').eq('session_id', sessionId).order('created_at', { ascending: true });
   if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
 
-  const { data: cardVotes } = await supabase
-    .from('retro_card_votes').select('card_id, participant_name').eq('session_id', sessionId);
+  const { data: cardReactions } = await supabase
+    .from('retro_card_reactions').select('card_id, participant_name, emoji').eq('session_id', sessionId);
 
   // Map DB column types back to the template keys if restricted by constraints
   const TEMPLATES = {
@@ -113,9 +113,9 @@ export async function GET(request) {
   });
 
   return NextResponse.json({ 
-    session: { ...session, is_ended: isEnded }, 
-    cards: actualCards, 
-    cardVotes: cardVotes || [], 
+    session: { ...session, is_ended: isEnded },
+    cards: actualCards,
+    cardReactions: cardReactions || [],
     activity,
     timerState
   });
@@ -180,25 +180,29 @@ export async function POST(request) {
     return NextResponse.json({ card: data });
   }
 
-  if (body.action === 'vote_card') {
-    const { cardId, sessionId, participantName } = body;
+  if (body.action === 'react_card') {
+    const { cardId, sessionId, participantName, emoji } = body;
+    if (!cardId || !sessionId || !participantName || !emoji) {
+      return NextResponse.json({ error: 'cardId, sessionId, participantName and emoji required' }, { status: 400 });
+    }
     const { error } = await supabase
-      .from('retro_card_votes')
+      .from('retro_card_reactions')
       .upsert(
-        { card_id: cardId, session_id: sessionId, participant_name: participantName },
-        { onConflict: 'card_id,participant_name' }
+        { card_id: cardId, session_id: sessionId, participant_name: participantName, emoji },
+        { onConflict: 'card_id,participant_name,emoji' }
       );
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
 
-  if (body.action === 'unvote_card') {
-    const { cardId, participantName } = body;
+  if (body.action === 'unreact_card') {
+    const { cardId, participantName, emoji } = body;
     const { error } = await supabase
-      .from('retro_card_votes')
+      .from('retro_card_reactions')
       .delete()
       .eq('card_id', cardId)
-      .eq('participant_name', participantName);
+      .eq('participant_name', participantName)
+      .eq('emoji', emoji);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
@@ -245,28 +249,28 @@ export async function POST(request) {
       
       if (!cardId || !content?.trim()) return NextResponse.json({ error: 'cardId and content required' }, { status: 400 });
       
-      // 1. Fetch current card and its votes to prepare for "edit via replace"
+      // 1. Fetch current card and its reactions to prepare for "edit via replace"
       const { data: card, error: fetchErr } = await supabase.from('retro_cards').select('*').eq('id', cardId).single();
       if (fetchErr) {
         return NextResponse.json({ error: 'Card fetch failed: ' + fetchErr.message }, { status: 500 });
       }
       if (!card) return NextResponse.json({ error: 'Card not found' }, { status: 404 });
-      
+
       const cardAuthor = (card.author || "").toLowerCase().trim();
       const reqAuthor = (author || "").toLowerCase().trim();
       const isOwner = cardAuthor === reqAuthor;
-      
+
       if (!isOwner) {
         return NextResponse.json({ error: 'Forbidden: You can only edit your own cards' }, { status: 403 });
       }
 
-      // 2. Fetch votes to preserve them
-      const { data: votes, error: votesErr } = await supabase.from('retro_card_votes').select('*').eq('card_id', cardId);
-      if (votesErr) {
-        return NextResponse.json({ error: 'Failed to backup votes: ' + votesErr.message }, { status: 500 });
+      // 2. Fetch reactions to preserve them
+      const { data: reactions, error: reactionsErr } = await supabase.from('retro_card_reactions').select('*').eq('card_id', cardId);
+      if (reactionsErr) {
+        return NextResponse.json({ error: 'Failed to backup reactions: ' + reactionsErr.message }, { status: 500 });
       }
 
-      // 3. Delete the old card (cascades to votes)
+      // 3. Delete the old card (cascades to reactions)
       const { error: delErr } = await supabase.from('retro_cards').delete().eq('id', cardId);
       if (delErr) {
         return NextResponse.json({ error: 'Failed to prepare edit: ' + delErr.message }, { status: 500 });
@@ -286,22 +290,18 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Failed to re-insert card: ' + insertErr.message }, { status: 500 });
       }
 
-      // 5. Restore votes
-      if (votes && votes.length > 0) {
-        // Clean votes slightly (remove internal Supabase ID if present requested by PK)
-        const votesToInsert = votes.map(v => ({
-          session_id: v.session_id,
-          card_id: v.card_id,
-          participant_name: v.participant_name,
-          created_at: v.created_at
+      // 5. Restore reactions
+      if (reactions && reactions.length > 0) {
+        const reactionsToInsert = reactions.map(r => ({
+          session_id: r.session_id,
+          card_id: r.card_id,
+          participant_name: r.participant_name,
+          emoji: r.emoji,
+          created_at: r.created_at
         }));
-        const { error: restoreVotesErr } = await supabase.from('retro_card_votes').insert(votesToInsert);
-        if (restoreVotesErr) {
-          // Note: The card is already updated, so we might want to warn rather than fail completely,
-          // but for consistency we'll report the error.
-        }
+        await supabase.from('retro_card_reactions').insert(reactionsToInsert);
       }
-      
+
       return NextResponse.json({ card: newData });
     } catch (e) {
       return NextResponse.json({ error: e.message }, { status: 500 });

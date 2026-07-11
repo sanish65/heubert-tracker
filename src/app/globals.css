@@ -234,8 +234,10 @@ body {
 }
 
 .title-icon {
-  font-size: 1.5rem;
-  -webkit-text-fill-color: initial;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 .app-subtitle {
@@ -739,6 +741,88 @@ body {
 
 .status-badge.unpaid:hover {
   background: rgba(239, 68, 68, 0.3);
+}
+
+/* ===== ATTENDANCE ===== */
+.attendance-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.attendance-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.attendance-select,
+.attendance-input {
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+  min-width: 180px;
+}
+
+.attendance-select {
+  cursor: pointer;
+}
+
+.attendance-select:focus,
+.attendance-input:focus {
+  outline: none;
+  border-color: var(--accent-indigo);
+  box-shadow: 0 0 0 3px var(--accent-indigo-soft);
+}
+
+.attendance-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.attendance-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.attendance-card-grid,
+.attendance-card > h3,
+.attendance-card > p,
+.attendance-card > span {
+  width: 100%;
+}
+
+.attendance-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px 20px;
+}
+
+.attendance-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attendance-field label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* ===== FINE SECTION ===== */
@@ -4995,7 +5079,7 @@ a.jira-tag-key:hover {
 
 /* Board view */
 .retro-board-view { display: flex; flex-direction: column; gap: 20px; position: relative; z-index: 1; }
-.retro-board-header { display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 1; }
+.retro-board-header { display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 1001; }
 .retro-board-toprow { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .retro-board-meta { display: flex; align-items: center; gap: 16px; }
 .retro-board-title { font-size: 1.4rem; font-weight: 800; }
@@ -5184,27 +5268,59 @@ a.jira-tag-key:hover {
 }
 .retro-mention-dropdown li:hover { background: rgba(99,102,241,0.12); color: var(--accent-indigo); }
 
-/* ── Sticky card actions row (vote + delete) ── */
+/* ── Sticky card actions row (reactions + edit + delete) ── */
 .retro-sticky-actions { display: flex; align-items: center; gap: 4px; }
 
-/* ── Vote button ── */
-.retro-vote-btn {
-  display: inline-flex; align-items: center; gap: 4px;
+/* ── Emoji reactions ── */
+.retro-reaction-picker-wrap { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.retro-reaction-badge {
+  display: inline-flex; align-items: center; gap: 3px;
   background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 20px; padding: 3px 8px;
-  font-family: inherit; font-size: 0.72rem; font-weight: 700;
+  border-radius: 20px; padding: 3px 7px;
+  font-family: inherit; font-size: 0.74rem; font-weight: 700;
   cursor: pointer; color: #475569;
-  transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
+  transition: background 0.15s, transform 0.12s;
   line-height: 1;
 }
-.retro-vote-btn:hover { background: rgba(0,0,0,0.12); transform: scale(1.08); }
-.retro-vote-btn-active {
-  background: rgba(99,102,241,0.18); border-color: rgba(99,102,241,0.4);
-  color: #4f46e5;
-  box-shadow: 0 0 8px rgba(99,102,241,0.2);
+.retro-reaction-badge:hover { background: rgba(0,0,0,0.12); transform: scale(1.08); }
+.retro-reaction-badge-active {
+  background: rgba(236,72,153,0.18); border-color: rgba(236,72,153,0.4);
+  color: #db2777;
 }
-.retro-vote-btn-active:hover { background: rgba(99,102,241,0.28); }
-.retro-vote-count { font-size: 0.7rem; font-weight: 800; }
+.retro-reaction-count { font-size: 0.68rem; font-weight: 800; }
+.retro-reaction-add-btn {
+  background: rgba(0,0,0,0.04); border: 1px dashed rgba(0,0,0,0.18);
+  border-radius: 20px; padding: 3px 6px;
+  font-size: 0.7rem; line-height: 1; cursor: pointer; color: #64748b;
+  transition: background 0.15s, color 0.15s;
+}
+.retro-reaction-add-btn:hover { background: rgba(0,0,0,0.1); color: #334155; }
+.retro-reaction-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  display: flex; gap: 4px;
+  background: rgba(17,24,39,0.97);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 6px 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  z-index: 20;
+}
+.retro-reaction-popover::after {
+  content: '';
+  position: absolute;
+  top: 100%; right: 14px;
+  border: 5px solid transparent;
+  border-top-color: rgba(255,255,255,0.12);
+}
+.retro-reaction-option {
+  background: none; border: none; cursor: pointer;
+  font-size: 1.1rem; line-height: 1; padding: 4px 6px; border-radius: 6px;
+  transition: background 0.15s, transform 0.12s;
+}
+.retro-reaction-option:hover { background: rgba(255,255,255,0.12); transform: scale(1.15); }
+.retro-reaction-option-active { background: rgba(236,72,153,0.28); }
 
 /* ── Drag hint label ── */
 .retro-drag-hint {
@@ -5492,7 +5608,7 @@ a.jira-tag-key:hover {
   align-items: center;
   margin-bottom: 30px;
   position: relative;
-  z-index: 1;
+  z-index: 1001;
 }
 
 .retro-board-view, .retro-standalone-main {

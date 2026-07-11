@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Pressable, Alert } from "react-native";
 import { Stack } from "expo-router";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../lib/supabase";
 import { useThemeColors } from "../lib/theme";
 import { Screen, Card, SectionTitle, EmptyState, Button, TextField, Select } from "../components/ui";
+import { DetailCardSkeleton } from "../components/Skeleton";
+
+const REACTION_EMOJIS = ["❤️", "😂", "😮", "🎉", "💡"];
 
 const RETRO_TEMPLATES = {
   standard: [
@@ -37,7 +40,8 @@ export default function RetrospectiveScreen() {
   const [template, setTemplate] = useState("standard");
   const [session, setSession] = useState(null);
   const [cards, setCards] = useState([]);
-  const [cardVotes, setCardVotes] = useState([]);
+  const [cardReactions, setCardReactions] = useState([]);
+  const [reactionPickerFor, setReactionPickerFor] = useState(null);
   const [participantName, setParticipantName] = useState("");
   const [isHost, setIsHost] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,7 +62,7 @@ export default function RetrospectiveScreen() {
       const data = await res.json();
       setSession(data.session);
       setCards(data.cards || []);
-      setCardVotes(data.cardVotes || []);
+      setCardReactions(data.cardReactions || []);
     } catch (_) {}
   }, []);
 
@@ -86,7 +90,7 @@ export default function RetrospectiveScreen() {
       if (!res.ok) throw new Error(data.error);
       setSession(data.session);
       setCards([]);
-      setCardVotes([]);
+      setCardReactions([]);
       setView("board");
       setIsHost(true);
       setParticipantName(creatorName.trim());
@@ -108,7 +112,7 @@ export default function RetrospectiveScreen() {
       if (!res.ok) throw new Error(data.error || "Session not found");
       setSession(data.session);
       setCards(data.cards || []);
-      setCardVotes(data.cardVotes || []);
+      setCardReactions(data.cardReactions || []);
       setParticipantName(joinName.trim());
       setIsHost(data.session.created_by === joinName.trim());
       setView("board");
@@ -158,14 +162,18 @@ export default function RetrospectiveScreen() {
     } catch (_) {}
   };
 
-  const handleVoteCard = async (cardId) => {
+  const handleReact = async (cardId, emoji) => {
     if (!participantName) return;
-    const hasVoted = cardVotes.some((v) => String(v.card_id) === String(cardId) && v.participant_name === participantName);
-    setCardVotes((prev) => (hasVoted ? prev.filter((v) => !(String(v.card_id) === String(cardId) && v.participant_name === participantName)) : [...prev, { card_id: cardId, participant_name: participantName }]));
+    const already = cardReactions.some((r) => String(r.card_id) === String(cardId) && r.participant_name === participantName && r.emoji === emoji);
+    setCardReactions((prev) =>
+      already
+        ? prev.filter((r) => !(String(r.card_id) === String(cardId) && r.participant_name === participantName && r.emoji === emoji))
+        : [...prev, { card_id: cardId, participant_name: participantName, emoji }]
+    );
     await fetch(`${API_BASE_URL}/api/retro`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: hasVoted ? "unvote_card" : "vote_card", cardId, sessionId: session.id, participantName }),
+      body: JSON.stringify({ action: already ? "unreact_card" : "react_card", cardId, sessionId: session.id, participantName, emoji }),
     });
   };
 
@@ -222,7 +230,7 @@ export default function RetrospectiveScreen() {
     );
   }
 
-  if (!session) return <Screen><ActivityIndicator color={t.accentIndigo} /></Screen>;
+  if (!session) return <Screen><DetailCardSkeleton /></Screen>;
 
   return (
     <Screen>
@@ -244,9 +252,11 @@ export default function RetrospectiveScreen() {
               <EmptyState text="No cards yet." />
             ) : (
               colCards.map((c) => {
-                const voteCount = cardVotes.filter((v) => String(v.card_id) === String(c.id)).length;
-                const iVoted = cardVotes.some((v) => String(v.card_id) === String(c.id) && v.participant_name === participantName);
                 const isOwner = (c.author || "").toLowerCase().trim() === participantName.toLowerCase().trim();
+                const reactionCounts = {};
+                cardReactions
+                  .filter((r) => String(r.card_id) === String(c.id))
+                  .forEach((r) => { reactionCounts[r.emoji] = (reactionCounts[r.emoji] || 0) + 1; });
                 const isEditing = editingCardId === c.id;
                 return (
                   <View key={c.id} style={{ backgroundColor: t.bgElevated, borderRadius: 10, padding: 10, marginBottom: 8 }}>
@@ -261,12 +271,17 @@ export default function RetrospectiveScreen() {
                     ) : (
                       <>
                         <Text style={{ color: t.textPrimary, fontSize: 14 }}>{c.content}</Text>
-                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8, flexWrap: "wrap", gap: 8 }}>
                           <Text style={{ color: t.textMuted, fontSize: 11 }}>— {c.author || "Anonymous"}</Text>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                            <Pressable onPress={() => handleVoteCard(c.id)} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                              <Text style={{ fontSize: 13 }}>{iVoted ? "❤️" : "🤍"}</Text>
-                              <Text style={{ color: t.textMuted, fontSize: 12 }}>{voteCount}</Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                            {Object.entries(reactionCounts).map(([emoji, count]) => (
+                              <Pressable key={emoji} onPress={() => handleReact(c.id, emoji)} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                                <Text style={{ fontSize: 13 }}>{emoji}</Text>
+                                <Text style={{ color: t.textMuted, fontSize: 12 }}>{count}</Text>
+                              </Pressable>
+                            ))}
+                            <Pressable onPress={() => setReactionPickerFor(reactionPickerFor === c.id ? null : c.id)}>
+                              <Text style={{ fontSize: 13, color: t.textMuted }}>+😀</Text>
                             </Pressable>
                             {isOwner && (
                               <>
@@ -280,6 +295,15 @@ export default function RetrospectiveScreen() {
                             )}
                           </View>
                         </View>
+                        {reactionPickerFor === c.id && (
+                          <View style={{ flexDirection: "row", gap: 14, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: t.border }}>
+                            {REACTION_EMOJIS.map((emoji) => (
+                              <Pressable key={emoji} onPress={() => { handleReact(c.id, emoji); setReactionPickerFor(null); }}>
+                                <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        )}
                       </>
                     )}
                   </View>

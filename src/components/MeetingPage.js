@@ -10,6 +10,7 @@ import EditWordModal from "@/components/EditWordModal";
 import EditLeaveModal from "@/components/EditLeaveModal";
 import HumanLoader from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
+import { computeLeaveBalances } from "@/lib/utils";
 
 export default function MeetingPage() {
   const { 
@@ -34,6 +35,7 @@ export default function MeetingPage() {
     isAdmin,
     isLoaded,
     publicHolidays,
+    leaveTypes,
     companyEvents,
     standupSubmissions,
     standupQuestions,
@@ -719,6 +721,9 @@ export default function MeetingPage() {
           employees={employees}
           today={today}
           leaves={leaves}
+          leaveTypes={leaveTypes}
+          publicHolidays={publicHolidays}
+          isAdmin={isAdmin}
         />
       )}
     </div>
@@ -965,11 +970,12 @@ function IdleNudge({ phrases }) {
   );
 }
 
-function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves }) {
+function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves, leaveTypes, publicHolidays, isAdmin }) {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("full");   // full | half | early
   const [segment, setSegment] = useState("first");    // first | second
-  const [category, setCategory] = useState("Casual"); // Casual | Sick | Project Holiday
+  const [leaveTypeId, setLeaveTypeId] = useState("");
+  const [overrideBalance, setOverrideBalance] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
 
   const DURATION_OPTS = [
@@ -977,6 +983,15 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
     { value: "half",  label: "Half Day",     icon: "🌗" },
     { value: "early", label: "Early Leave",  icon: "🚪" },
   ];
+
+  const holidaySet = useMemo(
+    () => new Set((publicHolidays || []).map((h) => h.date?.split("T")[0])),
+    [publicHolidays]
+  );
+  const activeLeaveTypes = (leaveTypes || []).filter((t) => t.is_active);
+  const balances = computeLeaveBalances(name, leaves, activeLeaveTypes, new Date().getFullYear(), holidaySet);
+  const defaultLeaveType = activeLeaveTypes.find((t) => !t.is_unpaid) || activeLeaveTypes[0];
+  const effectiveLeaveTypeId = leaveTypeId || (defaultLeaveType ? String(defaultLeaveType.id) : "");
 
   const hSubmit = (e) => {
     e.preventDefault();
@@ -992,10 +1007,14 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
       return;
     }
 
-    let finalReason = category;
-    if (duration === "half") {
-      finalReason = (segment === "first" ? "[First Half] " : "[Second Half] ") + finalReason;
+    const requestedDays = duration === "half" ? 0.5 : 1;
+    const selectedBalance = balances.find((b) => String(b.id) === String(effectiveLeaveTypeId));
+    if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
+      alert(`Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`);
+      return;
     }
+
+    let finalReason = duration === "half" ? (segment === "first" ? "[First Half]" : "[Second Half]") : "";
 
     addLeave({
       name,
@@ -1003,6 +1022,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
       startDate: today,
       endDate: today,
       reason: finalReason,
+      leaveTypeId: effectiveLeaveTypeId ? Number(effectiveLeaveTypeId) : null,
     });
     onClose();
   };
@@ -1067,13 +1087,28 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
             </div>
           )}
 
-          <div className="form-group-interactive">
-            <label>Category</label>
-            <select value={category} onChange={e => setCategory(e.target.value)}>
-              <option>Casual</option>
-              <option>Sick</option>
-            </select>
-          </div>
+          {activeLeaveTypes.length > 0 && (
+            <div className="form-group-interactive">
+              <label>Category</label>
+              <select value={effectiveLeaveTypeId} onChange={e => setLeaveTypeId(e.target.value)}>
+                {balances.map((b) => (
+                  <option key={b.id} value={b.id} disabled={!isAdmin && b.remaining <= 0}>
+                    {b.name} — {b.remaining}/{b.annual_days} left{b.is_unpaid ? " (unpaid)" : ""}
+                  </option>
+                ))}
+              </select>
+              {isAdmin && (
+                <label className="leave-multiday-toggle" style={{ marginTop: "8px" }}>
+                  <input
+                    type="checkbox"
+                    checked={overrideBalance}
+                    onChange={(e) => setOverrideBalance(e.target.checked)}
+                  />
+                  <span>Override balance limit</span>
+                </label>
+              )}
+            </div>
+          )}
 
           {duplicateWarning && (
             <div className="duplicate-warning">

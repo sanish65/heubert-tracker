@@ -159,7 +159,7 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw }) {
                     <td>
                       <span
                         className={`status-badge ${f.status} ${!(isAdmin || isFineAdmin) ? 'status-static' : ''}`}
-                        onClick={() => (isAdmin || isFineAdmin) && toggleFineStatus(f.id)}
+                        onClick={() => (isAdmin || isFineAdmin) && window.confirm(`Mark as ${f.status === "paid" ? "unpaid" : "paid"}? ${f.employee_name} · Rs. ${f.amount}`) && toggleFineStatus(f.id)}
                         title={(isAdmin || isFineAdmin) ? "Click to toggle status" : ""}
                       >
                         {f.status}
@@ -177,7 +177,7 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw }) {
                           </button>
                           <button
                             className="btn btn-sm btn-danger"
-                            onClick={() => deleteFine(f.id)}
+                            onClick={() => window.confirm(`Delete fine? ${f.employee_name} · Rs. ${f.amount}`) && deleteFine(f.id)}
                             title="Delete"
                           >
                             🗑

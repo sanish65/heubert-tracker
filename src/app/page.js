@@ -32,10 +32,12 @@ import PlanningPokerPage from "@/components/PlanningPokerPage";
 import RetrospectivePage from "@/components/RetrospectivePage";
 import MemoriesPage from "@/components/MemoriesPage";
 import AddMemoryModal from "@/components/AddMemoryModal";
+import AttendancePage from "@/components/AttendancePage";
 import ReleaseUpdatesModal from "@/components/ReleaseUpdatesModal";
+import LeaveSettingsPage from "@/components/LeaveSettingsPage";
 
 export default function Home() {
-  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady } = useApp();
+  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin } = useApp();
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef(null);
@@ -88,7 +90,7 @@ export default function Home() {
   // Load active tab from localStorage on mount
   useEffect(() => {
     const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "words", "capacity", "events", "poker", "retro", "memories"].includes(savedTab)) {
+    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "leave-settings", "attendance", "words", "capacity", "events", "poker", "retro", "memories"].includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
@@ -150,7 +152,7 @@ export default function Home() {
         <div className="header-left">
           <div className="title-row">
             <h1 className="app-title">
-              <span className="title-icon">⏰</span>
+              <img src="/logo.png" alt="Heubert Tracker" className="title-icon" />
               HTT
             </h1>
             {user && (
@@ -276,6 +278,12 @@ export default function Home() {
         >
           🏖️ Leaves
         </button>
+        <button
+          className={`nav-tab ${activeTab === "attendance" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("attendance")}
+        >
+          📍 Attendance
+        </button>
         {/* <button
           className={`nav-tab ${activeTab === "capacity" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("capacity")}
@@ -306,6 +314,14 @@ export default function Home() {
         >
           🗂️ Retrospective
         </button>
+        {isAdmin && (
+          <button
+            className={`nav-tab nav-tab-right ${activeTab === "leave-settings" ? "nav-tab-active" : ""}`}
+            onClick={() => setActiveTab("leave-settings")}
+          >
+            ⚙️ Leave Settings
+          </button>
+        )}
         <button
           className={`nav-tab nav-tab-right ${activeTab === "employees" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("employees")}
@@ -347,6 +363,7 @@ export default function Home() {
             onAddHoliday={() => setShowAddHoliday(true)}
           />
         )}
+        {activeTab === "attendance" && <AttendancePage />}
         {activeTab === "capacity" && <CapacityPage />}
         {activeTab === "words" && (
           <WordPage 
@@ -367,6 +384,7 @@ export default function Home() {
         )}
         {activeTab === "poker" && <PlanningPokerPage />}
         {activeTab === "retro" && <RetrospectivePage />}
+        {activeTab === "leave-settings" && <LeaveSettingsPage />}
       </main>
 
       {/* Footer */}

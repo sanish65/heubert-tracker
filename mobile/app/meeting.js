@@ -1,13 +1,30 @@
 import { useMemo, useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Pressable, Alert } from "react-native";
 import { Stack } from "expo-router";
 import { useApp } from "../context/AppContext";
 import { useThemeColors } from "../lib/theme";
 import { Screen, Card, SectionTitle, EmptyState, Button } from "../components/ui";
 import AddFineModal from "../components/AddFineModal";
+import EditFineModal from "../components/EditFineModal";
 import AddStandupFineModal from "../components/AddStandupFineModal";
+import EditStandupModal from "../components/EditStandupModal";
 import AddLeaveModal from "../components/AddLeaveModal";
+import EditLeaveModal from "../components/EditLeaveModal";
 import AddWordModal from "../components/AddWordModal";
+import EditWordModal from "../components/EditWordModal";
+
+function AdminItemActions({ onEdit, onDelete }) {
+  return (
+    <View style={{ flexDirection: "row", gap: 12 }}>
+      <Pressable onPress={onEdit}>
+        <Text style={{ fontSize: 14 }}>✏️</Text>
+      </Pressable>
+      <Pressable onPress={onDelete}>
+        <Text style={{ fontSize: 14 }}>🗑</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function MeetingScreen() {
   const {
@@ -21,6 +38,10 @@ export default function MeetingScreen() {
     standupSubmissions,
     standupQuestions,
     isAdmin,
+    deleteFine,
+    deleteStandupFine,
+    deleteLeave,
+    deleteWord,
   } = useApp();
   const t = useThemeColors();
 
@@ -28,6 +49,35 @@ export default function MeetingScreen() {
   const [showAddStandup, setShowAddStandup] = useState(false);
   const [showAddLeave, setShowAddLeave] = useState(false);
   const [showAddWord, setShowAddWord] = useState(false);
+  const [editingFine, setEditingFine] = useState(null);
+  const [editingStandup, setEditingStandup] = useState(null);
+  const [editingLeave, setEditingLeave] = useState(null);
+  const [editingWord, setEditingWord] = useState(null);
+
+  const confirmDeleteFine = (f) => {
+    Alert.alert("Delete fine?", `${f.employee_name} · Rs. ${f.amount}`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteFine(f.id) },
+    ]);
+  };
+  const confirmDeleteStandup = (s) => {
+    Alert.alert("Delete record?", `${s.employee_name} · ${s.date}`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteStandupFine(s.id) },
+    ]);
+  };
+  const confirmDeleteLeave = (l) => {
+    Alert.alert("Delete leave?", `${l.employee_name} · ${l.start_date}`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteLeave(l.id) },
+    ]);
+  };
+  const confirmDeleteWord = (w) => {
+    Alert.alert("Delete word?", w.word, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteWord(w.id) },
+    ]);
+  };
 
   const today = new Date().toLocaleDateString("en-CA");
 
@@ -90,9 +140,14 @@ export default function MeetingScreen() {
           <EmptyState icon="☀️" text="All on time today!" />
         ) : (
           todaysFines.map((f, i) => (
-            <View key={i} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}>
+            <View key={i} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
               <Text style={{ color: t.textPrimary, fontSize: 14 }}>{f.employee_name}</Text>
-              <Text style={{ color: t.textMuted, fontSize: 13 }}>Rs. {f.amount} · {f.status}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Text style={{ color: t.textMuted, fontSize: 13 }}>Rs. {f.amount} · {f.status}</Text>
+                {isAdmin && (
+                  <AdminItemActions onEdit={() => setEditingFine(f)} onDelete={() => confirmDeleteFine(f)} />
+                )}
+              </View>
             </View>
           ))
         )}
@@ -104,9 +159,14 @@ export default function MeetingScreen() {
           <EmptyState text="No standup fines yet." />
         ) : (
           todaysStandups.map((s, i) => (
-            <View key={i} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}>
+            <View key={i} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
               <Text style={{ color: t.textPrimary, fontSize: 14 }}>{s.employee_name}</Text>
-              <Text style={{ color: t.textMuted, fontSize: 13 }}>{s.status}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Text style={{ color: t.textMuted, fontSize: 13 }}>{s.status}</Text>
+                {isAdmin && (
+                  <AdminItemActions onEdit={() => setEditingStandup(s)} onDelete={() => confirmDeleteStandup(s)} />
+                )}
+              </View>
             </View>
           ))
         )}
@@ -118,9 +178,14 @@ export default function MeetingScreen() {
           <EmptyState icon="💪" text="Full strength today!" />
         ) : (
           activeLeaves.map((l, i) => (
-            <View key={i} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}>
+            <View key={i} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
               <Text style={{ color: t.textPrimary, fontSize: 14 }}>{l.employee_name}</Text>
-              <Text style={{ color: t.textMuted, fontSize: 13 }}>{l.type}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Text style={{ color: t.textMuted, fontSize: 13 }}>{l.type}</Text>
+                {isAdmin && (
+                  <AdminItemActions onEdit={() => setEditingLeave(l)} onDelete={() => confirmDeleteLeave(l)} />
+                )}
+              </View>
             </View>
           ))
         )}
@@ -171,7 +236,12 @@ export default function MeetingScreen() {
         <SectionTitle>📖 Word of the Meeting</SectionTitle>
         {todaysWord ? (
           <View>
-            <Text style={{ color: t.textPrimary, fontSize: 18, fontWeight: "800" }}>{todaysWord.word}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ color: t.textPrimary, fontSize: 18, fontWeight: "800" }}>{todaysWord.word}</Text>
+              {isAdmin && (
+                <AdminItemActions onEdit={() => setEditingWord(todaysWord)} onDelete={() => confirmDeleteWord(todaysWord)} />
+              )}
+            </View>
             {todaysWord.phonetic ? <Text style={{ color: t.textMuted, fontSize: 12 }}>({todaysWord.phonetic})</Text> : null}
             {todaysWord.translation ? <Text style={{ color: t.textSecondary, fontSize: 13, marginTop: 6 }}>Translation: {todaysWord.translation}</Text> : null}
             <Text style={{ color: t.textSecondary, fontSize: 14, marginTop: 6 }}>{todaysWord.definition}</Text>
@@ -183,9 +253,13 @@ export default function MeetingScreen() {
       </Card>
 
       <AddFineModal isOpen={showAddFine} onClose={() => setShowAddFine(false)} />
+      <EditFineModal isOpen={!!editingFine} onClose={() => setEditingFine(null)} fine={editingFine} />
       <AddStandupFineModal isOpen={showAddStandup} onClose={() => setShowAddStandup(false)} />
+      <EditStandupModal isOpen={!!editingStandup} onClose={() => setEditingStandup(null)} record={editingStandup} />
       <AddLeaveModal isOpen={showAddLeave} onClose={() => setShowAddLeave(false)} />
+      <EditLeaveModal isOpen={!!editingLeave} onClose={() => setEditingLeave(null)} leave={editingLeave} />
       <AddWordModal isOpen={showAddWord} onClose={() => setShowAddWord(false)} seasonId={wordSeasons[wordSeasons.length - 1]?.id} />
+      <EditWordModal isOpen={!!editingWord} onClose={() => setEditingWord(null)} word={editingWord} />
     </Screen>
   );
 }

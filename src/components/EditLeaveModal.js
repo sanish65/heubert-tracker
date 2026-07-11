@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { buildWorkingDates } from "@/lib/utils";
+import { buildWorkingDates, computeLeaveBalances } from "@/lib/utils";
 
 const LEAVE_TYPE_OPTIONS = [
   { value: "full", label: "Full Day", icon: "📅" },
@@ -25,19 +25,26 @@ function parseLocalDate(str) {
 
 
 export default function EditLeaveModal({ isOpen, onClose, leave }) {
-  const { updateLeave, publicHolidays } = useApp();
+  const { updateLeave, publicHolidays, leaves, leaveTypes, isAdmin } = useApp();
   const [form, setForm] = useState({
     startDate: "",
     endDate: "",
     type: "full",
     segment: "first",
     reason: "",
+    leaveTypeId: "",
   });
   const [multiDay, setMultiDay] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [overrideBalance, setOverrideBalance] = useState(false);
 
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
+  const activeLeaveTypes = (leaveTypes || []).filter((t) => t.is_active);
+  const currentYear = new Date().getFullYear();
+  // Exclude the leave being edited so its own days don't count against its balance
+  const otherLeaves = leave ? leaves.filter((l) => l.id !== leave.id) : leaves;
+  const balances = computeLeaveBalances(leave?.employee_name, otherLeaves, activeLeaveTypes, currentYear, holidaySet);
 
   useEffect(() => {
     if (leave && isOpen) {
@@ -61,9 +68,11 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
         type: leave.type || "full",
         segment: initSegment,
         reason: initReason,
+        leaveTypeId: leave.leave_type_id ? String(leave.leave_type_id) : "",
       });
       setMultiDay(isMulti);
       setError("");
+      setOverrideBalance(false);
     }
   }, [leave, isOpen]);
 
@@ -99,6 +108,15 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
       return;
     }
 
+    const requestedDays = form.type === "half" ? dates.length * 0.5 : dates.length;
+    const selectedBalance = balances.find((b) => String(b.id) === String(form.leaveTypeId));
+    if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
+      setError(
+        `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} day${selectedBalance.remaining === 1 ? "" : "s"} remaining). Consider Unpaid Leave instead.`
+      );
+      return;
+    }
+
     let finalReason = form.reason.trim();
     if (form.type === "half") {
       const segmentStr = form.segment === "first" ? "[First Half]" : "[Second Half]";
@@ -112,7 +130,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
         end_date: finalEnd,
         type: form.type,
         reason: finalReason,
-        dates,
+        leave_type_id: form.leaveTypeId ? Number(form.leaveTypeId) : null,
       });
       if (!error) onClose();
       else setError("Failed to update leave record.");
@@ -188,6 +206,34 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
                       </label>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {activeLeaveTypes.length > 0 && (
+                <div className="form-group-interactive" style={{ marginTop: "1rem" }}>
+                  <label htmlFor="edit-leave-category">Leave Category</label>
+                  <select
+                    id="edit-leave-category"
+                    value={form.leaveTypeId}
+                    onChange={handleChange("leaveTypeId")}
+                  >
+                    <option value="">Uncategorized</option>
+                    {balances.map((b) => (
+                      <option key={b.id} value={b.id} disabled={!isAdmin && b.remaining <= 0}>
+                        {b.name} — {b.remaining}/{b.annual_days} left{b.is_unpaid ? " (unpaid)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {isAdmin && (
+                    <label className="leave-multiday-toggle" style={{ marginTop: "8px" }}>
+                      <input
+                        type="checkbox"
+                        checked={overrideBalance}
+                        onChange={(e) => setOverrideBalance(e.target.checked)}
+                      />
+                      <span>Override balance limit</span>
+                    </label>
+                  )}
                 </div>
               )}
             </div>

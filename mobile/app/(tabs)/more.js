@@ -15,9 +15,14 @@ const ITEMS = [
   { icon: "⚙️", label: "Settings", href: "/settings" },
 ];
 
+const ADMIN_ITEMS = [
+  { icon: "🗂️", label: "Leave Settings", href: "/leave-settings" },
+];
+
 export default function MoreScreen() {
   const t = useThemeColors();
-  const { user } = useApp();
+  const { user, isAdmin } = useApp();
+  const items = isAdmin ? [...ITEMS, ...ADMIN_ITEMS] : ITEMS;
 
   return (
     <Screen>
@@ -28,7 +33,7 @@ export default function MoreScreen() {
         <Text style={{ color: t.textMuted, fontSize: 12 }}>{user?.email}</Text>
       </Card>
 
-      {ITEMS.map((item) => (
+      {items.map((item) => (
         <Link key={item.href} href={item.href} style={{ display: "flex" }}>
           <Card style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
             <Text style={{ fontSize: 20, marginRight: 12 }}>{item.icon}</Text>

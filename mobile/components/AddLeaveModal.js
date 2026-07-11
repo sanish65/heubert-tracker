@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Switch } from "react-native";
 import { useApp } from "../context/AppContext";
-import { buildWorkingDates, toDateStr } from "../lib/utils";
+import { buildWorkingDates, toDateStr, computeLeaveBalances } from "../lib/utils";
 import { FormModal, TextField, Select, Button } from "./ui";
 import { useThemeColors } from "../lib/theme";
 
@@ -16,7 +16,7 @@ const SEGMENT_OPTIONS = [
 ];
 
 export default function AddLeaveModal({ isOpen, onClose }) {
-  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays } = useApp();
+  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes } = useApp();
   const t = useThemeColors();
   const today = toDateStr(new Date());
 
@@ -27,13 +27,25 @@ export default function AddLeaveModal({ isOpen, onClose }) {
   const [type, setType] = useState("full");
   const [segment, setSegment] = useState("first");
   const [reason, setReason] = useState("");
+  const [leaveTypeId, setLeaveTypeId] = useState("");
+  const [overrideBalance, setOverrideBalance] = useState(false);
   const [error, setError] = useState("");
 
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
+  const activeLeaveTypes = (leaveTypes || []).filter((lt) => lt.is_active);
+  const balances = computeLeaveBalances(name, leaves, activeLeaveTypes, new Date().getFullYear(), holidaySet);
+  const selectableBalances = isAdmin ? balances : balances.filter((b) => b.remaining > 0);
 
   useEffect(() => {
     if (isOpen && currentEmployee && !name) setName(currentEmployee.name);
   }, [isOpen, currentEmployee]);
+
+  useEffect(() => {
+    if (isOpen && !leaveTypeId && activeLeaveTypes.length > 0) {
+      const defaultType = activeLeaveTypes.find((lt) => !lt.is_unpaid) || activeLeaveTypes[0];
+      setLeaveTypeId(String(defaultType.id));
+    }
+  }, [isOpen, activeLeaveTypes, leaveTypeId]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -43,6 +55,8 @@ export default function AddLeaveModal({ isOpen, onClose }) {
       setType("full");
       setSegment("first");
       setReason("");
+      setLeaveTypeId("");
+      setOverrideBalance(false);
       setError("");
     }
   }, [isOpen]);
@@ -60,13 +74,21 @@ export default function AddLeaveModal({ isOpen, onClose }) {
     const dates = buildWorkingDates(startDate, finalEnd, holidaySet);
     if (dates.length === 0) return setError("The selected range has no working days (all weekends or holidays).");
 
+    const requestedDays = type === "half" ? dates.length * 0.5 : dates.length;
+    const selectedBalance = balances.find((b) => String(b.id) === String(leaveTypeId));
+    if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
+      return setError(
+        `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`
+      );
+    }
+
     let finalReason = reason.trim();
     if (type === "half") {
       const segmentStr = segment === "first" ? "[First Half]" : "[Second Half]";
       finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
     }
 
-    addLeave({ name, startDate, endDate: finalEnd, dates, type, reason: finalReason });
+    addLeave({ name, startDate, endDate: finalEnd, dates, type, reason: finalReason, leaveTypeId: leaveTypeId ? Number(leaveTypeId) : null });
     onClose();
   };
 
@@ -80,6 +102,26 @@ export default function AddLeaveModal({ isOpen, onClose }) {
 
       <Select label="Leave Type" value={type} onSelect={setType} options={TYPE_OPTIONS} />
       {type === "half" && <Select label="Half Day Segment" value={segment} onSelect={setSegment} options={SEGMENT_OPTIONS} />}
+
+      {selectableBalances.length > 0 && (
+        <>
+          <Select
+            label="Leave Category"
+            value={leaveTypeId}
+            onSelect={setLeaveTypeId}
+            options={selectableBalances.map((b) => ({
+              value: String(b.id),
+              label: `${b.name} (${b.remaining}/${b.annual_days})`,
+            }))}
+          />
+          {isAdmin && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <Text style={{ color: t.textPrimary, fontSize: 14 }}>Override balance limit</Text>
+              <Switch value={overrideBalance} onValueChange={setOverrideBalance} trackColor={{ true: t.accentIndigo }} />
+            </View>
+          )}
+        </>
+      )}
 
       <TextField label="Leave Date (YYYY-MM-DD)" value={startDate} onChangeText={setStartDate} placeholder={today} />
 

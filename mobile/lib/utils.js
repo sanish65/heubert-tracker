@@ -99,3 +99,34 @@ export function parseLocalDate(str) {
   const [y, m, d] = str.split("-").map(Number);
   return new Date(y, m - 1, d, 0, 0, 0, 0);
 }
+
+/**
+ * Number of days a single leave record counts against a balance:
+ * working days in its range (skipping weekends/holidays), halved for half-day leaves.
+ */
+export function leaveDayCount(leave, holidaySet) {
+  const dates = leave.dates || buildWorkingDates(leave.start_date, leave.end_date, holidaySet);
+  return leave.type === "half" ? dates.length * 0.5 : dates.length;
+}
+
+/**
+ * Per-leave-type balances (annual / used / remaining) for one employee in a given year.
+ * Only active leave types are included. Leaves without a matching leave_type_id don't count
+ * against any balance ("Uncategorized").
+ */
+export function computeLeaveBalances(employeeName, leaves, leaveTypes, year, holidaySet) {
+  return (leaveTypes || [])
+    .filter((t) => t.is_active)
+    .map((t) => {
+      const used = (leaves || [])
+        .filter(
+          (l) =>
+            l.employee_name === employeeName &&
+            l.leave_type_id === t.id &&
+            typeof l.start_date === "string" &&
+            l.start_date.startsWith(String(year))
+        )
+        .reduce((sum, l) => sum + leaveDayCount(l, holidaySet), 0);
+      return { ...t, used, remaining: Math.max(0, t.annual_days - used) };
+    });
+}

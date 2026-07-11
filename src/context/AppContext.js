@@ -41,6 +41,9 @@ export function AppProvider({ children }) {
   const [theme, setTheme] = useState("dark");
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [memories, setMemories] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [officeSettings, setOfficeSettings] = useState(null);
+  const [leaveTypes, setLeaveTypes] = useState([]);
 
   const adminEmails = [
     "sanish@heubert.com",
@@ -75,6 +78,9 @@ export function AppProvider({ children }) {
         supabaseStandup.from("standup_responses").select("*").order("date", { ascending: false }),
         supabaseStandup.from("questions").select("*").order("sort_order", { ascending: true }),
         supabase.from("memories").select("*").order("created_at", { ascending: false }),
+        supabase.from("attendance").select("*").order("date", { ascending: false }),
+        supabase.from("office_settings").select("*").eq("id", 1).single(),
+        supabase.from("leave_types").select("*").order("sort_order", { ascending: true }),
       ]);
 
       const [
@@ -91,6 +97,9 @@ export function AppProvider({ children }) {
         { data: standupSubData },
         { data: standupQuestData },
         { data: memoryData },
+        { data: attendanceData },
+        { data: officeSettingsData },
+        { data: leaveTypesData },
       ] = results;
 
       if (empData) setEmployees(empData);
@@ -110,6 +119,9 @@ export function AppProvider({ children }) {
       if (standupSubData) setStandupSubmissions(standupSubData);
       if (standupQuestData) setStandupQuestions(standupQuestData);
       if (memoryData) setMemories(memoryData);
+      if (attendanceData) setAttendance(attendanceData);
+      if (officeSettingsData) setOfficeSettings(officeSettingsData);
+      if (leaveTypesData) setLeaveTypes(leaveTypesData);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -398,7 +410,8 @@ export function AppProvider({ children }) {
         start_date: leave.startDate,
         end_date: leave.endDate,
         type: leave.type,
-        reason: leave.reason
+        reason: leave.reason,
+        leave_type_id: leave.leaveTypeId ?? null,
     };
     const { data } = await supabase.from("leaves").insert([payload]).select();
     if (data) setLeaves(prev => [data[0], ...prev]);
@@ -417,7 +430,7 @@ export function AppProvider({ children }) {
         end_date: updatedData.end_date,
         type: updatedData.type,
         reason: updatedData.reason,
-        dates: updatedData.dates,
+        leave_type_id: updatedData.leave_type_id ?? null,
       })
       .eq("id", id)
       .select();
@@ -426,6 +439,38 @@ export function AppProvider({ children }) {
       setLeaves(prev => prev.map(l => l.id === id ? data[0] : l));
     }
     return { data, error };
+  };
+
+  const addLeaveType = async (leaveType) => {
+    const payload = {
+        name: leaveType.name,
+        annual_days: leaveType.annualDays,
+        is_unpaid: leaveType.isUnpaid || false,
+        is_active: leaveType.isActive !== undefined ? leaveType.isActive : true,
+        sort_order: leaveType.sortOrder ?? leaveTypes.length,
+    };
+    const { data, error } = await supabase.from("leave_types").insert([payload]).select();
+    if (data) setLeaveTypes(prev => [...prev, data[0]].sort((a, b) => a.sort_order - b.sort_order));
+    return { data, error };
+  };
+
+  const updateLeaveType = async (id, updatedData) => {
+    const payload = {
+        name: updatedData.name,
+        annual_days: updatedData.annualDays,
+        is_unpaid: updatedData.isUnpaid || false,
+        is_active: updatedData.isActive !== undefined ? updatedData.isActive : true,
+        sort_order: updatedData.sortOrder ?? 0,
+    };
+    const { data, error } = await supabase.from("leave_types").update(payload).eq("id", id).select();
+    if (data) setLeaveTypes(prev => prev.map(t => t.id === id ? data[0] : t).sort((a, b) => a.sort_order - b.sort_order));
+    return { data, error };
+  };
+
+  const deleteLeaveType = async (id) => {
+    const { error } = await supabase.from("leave_types").delete().eq("id", id);
+    if (!error) setLeaveTypes(prev => prev.filter(t => t.id !== id));
+    return { error };
   };
 
   const addStandupFine = async (record) => {
@@ -554,6 +599,13 @@ export function AppProvider({ children }) {
     const { error } = await supabase.from("public_holidays").delete().eq("id", id);
     if (!error) setPublicHolidays(prev => prev.filter(h => h.id !== id));
     return { error };
+  };
+
+  const updateOfficeSettings = async (patch) => {
+    const payload = { id: 1, ...officeSettings, ...patch, updated_at: new Date().toISOString() };
+    const { data, error } = await supabase.from("office_settings").upsert(payload).select().single();
+    if (data) setOfficeSettings(data);
+    return { data, error };
   };
 
   const addCompanyEvent = async (date, title) => {
@@ -808,6 +860,13 @@ export function AppProvider({ children }) {
         addMemory,
         deleteMemory,
         updateMemory,
+        attendance,
+        officeSettings,
+        updateOfficeSettings,
+        leaveTypes,
+        addLeaveType,
+        updateLeaveType,
+        deleteLeaveType,
       }}
     >
       {children}

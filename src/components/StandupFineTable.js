@@ -67,6 +67,8 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
   };
 
   const handleToggle = async (fine) => {
+    const next = fine.status === "paid" ? "unpaid" : "paid";
+    if (!window.confirm(`Mark as ${next}? ${fine.employee_name} · ${fine.date}`)) return;
     if (fine.status === "unpaid") {
       setCelebration({ show: true, message: `🎉 Thanks for the party, ${fine.employee_name.split(' ')[0]}!` });
       setTimeout(() => setCelebration({ show: false, message: "" }), 3000);
@@ -167,7 +169,7 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
-                          onClick={() => deleteStandupFine(fine.id)}
+                          onClick={() => window.confirm(`Delete record? ${fine.employee_name} · ${fine.date}`) && deleteStandupFine(fine.id)}
                           title="Delete"
                         >
                           🗑

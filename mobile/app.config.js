@@ -47,6 +47,20 @@ module.exports = {
       iosUrlScheme
         ? ["@react-native-google-signin/google-signin", { iosUrlScheme }]
         : "@react-native-google-signin/google-signin",
+      [
+        "expo-location",
+        {
+          locationWhenInUsePermission:
+            "Heubert Tracker uses your location to confirm you're at the office when you check in or out.",
+        },
+      ],
+      [
+        "expo-local-authentication",
+        {
+          faceIDPermission:
+            "Heubert Tracker uses Face ID to confirm it's really you when you check in or out.",
+        },
+      ],
     ],
     extra: {
       eas: {

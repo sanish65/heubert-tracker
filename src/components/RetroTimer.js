@@ -327,6 +327,15 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
         .retro-timer-btn--music:hover { color: var(--text-primary, #f3f4f6); border-color: rgba(255,255,255,0.15); }
         .retro-timer-btn--music.music-on { color: #a78bfa; border-color: rgba(167,139,250,0.35); background: rgba(167,139,250,0.08); }
         .retro-music-wrap { position: relative; display: inline-flex; }
+        .retro-music-wrap::before {
+          content: '';
+          position: absolute;
+          left: 50%;
+          bottom: 100%;
+          transform: translateX(-50%);
+          width: 130px;
+          height: 10px;
+        }
         .retro-volume-popover {
           position: absolute;
           bottom: calc(100% + 10px);

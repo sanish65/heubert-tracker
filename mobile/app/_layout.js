@@ -1,14 +1,14 @@
 import { useEffect } from "react";
-import { View, ActivityIndicator, StatusBar } from "react-native";
+import { StatusBar } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { AppProvider, useApp } from "../context/AppContext";
-import { themes } from "../lib/theme";
 import { configureGoogleSignIn } from "../lib/googleSignIn";
+import HumanLoader from "../components/HumanLoader";
 
 configureGoogleSignIn();
 
 function AuthGate({ children }) {
-  const { user, isAuthReady, isLoaded, currentEmployee, theme } = useApp();
+  const { user, isAuthReady, isLoaded, currentEmployee } = useApp();
   const router = useRouter();
   const segments = useSegments();
 
@@ -25,18 +25,7 @@ function AuthGate({ children }) {
   }, [isLoaded, isAuthReady, user, isAuthorized, onLoginScreen]);
 
   if (!isLoaded || !isAuthReady || (user && !isAuthorized && !onLoginScreen)) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: themes[theme].bg,
-        }}
-      >
-        <ActivityIndicator size="large" color={themes[theme].accentIndigo} />
-      </View>
-    );
+    return <HumanLoader />;
   }
 
   return children;

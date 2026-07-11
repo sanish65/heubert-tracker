@@ -88,6 +88,20 @@ export default function FinesScreen() {
       { text: "Delete", style: "destructive", onPress: () => deleteStandupFine(f.id) },
     ]);
   };
+  const confirmToggleFine = (f) => {
+    const next = f.status === "paid" ? "unpaid" : "paid";
+    Alert.alert(`Mark as ${next}?`, `${f.employee_name} · Rs. ${f.amount}`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Confirm", onPress: () => toggleFineStatus(f.id) },
+    ]);
+  };
+  const confirmToggleStandup = (f) => {
+    const next = f.status === "paid" ? "unpaid" : "paid";
+    Alert.alert(`Mark as ${next}?`, `${f.employee_name} · ${f.date}`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Confirm", onPress: () => toggleStandupFineStatus(f.id) },
+    ]);
+  };
 
   return (
     <Screen>
@@ -119,14 +133,14 @@ export default function FinesScreen() {
             <EmptyState text="No records found" />
           ) : (
             filteredFines.map((f) => (
-              <FineRow key={f.id} f={f} canManage={canManage} onEdit={setEditingFine} onDelete={confirmDeleteFine} onToggle={(fine) => toggleFineStatus(fine.id)} />
+              <FineRow key={f.id} f={f} canManage={canManage} onEdit={setEditingFine} onDelete={confirmDeleteFine} onToggle={confirmToggleFine} />
             ))
           )
         ) : filteredStandups.length === 0 ? (
           <EmptyState text="No standup records found" />
         ) : (
           filteredStandups.map((f) => (
-            <FineRow key={f.id} f={f} canManage={canManage} onEdit={setEditingStandup} onDelete={confirmDeleteStandup} onToggle={(fine) => toggleStandupFineStatus(fine.id)} />
+            <FineRow key={f.id} f={f} canManage={canManage} onEdit={setEditingStandup} onDelete={confirmDeleteStandup} onToggle={confirmToggleStandup} />
           ))
         )}
       </Card>

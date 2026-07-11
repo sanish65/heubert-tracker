@@ -1,7 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
+import * as Location from "expo-location";
+import * as LocalAuthentication from "expo-local-authentication";
 import { supabase, supabaseStandup, API_BASE_URL } from "../lib/supabase";
+import { haversineMeters, computeLateness, isWorkingDay, getNepalDateStr } from "../lib/attendance";
 
 const AppContext = createContext(null);
 
@@ -26,6 +29,9 @@ export function AppProvider({ children }) {
   const [theme, setTheme] = useState("dark");
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [memories, setMemories] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [officeSettings, setOfficeSettings] = useState(null);
+  const [leaveTypes, setLeaveTypes] = useState([]);
 
   const adminEmails = [
     "sanish@heubert.com",
@@ -57,6 +63,9 @@ export function AppProvider({ children }) {
         supabaseStandup.from("standup_responses").select("*").order("date", { ascending: false }),
         supabaseStandup.from("questions").select("*").order("sort_order", { ascending: true }),
         supabase.from("memories").select("*").order("created_at", { ascending: false }),
+        supabase.from("attendance").select("*").order("date", { ascending: false }),
+        supabase.from("office_settings").select("*").eq("id", 1).single(),
+        supabase.from("leave_types").select("*").order("sort_order", { ascending: true }),
       ]);
 
       const [
@@ -73,6 +82,9 @@ export function AppProvider({ children }) {
         { data: standupSubData },
         { data: standupQuestData },
         { data: memoryData },
+        { data: attendanceData },
+        { data: officeSettingsData },
+        { data: leaveTypesData },
       ] = results;
 
       if (empData) setEmployees(empData);
@@ -92,6 +104,9 @@ export function AppProvider({ children }) {
       if (standupSubData) setStandupSubmissions(standupSubData);
       if (standupQuestData) setStandupQuestions(standupQuestData);
       if (memoryData) setMemories(memoryData);
+      if (attendanceData) setAttendance(attendanceData);
+      if (officeSettingsData) setOfficeSettings(officeSettingsData);
+      if (leaveTypesData) setLeaveTypes(leaveTypesData);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -306,6 +321,7 @@ export function AppProvider({ children }) {
       end_date: leave.endDate,
       type: leave.type,
       reason: leave.reason,
+      leave_type_id: leave.leaveTypeId ?? null,
     };
     const { data, error } = await supabase.from("leaves").insert([payload]).select();
     if (data) setLeaves((prev) => [data[0], ...prev]);
@@ -326,13 +342,45 @@ export function AppProvider({ children }) {
         end_date: updatedData.end_date,
         type: updatedData.type,
         reason: updatedData.reason,
-        dates: updatedData.dates,
+        leave_type_id: updatedData.leave_type_id ?? null,
       })
       .eq("id", id)
       .select();
 
     if (data) setLeaves((prev) => prev.map((l) => (l.id === id ? data[0] : l)));
     return { data, error };
+  };
+
+  const addLeaveType = async (leaveType) => {
+    const payload = {
+      name: leaveType.name,
+      annual_days: leaveType.annualDays,
+      is_unpaid: leaveType.isUnpaid || false,
+      is_active: leaveType.isActive !== undefined ? leaveType.isActive : true,
+      sort_order: leaveType.sortOrder ?? leaveTypes.length,
+    };
+    const { data, error } = await supabase.from("leave_types").insert([payload]).select();
+    if (data) setLeaveTypes((prev) => [...prev, data[0]].sort((a, b) => a.sort_order - b.sort_order));
+    return { data, error };
+  };
+
+  const updateLeaveType = async (id, updatedData) => {
+    const payload = {
+      name: updatedData.name,
+      annual_days: updatedData.annualDays,
+      is_unpaid: updatedData.isUnpaid || false,
+      is_active: updatedData.isActive !== undefined ? updatedData.isActive : true,
+      sort_order: updatedData.sortOrder ?? 0,
+    };
+    const { data, error } = await supabase.from("leave_types").update(payload).eq("id", id).select();
+    if (data) setLeaveTypes((prev) => prev.map((t) => (t.id === id ? data[0] : t)).sort((a, b) => a.sort_order - b.sort_order));
+    return { data, error };
+  };
+
+  const deleteLeaveType = async (id) => {
+    const { error } = await supabase.from("leave_types").delete().eq("id", id);
+    if (!error) setLeaveTypes((prev) => prev.filter((t) => t.id !== id));
+    return { error };
   };
 
   const addStandupFine = async (record) => {
@@ -364,6 +412,122 @@ export function AppProvider({ children }) {
       .select();
 
     if (data) setStandupFines((prev) => prev.map((s) => (s.id === id ? data[0] : s)));
+    return { data, error };
+  };
+
+  // ── Attendance ───────────────────────────────────────────
+  const verifyAtOffice = async () => {
+    if (!officeSettings) throw new Error("Office location isn't configured yet. Contact an admin.");
+
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") throw new Error("Location permission is required.");
+
+    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    const distance = haversineMeters(
+      position.coords.latitude,
+      position.coords.longitude,
+      officeSettings.latitude,
+      officeSettings.longitude
+    );
+    if (distance > officeSettings.radius_meters) {
+      throw new Error(
+        `You're ${Math.round(distance)}m from the office — you must be within ${officeSettings.radius_meters}m.`
+      );
+    }
+    return position;
+  };
+
+  const verifyDeviceSecurity = async (promptMessage) => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    if (!hasHardware || !isEnrolled) {
+      throw new Error("Set up a fingerprint, face unlock, PIN, or pattern on your device first.");
+    }
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage,
+      disableDeviceFallback: false,
+    });
+    if (!result.success) throw new Error("Verification failed.");
+  };
+
+  const checkIn = async () => {
+    if (!currentEmployee) throw new Error("No employee profile is linked to your account.");
+
+    const todayStr = getNepalDateStr(new Date());
+    const existing = attendance.find((a) => a.employee_name === currentEmployee.name && a.date === todayStr);
+    if (existing?.check_in_at) throw new Error("You've already checked in today.");
+
+    const position = await verifyAtOffice();
+    await verifyDeviceSecurity("Verify it's you to check in");
+
+    const now = new Date();
+    const { isLate, lateMinutes } = isWorkingDay(todayStr, publicHolidays)
+      ? computeLateness(now, officeSettings.sync_time)
+      : { isLate: false, lateMinutes: 0 };
+
+    const payload = {
+      employee_name: currentEmployee.name,
+      date: todayStr,
+      check_in_at: now.toISOString(),
+      check_in_lat: position.coords.latitude,
+      check_in_lng: position.coords.longitude,
+      is_late: isLate,
+      late_minutes: lateMinutes,
+    };
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .upsert(payload, { onConflict: "employee_name,date" })
+      .select()
+      .single();
+    if (error) throw error;
+
+    setAttendance((prev) => [data, ...prev.filter((a) => a.id !== data.id)]);
+
+    if (isLate) {
+      await addFine({
+        name: currentEmployee.name,
+        date: todayStr,
+        amount: officeSettings.late_fine_amount,
+        status: "unpaid",
+      });
+    }
+
+    return data;
+  };
+
+  const checkOut = async () => {
+    if (!currentEmployee) throw new Error("No employee profile is linked to your account.");
+
+    const todayStr = getNepalDateStr(new Date());
+    const existing = attendance.find((a) => a.employee_name === currentEmployee.name && a.date === todayStr);
+    if (!existing?.check_in_at) throw new Error("You need to check in before checking out.");
+    if (existing.check_out_at) throw new Error("You've already checked out today.");
+
+    const position = await verifyAtOffice();
+    await verifyDeviceSecurity("Verify it's you to check out");
+
+    const now = new Date();
+    const { data, error } = await supabase
+      .from("attendance")
+      .update({
+        check_out_at: now.toISOString(),
+        check_out_lat: position.coords.latitude,
+        check_out_lng: position.coords.longitude,
+      })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+
+    setAttendance((prev) => prev.map((a) => (a.id === existing.id ? data : a)));
+    return data;
+  };
+
+  const updateOfficeSettings = async (patch) => {
+    const payload = { id: 1, ...officeSettings, ...patch, updated_at: new Date().toISOString() };
+    const { data, error } = await supabase.from("office_settings").upsert(payload).select().single();
+    if (data) setOfficeSettings(data);
     return { data, error };
   };
 
@@ -650,6 +814,15 @@ export function AppProvider({ children }) {
         addMemory,
         deleteMemory,
         updateMemory,
+        attendance,
+        officeSettings,
+        checkIn,
+        checkOut,
+        updateOfficeSettings,
+        leaveTypes,
+        addLeaveType,
+        updateLeaveType,
+        deleteLeaveType,
       }}
     >
       {children}

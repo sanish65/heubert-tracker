@@ -7,18 +7,35 @@ import LeaveCalendar from "../../components/LeaveCalendar";
 import AddLeaveModal from "../../components/AddLeaveModal";
 import EditLeaveModal from "../../components/EditLeaveModal";
 import AddPublicHolidayModal from "../../components/AddPublicHolidayModal";
+import { computeLeaveBalances } from "../../lib/utils";
 
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
 const TYPE_COLORS = { full: "accentIndigo", half: "accentAmber", early: "accentSky" };
 
 export default function LeavesScreen() {
-  const { leaves, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday } = useApp();
+  const { leaves, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
   const t = useThemeColors();
   const [filterEmployee, setFilterEmployee] = useState("");
   const [editingLeave, setEditingLeave] = useState(null);
   const [showAddLeave, setShowAddLeave] = useState(false);
   const [showAddHoliday, setShowAddHoliday] = useState(false);
+
+  const leaveTypeById = useMemo(() => {
+    const map = new Map();
+    (leaveTypes || []).forEach((lt) => map.set(lt.id, lt));
+    return map;
+  }, [leaveTypes]);
+
+  const holidaySet = useMemo(
+    () => new Set((publicHolidays || []).map((h) => h.date?.split("T")[0])),
+    [publicHolidays]
+  );
+
+  const employeeBalances = useMemo(() => {
+    if (!filterEmployee) return [];
+    return computeLeaveBalances(filterEmployee, leaves, leaveTypes, new Date().getFullYear(), holidaySet);
+  }, [filterEmployee, leaves, leaveTypes, holidaySet]);
 
   const calculateDays = (start, end, type) => {
     let diff = 0;
@@ -100,6 +117,17 @@ export default function LeavesScreen() {
         </Card>
       )}
 
+      {filterEmployee && employeeBalances.length > 0 && (
+        <Card>
+          <SectionTitle>{filterEmployee}'s Leave Balances ({new Date().getFullYear()})</SectionTitle>
+          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {employeeBalances.map((b) => (
+              <Chip key={b.id} label={`${b.name}: ${b.remaining}/${b.annual_days}`} active={false} onPress={() => {}} />
+            ))}
+          </View>
+        </Card>
+      )}
+
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <SectionTitle>Leave Records ({filtered.length})</SectionTitle>
@@ -121,7 +149,7 @@ export default function LeavesScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: t.textPrimary, fontWeight: "700", fontSize: 14 }}>{leave.employee_name}</Text>
                     <Text style={{ color: t.textMuted, fontSize: 12, marginTop: 2 }}>
-                      {TYPE_ICONS[leave.type]} {TYPE_LABELS[leave.type]}
+                      {TYPE_ICONS[leave.type]} {TYPE_LABELS[leave.type]} · {leaveTypeById.get(leave.leave_type_id)?.name || "Uncategorized"}
                     </Text>
                   </View>
                   {canEdit && (

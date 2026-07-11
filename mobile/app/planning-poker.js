@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert } from "react-native";
 import { Stack } from "expo-router";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../lib/supabase";
 import { useThemeColors } from "../lib/theme";
 import { Screen, Card, SectionTitle, EmptyState, Button, TextField } from "../components/ui";
+import { DetailCardSkeleton } from "../components/Skeleton";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
 
@@ -215,7 +216,7 @@ export default function PlanningPokerScreen() {
     );
   }
 
-  if (!session) return <Screen><ActivityIndicator color={t.accentIndigo} /></Screen>;
+  if (!session) return <Screen><DetailCardSkeleton /></Screen>;
 
   return (
     <Screen>

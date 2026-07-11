@@ -4,14 +4,31 @@ import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import LeaveCalendar from "./LeaveCalendar";
 import EditLeaveModal from "./EditLeaveModal";
+import { computeLeaveBalances } from "@/lib/utils";
 
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
 
 export default function LeavePage({ onAddLeave, onAddHoliday }) {
-  const { leaves, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday } = useApp();
+  const { leaves, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
   const [filterEmployee, setFilterEmployee] = useState("");
   const [editingLeave, setEditingLeave] = useState(null);
+
+  const leaveTypeById = useMemo(() => {
+    const map = new Map();
+    (leaveTypes || []).forEach((t) => map.set(t.id, t));
+    return map;
+  }, [leaveTypes]);
+
+  const holidaySet = useMemo(
+    () => new Set((publicHolidays || []).map((h) => h.date?.split("T")[0])),
+    [publicHolidays]
+  );
+
+  const employeeBalances = useMemo(() => {
+    if (!filterEmployee) return [];
+    return computeLeaveBalances(filterEmployee, leaves, leaveTypes, new Date().getFullYear(), holidaySet);
+  }, [filterEmployee, leaves, leaveTypes, holidaySet]);
 
   const calculateDays = (start, end, type) => {
     let diff = 0;
@@ -109,6 +126,21 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
             </div>
           )}
 
+          {/* Leave balances for the selected employee */}
+          {filterEmployee && employeeBalances.length > 0 && (
+            <div className="leave-emp-summary">
+              <h4 className="section-title-sm">{filterEmployee}'s Leave Balances ({new Date().getFullYear()})</h4>
+              <div className="leave-emp-chips">
+                {employeeBalances.map((b) => (
+                  <span key={b.id} className="leave-emp-chip">
+                    {b.name}
+                    <span className="chip-badge">{b.remaining}/{b.annual_days}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Leave records list */}
           <div className="leave-list">
             <div className="leave-list-header">
@@ -153,6 +185,9 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
                           <span className={`leave-type-badge leave-type-${leave.type}`}>
                             {TYPE_ICONS[leave.type]} {TYPE_LABELS[leave.type]}
                           </span>
+                          <span className="leave-type-badge">
+                            {leaveTypeById.get(leave.leave_type_id)?.name || "Uncategorized"}
+                          </span>
                         </div>
                         {(isAdmin || (currentEmployee && leave.employee_name === currentEmployee.name)) && (
                           <div className="action-btns">
@@ -165,7 +200,7 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
                             </button>
                             <button
                               className="btn btn-sm btn-danger"
-                              onClick={() => deleteLeave(leave.id)}
+                              onClick={() => window.confirm(`Delete leave? ${leave.employee_name}`) && deleteLeave(leave.id)}
                               title="Delete"
                             >
                               🗑

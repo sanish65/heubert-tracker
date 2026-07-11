@@ -152,9 +152,15 @@ export default function LoginPage() {
           height: 64px;
           background: linear-gradient(135deg, #6366f1, #8b5cf6);
           border-radius: 18px;
-          font-size: 28px;
+          overflow: hidden;
           margin-bottom: 24px;
           box-shadow: 0 8px 24px rgba(99,102,241,0.35);
+        }
+
+        .login-logo img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .login-title {
@@ -289,7 +295,9 @@ export default function LoginPage() {
         <div className="login-bg-orb orb-3" />
 
         <div className="login-card">
-          <div className="login-logo">⏰</div>
+          <div className="login-logo">
+            <img src="/logo.png" alt="Heubert Tracker" />
+          </div>
 
           <div className="login-badge">
             <span className="badge-dot" />
