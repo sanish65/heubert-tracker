@@ -1,4 +1,4 @@
-import { Text } from "react-native";
+import { Pressable, Text } from "react-native";
 import { Link } from "expo-router";
 import { Screen, Card } from "../../components/ui";
 import { useThemeColors } from "../../lib/theme";
@@ -34,12 +34,14 @@ export default function MoreScreen() {
       </Card>
 
       {items.map((item) => (
-        <Link key={item.href} href={item.href} style={{ display: "flex" }}>
-          <Card style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-            <Text style={{ fontSize: 20, marginRight: 12 }}>{item.icon}</Text>
-            <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: "600", flex: 1 }}>{item.label}</Text>
-            <Text style={{ color: t.textMuted, fontSize: 16 }}>›</Text>
-          </Card>
+        <Link key={item.href} href={item.href} asChild>
+          <Pressable>
+            <Card style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+              <Text style={{ fontSize: 20, marginRight: 12 }}>{item.icon}</Text>
+              <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: "600", flex: 1 }}>{item.label}</Text>
+              <Text style={{ color: t.textMuted, fontSize: 16 }}>›</Text>
+            </Card>
+          </Pressable>
         </Link>
       ))}
     </Screen>

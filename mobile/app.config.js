@@ -13,6 +13,12 @@ module.exports = {
     scheme: "heuberttracker",
     version: "1.0.0",
     orientation: "portrait",
+    runtimeVersion: {
+      policy: "appVersion",
+    },
+    updates: {
+      url: "https://u.expo.dev/457aa50a-7fe6-4a33-a090-0230caf409b5",
+    },
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
     ios: {
@@ -35,6 +41,14 @@ module.exports = {
     plugins: [
       "expo-router",
       "expo-status-bar",
+      "expo-updates",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          color: "#6366f1",
+        },
+      ],
       [
         "expo-splash-screen",
         {

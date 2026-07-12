@@ -33,7 +33,7 @@ export default function TabsLayout() {
         name="attendance"
         options={{
           title: "Attendance",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📍" focused={focused} />,
+          href: null,
         }}
       />
       <Tabs.Screen

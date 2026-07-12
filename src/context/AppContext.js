@@ -610,7 +610,14 @@ export function AppProvider({ children }) {
 
   const addCompanyEvent = async (date, title) => {
     const { data, error } = await supabase.from("company_events").insert([{ date, title }]).select();
-    if (data) setCompanyEvents(prev => [...prev, data[0]]);
+    if (data) {
+      setCompanyEvents(prev => [...prev, data[0]]);
+      fetch("/api/notify-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, date, excludeEmployeeName: currentEmployee?.name }),
+      }).catch(err => console.error("notify-event error:", err));
+    }
     return { data, error };
   };
 

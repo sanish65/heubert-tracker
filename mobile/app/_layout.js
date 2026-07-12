@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { AppProvider, useApp } from "../context/AppContext";
 import { configureGoogleSignIn } from "../lib/googleSignIn";
 import HumanLoader from "../components/HumanLoader";
+import UpdateBanner from "../components/UpdateBanner";
 
 configureGoogleSignIn();
 
@@ -35,6 +36,7 @@ export default function RootLayout() {
   return (
     <AppProvider>
       <StatusBar barStyle="light-content" />
+      <UpdateBanner />
       <AuthGate>
         <Stack screenOptions={{ headerShown: false }} />
       </AuthGate>

@@ -1,5 +1,6 @@
 import { View, Text, TextInput, Pressable, ScrollView, Modal, StyleSheet } from "react-native";
-import { useThemeColors } from "../lib/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { useThemeColors, radius } from "../lib/theme";
 
 export function Screen({ children, scroll = true, style }) {
   const t = useThemeColors();
@@ -19,7 +20,19 @@ export function Card({ children, style }) {
   return (
     <View
       style={[
-        { backgroundColor: t.card, borderRadius: 14, borderWidth: 1, borderColor: t.border, padding: 14, marginBottom: 12 },
+        {
+          backgroundColor: t.card,
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          borderColor: t.border,
+          padding: 14,
+          marginBottom: 12,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 10,
+          elevation: 3,
+        },
         style,
       ]}
     >
@@ -30,7 +43,7 @@ export function Card({ children, style }) {
 
 export function SectionTitle({ children }) {
   const t = useThemeColors();
-  return <Text style={{ color: t.textPrimary, fontSize: 18, fontWeight: "700", marginBottom: 10 }}>{children}</Text>;
+  return <Text style={{ color: t.textPrimary, fontSize: 18, fontWeight: "700", letterSpacing: -0.3, marginBottom: 10 }}>{children}</Text>;
 }
 
 export function EmptyState({ icon = "📭", text }) {
@@ -54,6 +67,7 @@ const VARIANT_COLORS = {
 export function Button({ title, onPress, variant = "primary", disabled, small }) {
   const t = useThemeColors();
   const isGhost = variant === "ghost";
+  const isPrimary = variant === "primary";
   const bg = isGhost ? "transparent" : t[VARIANT_COLORS[variant] || "accentIndigo"];
   return (
     <Pressable
@@ -62,10 +76,18 @@ export function Button({ title, onPress, variant = "primary", disabled, small })
       style={({ pressed }) => [
         styles.btn,
         small && styles.btnSmall,
-        { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
+        { overflow: "hidden", backgroundColor: isPrimary ? "transparent" : bg, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
         isGhost && { borderWidth: 1, borderColor: t.border },
       ]}
     >
+      {isPrimary && (
+        <LinearGradient
+          colors={[t.accentIndigo, t.accentViolet]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <Text style={[styles.btnText, isGhost && { color: t.textSecondary }, small && styles.btnTextSmall]}>{title}</Text>
     </Pressable>
   );
@@ -90,7 +112,7 @@ export function TextField({ label, value, onChangeText, placeholder, keyboardTyp
             color: editable ? t.textPrimary : t.textMuted,
             borderWidth: 1,
             borderColor: t.border,
-            borderRadius: 10,
+            borderRadius: radius.sm,
             paddingHorizontal: 12,
             paddingVertical: 10,
             fontSize: 15,
@@ -113,7 +135,7 @@ export function Chip({ label, active, onPress, color }) {
       style={{
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 999,
+        borderRadius: radius.xl,
         borderWidth: 1,
         borderColor: active ? activeColor : t.border,
         backgroundColor: active ? activeColor + "22" : "transparent",
@@ -168,8 +190,8 @@ export function Select({ label, value, options, onSelect }) {
 }
 
 const styles = StyleSheet.create({
-  btn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10, alignItems: "center" },
+  btn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: radius.sm, alignItems: "center" },
   btnSmall: { paddingVertical: 8, paddingHorizontal: 12 },
-  btnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  btnText: { color: "#fff", fontWeight: "700", fontSize: 15, letterSpacing: -0.2 },
   btnTextSmall: { fontSize: 13 },
 });

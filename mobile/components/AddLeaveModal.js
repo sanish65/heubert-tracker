@@ -3,6 +3,7 @@ import { View, Text, Switch } from "react-native";
 import { useApp } from "../context/AppContext";
 import { buildWorkingDates, toDateStr, computeLeaveBalances } from "../lib/utils";
 import { FormModal, TextField, Select, Button } from "./ui";
+import DateField from "./DateField";
 import { useThemeColors } from "../lib/theme";
 
 const TYPE_OPTIONS = [
@@ -123,7 +124,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
         </>
       )}
 
-      <TextField label="Leave Date (YYYY-MM-DD)" value={startDate} onChangeText={setStartDate} placeholder={today} />
+      <DateField label="Leave Date" value={startDate} onChange={setStartDate} />
 
       <View style={{ flexDirection: "row", marginBottom: 14 }}>
         <Select
@@ -141,7 +142,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
         />
       </View>
 
-      {multiDay && <TextField label="End Date (YYYY-MM-DD)" value={endDate} onChangeText={setEndDate} placeholder={startDate} />}
+      {multiDay && <DateField label="End Date" value={endDate} onChange={setEndDate} minimumDate={startDate} />}
 
       {previewDates.length > 0 && (
         <Text style={{ color: t.textSecondary, fontSize: 13, marginBottom: 14 }}>

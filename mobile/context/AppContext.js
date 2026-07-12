@@ -5,6 +5,7 @@ import * as Location from "expo-location";
 import * as LocalAuthentication from "expo-local-authentication";
 import { supabase, supabaseStandup, API_BASE_URL } from "../lib/supabase";
 import { haversineMeters, computeLateness, isWorkingDay, getNepalDateStr } from "../lib/attendance";
+import { registerForPushNotificationsAsync } from "../lib/pushNotifications";
 
 const AppContext = createContext(null);
 
@@ -212,6 +213,13 @@ export function AppProvider({ children }) {
       setCurrentEmployee(null);
     }
   }, [user, employees]);
+
+  // Register for push notifications once we know which employee is signed in.
+  useEffect(() => {
+    if (currentEmployee?.name) {
+      registerForPushNotificationsAsync(currentEmployee.name);
+    }
+  }, [currentEmployee]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -621,7 +629,14 @@ export function AppProvider({ children }) {
 
   const addCompanyEvent = async (date, title) => {
     const { data, error } = await supabase.from("company_events").insert([{ date, title }]).select();
-    if (data) setCompanyEvents((prev) => [...prev, data[0]]);
+    if (data) {
+      setCompanyEvents((prev) => [...prev, data[0]]);
+      fetch(`${API_BASE_URL}/api/notify-event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, date, excludeEmployeeName: currentEmployee?.name }),
+      }).catch((err) => console.error("notify-event error:", err));
+    }
     return { data, error };
   };
 

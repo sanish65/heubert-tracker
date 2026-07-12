@@ -1,18 +1,63 @@
 import { useState } from "react";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { Link } from "expo-router";
 import { useApp } from "../../context/AppContext";
 import { API_BASE_URL } from "../../lib/supabase";
 import { useThemeColors } from "../../lib/theme";
 import { Screen, Card, SectionTitle, EmptyState } from "../../components/ui";
 import EventBanner from "../../components/EventBanner";
+import { getNepalDateStr } from "../../lib/attendance";
+
+function formatNepalTime(isoStr) {
+  if (!isoStr) return null;
+  return new Date(isoStr).toLocaleTimeString("en-US", {
+    timeZone: "Asia/Kathmandu",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function AttendanceCard() {
+  const { attendance, currentEmployee } = useApp();
+  const t = useThemeColors();
+
+  const todayStr = getNepalDateStr(new Date());
+  const today = currentEmployee
+    ? attendance.find((a) => a.employee_name === currentEmployee.name && a.date === todayStr)
+    : null;
+
+  let statusText = "Not checked in yet";
+  if (today?.check_out_at) {
+    statusText = `Checked out at ${formatNepalTime(today.check_out_at)}`;
+  } else if (today?.check_in_at) {
+    statusText = `Checked in at ${formatNepalTime(today.check_in_at)}${today.is_late ? ` · Late by ${today.late_minutes}m` : ""}`;
+  }
+
+  return (
+    <Link href="/attendance" asChild>
+      <Pressable>
+        <Card style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ fontSize: 20, marginRight: 12 }}>📍</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: "700" }}>Attendance</Text>
+            <Text style={{ color: t.textMuted, fontSize: 13, marginTop: 2 }}>{statusText}</Text>
+          </View>
+          <Text style={{ color: t.textMuted, fontSize: 16 }}>›</Text>
+        </Card>
+      </Pressable>
+    </Link>
+  );
+}
 
 function StatCard({ icon, label, value, sub, color }) {
   const t = useThemeColors();
   return (
-    <Card style={{ flexBasis: "48%", flexGrow: 1 }}>
+    <Card style={{ flexBasis: "48%", flexGrow: 1, borderTopWidth: 3, borderTopColor: color }}>
       <Text style={{ fontSize: 22 }}>{icon}</Text>
-      <Text style={{ color: t.textMuted, fontSize: 12, marginTop: 6 }}>{label}</Text>
-      <Text style={{ color: color, fontSize: 18, fontWeight: "800", marginTop: 2 }}>{value}</Text>
+      <Text style={{ color: t.textMuted, fontSize: 11, fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase", marginTop: 6 }}>
+        {label}
+      </Text>
+      <Text style={{ color: color, fontSize: 18, fontWeight: "800", letterSpacing: -0.3, marginTop: 2 }}>{value}</Text>
       {sub ? <Text style={{ color: t.textMuted, fontSize: 11, marginTop: 2 }}>{sub}</Text> : null}
     </Card>
   );
@@ -161,6 +206,8 @@ export default function DashboardScreen() {
   return (
     <Screen>
       <EventBanner />
+
+      <AttendanceCard />
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <StatCard icon="💰" label="Late Fines" value={`Rs. ${totalAmount.toLocaleString()}`} sub={`${fines.length} records`} color={t.accentIndigo} />

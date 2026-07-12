@@ -3,6 +3,7 @@ import { Text, View, Switch } from "react-native";
 import { useApp } from "../context/AppContext";
 import { buildWorkingDates, computeLeaveBalances } from "../lib/utils";
 import { FormModal, TextField, Select, Button } from "./ui";
+import DateField from "./DateField";
 import { useThemeColors } from "../lib/theme";
 
 const TYPE_OPTIONS = [
@@ -134,7 +135,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
           )}
         </>
       )}
-      <TextField label="Leave Date (YYYY-MM-DD)" value={startDate} onChangeText={setStartDate} />
+      <DateField label="Leave Date" value={startDate} onChange={setStartDate} />
       <Select
         label="Multiple Days?"
         value={multiDay ? "yes" : "no"}
@@ -148,7 +149,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
           { value: "yes", label: "Multiple days" },
         ]}
       />
-      {multiDay && <TextField label="End Date (YYYY-MM-DD)" value={endDate} onChangeText={setEndDate} />}
+      {multiDay && <DateField label="End Date" value={endDate} onChange={setEndDate} minimumDate={startDate} />}
       {previewDates.length > 0 && (
         <Text style={{ color: t.textSecondary, fontSize: 13, marginBottom: 14 }}>
           {workingDayCount} {workingDayCount === 1 ? "working day" : "working days"} · weekends & holidays skipped
