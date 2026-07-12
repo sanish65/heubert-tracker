@@ -3,7 +3,7 @@ import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { Link } from "expo-router";
 import { useApp } from "../../context/AppContext";
 import { API_BASE_URL } from "../../lib/supabase";
-import { useThemeColors } from "../../lib/theme";
+import { useThemeColors, radius } from "../../lib/theme";
 import { Screen, Card, SectionTitle, EmptyState } from "../../components/ui";
 import EventBanner from "../../components/EventBanner";
 import { getNepalDateStr } from "../../lib/attendance";
@@ -18,32 +18,66 @@ function formatNepalTime(isoStr) {
 }
 
 function AttendanceCard() {
-  const { attendance, currentEmployee } = useApp();
+  const { attendance, currentEmployee, leaves, publicHolidays } = useApp();
   const t = useThemeColors();
 
   const todayStr = getNepalDateStr(new Date());
+  const isWeekendToday = new Date().getDay() === 0 || new Date().getDay() === 6;
+  const todaysHoliday = publicHolidays.find((h) => h.date === todayStr);
+  const onLeaveToday = currentEmployee
+    ? leaves.some((l) => l.employee_name === currentEmployee.name && todayStr >= l.start_date && todayStr <= l.end_date)
+    : false;
   const today = currentEmployee
     ? attendance.find((a) => a.employee_name === currentEmployee.name && a.date === todayStr)
     : null;
 
-  let statusText = "Not checked in yet";
-  if (today?.check_out_at) {
+  let icon = "⚠️";
+  let title = "Attendance";
+  let statusText = "You haven't checked in yet today!";
+  let color = t.accentRed;
+
+  if (isWeekendToday || todaysHoliday) {
+    icon = "😌";
+    title = todaysHoliday ? `Relax, it's ${todaysHoliday.title}!` : "Relax, it's the weekend!";
+    statusText = "No attendance needed today.";
+    color = t.accentSky;
+  } else if (onLeaveToday) {
+    icon = "🏖️";
+    title = "You're on leave today";
+    statusText = "Enjoy your time off!";
+    color = t.accentSky;
+  } else if (today?.check_out_at) {
+    icon = "✅";
     statusText = `Checked out at ${formatNepalTime(today.check_out_at)}`;
+    color = t.accentIndigo;
   } else if (today?.check_in_at) {
+    icon = "🟢";
     statusText = `Checked in at ${formatNepalTime(today.check_in_at)}${today.is_late ? ` · Late by ${today.late_minutes}m` : ""}`;
+    color = t.accentGreen;
   }
 
   return (
     <Link href="/attendance" asChild>
       <Pressable>
-        <Card style={{ flexDirection: "row", alignItems: "center" }}>
-          <Text style={{ fontSize: 20, marginRight: 12 }}>📍</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: color + "22",
+            borderWidth: 1,
+            borderColor: color + "55",
+            borderRadius: radius.lg,
+            padding: 14,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ fontSize: 22, marginRight: 12 }}>{icon}</Text>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: "700" }}>Attendance</Text>
-            <Text style={{ color: t.textMuted, fontSize: 13, marginTop: 2 }}>{statusText}</Text>
+            <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: "700" }}>{title}</Text>
+            <Text style={{ color: t.textSecondary, fontSize: 13, marginTop: 2 }}>{statusText}</Text>
           </View>
           <Text style={{ color: t.textMuted, fontSize: 16 }}>›</Text>
-        </Card>
+        </View>
       </Pressable>
     </Link>
   );
@@ -209,50 +243,6 @@ export default function DashboardScreen() {
 
       <AttendanceCard />
 
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-        <StatCard icon="💰" label="Late Fines" value={`Rs. ${totalAmount.toLocaleString()}`} sub={`${fines.length} records`} color={t.accentIndigo} />
-        <StatCard icon="📝" label="Standup Records" value={standupFines.length} sub={`${standupUnpaid.length} pending`} color="#f43f5e" />
-        <StatCard icon="⏳" label="Unpaid Fines" value={`Rs. ${unpaidAmount.toLocaleString()}`} sub={`${fines.filter((f) => f.status === "unpaid").length} late entries`} color={t.accentRed} />
-        <StatCard icon="👥" label="Employees" value={employees.length} sub="active" color={t.accentAmber} />
-        <StatCard
-          icon="💸"
-          label="Collected & Withdrawn"
-          value={`Rs. ${paidAmount.toLocaleString()}`}
-          sub={`Rs. ${totalWithdrawn.toLocaleString()} withdrawn · Rs. ${remaining >= 0 ? remaining.toLocaleString() : 0} left`}
-          color={t.accentGreen}
-        />
-      </View>
-
-      <Card>
-        <SectionTitle>Fines by Employee</SectionTitle>
-        {empData.length === 0 ? (
-          <EmptyState text="No fine data yet." />
-        ) : (
-          empData.map((emp) => (
-            <View key={emp.name} style={{ marginBottom: 10 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-                <Text style={{ color: t.textSecondary, fontSize: 12 }}>{emp.name.split(" ")[0]}</Text>
-                <Text style={{ color: t.textMuted, fontSize: 12 }}>Rs. {emp.paid + emp.unpaid}</Text>
-              </View>
-              <View style={{ flexDirection: "row", height: 10, borderRadius: 6, overflow: "hidden", backgroundColor: t.border }}>
-                <View style={{ width: `${(emp.paid / maxTotal) * 100}%`, backgroundColor: t.accentGreen }} />
-                <View style={{ width: `${(emp.unpaid / maxTotal) * 100}%`, backgroundColor: t.accentRed }} />
-              </View>
-            </View>
-          ))
-        )}
-        <View style={{ flexDirection: "row", gap: 16, marginTop: 6 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.accentGreen }} />
-            <Text style={{ color: t.textMuted, fontSize: 12 }}>Paid</Text>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.accentRed }} />
-            <Text style={{ color: t.textMuted, fontSize: 12 }}>Unpaid</Text>
-          </View>
-        </View>
-      </Card>
-
       <Card>
         <SectionTitle>🕒 Pending Standups</SectionTitle>
         {standupUnpaid.length === 0 ? (
@@ -338,6 +328,50 @@ export default function DashboardScreen() {
           ))
         )}
       </Card>
+
+      <Card>
+        <SectionTitle>Fines by Employee</SectionTitle>
+        {empData.length === 0 ? (
+          <EmptyState text="No fine data yet." />
+        ) : (
+          empData.map((emp) => (
+            <View key={emp.name} style={{ marginBottom: 10 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                <Text style={{ color: t.textSecondary, fontSize: 12 }}>{emp.name.split(" ")[0]}</Text>
+                <Text style={{ color: t.textMuted, fontSize: 12 }}>Rs. {emp.paid + emp.unpaid}</Text>
+              </View>
+              <View style={{ flexDirection: "row", height: 10, borderRadius: 6, overflow: "hidden", backgroundColor: t.border }}>
+                <View style={{ width: `${(emp.paid / maxTotal) * 100}%`, backgroundColor: t.accentGreen }} />
+                <View style={{ width: `${(emp.unpaid / maxTotal) * 100}%`, backgroundColor: t.accentRed }} />
+              </View>
+            </View>
+          ))
+        )}
+        <View style={{ flexDirection: "row", gap: 16, marginTop: 6 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.accentGreen }} />
+            <Text style={{ color: t.textMuted, fontSize: 12 }}>Paid</Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.accentRed }} />
+            <Text style={{ color: t.textMuted, fontSize: 12 }}>Unpaid</Text>
+          </View>
+        </View>
+      </Card>
+
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+        <StatCard icon="💰" label="Late Fines" value={`Rs. ${totalAmount.toLocaleString()}`} sub={`${fines.length} records`} color={t.accentIndigo} />
+        <StatCard icon="📝" label="Standup Records" value={standupFines.length} sub={`${standupUnpaid.length} pending`} color="#f43f5e" />
+        <StatCard icon="⏳" label="Unpaid Fines" value={`Rs. ${unpaidAmount.toLocaleString()}`} sub={`${fines.filter((f) => f.status === "unpaid").length} late entries`} color={t.accentRed} />
+        <StatCard icon="👥" label="Employees" value={employees.length} sub="active" color={t.accentAmber} />
+        <StatCard
+          icon="💸"
+          label="Collected & Withdrawn"
+          value={`Rs. ${paidAmount.toLocaleString()}`}
+          sub={`Rs. ${totalWithdrawn.toLocaleString()} withdrawn · Rs. ${remaining >= 0 ? remaining.toLocaleString() : 0} left`}
+          color={t.accentGreen}
+        />
+      </View>
     </Screen>
   );
 }

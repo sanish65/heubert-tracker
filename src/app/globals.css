@@ -2510,6 +2510,71 @@ body {
   border: 1px solid var(--accent-orange);
 }
 
+/* ===== ATTENDANCE STATUS BANNER ===== */
+.attendance-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-radius: var(--radius-lg);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.attendance-icon {
+  font-size: 2rem;
+  background: rgba(255, 255, 255, 0.2);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.attendance-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.attendance-text strong {
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+
+.attendance-text span {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.attendance-urgent {
+  background: linear-gradient(135deg, var(--accent-red), #b91c1c);
+  box-shadow: 0 10px 30px rgba(239, 68, 68, 0.35);
+  animation: attendanceUrgentPulse 2.2s infinite;
+}
+
+@keyframes attendanceUrgentPulse {
+  0% { box-shadow: 0 10px 30px rgba(239, 68, 68, 0.35); }
+  50% { box-shadow: 0 10px 30px rgba(239, 68, 68, 0.6); }
+  100% { box-shadow: 0 10px 30px rgba(239, 68, 68, 0.35); }
+}
+
+.attendance-active {
+  background: linear-gradient(135deg, var(--accent-green), #16a34a);
+  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.3);
+}
+
+.attendance-done {
+  background: linear-gradient(135deg, var(--accent-indigo), #4338ca);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+}
+
+.attendance-relax {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  box-shadow: 0 10px 30px rgba(14, 165, 233, 0.3);
+}
+
 /* ===== CELEBRATION EFFECT ===== */
 .celebration-overlay {
   position: fixed;

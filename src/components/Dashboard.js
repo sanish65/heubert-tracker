@@ -4,7 +4,7 @@ import StatsCard from "./StatsCard";
 import EventBanner from "@/components/EventBanner";
 
 export default function Dashboard() {
-  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled } = useApp();
+  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled, currentEmployee, attendance } = useApp();
   const [sendingWish, setSendingWish] = useState(null); // empId
 
   // Late Fines
@@ -32,6 +32,88 @@ export default function Dashboard() {
     .filter((l) => l.end_date >= todayStr)
     .sort((a, b) => a.start_date.localeCompare(b.start_date))
     .slice(0, 5);
+
+  // Today's attendance status for the logged-in employee
+  const isWeekendToday = today.getDay() === 0 || today.getDay() === 6;
+  const todaysHoliday = publicHolidays.find((h) => h.date === todayStr);
+  const onLeaveToday = leaves.some(
+    (l) => l.employee_name === currentEmployee?.name && todayStr >= l.start_date && todayStr <= l.end_date
+  );
+  const todaysAttendance = attendance.find(
+    (a) => a.employee_name === currentEmployee?.name && a.date === todayStr
+  );
+
+  const formatClockTime = (isoStr) => {
+    if (!isoStr) return "";
+    return new Date(isoStr).toLocaleTimeString("en-US", {
+      timeZone: "Asia/Kathmandu",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  const AttendanceStatus = () => {
+    if (isWeekendToday || todaysHoliday) {
+      return (
+        <div className="attendance-banner attendance-relax">
+          <span className="attendance-icon">😌</span>
+          <div className="attendance-text">
+            <strong>Relax, it&apos;s {todaysHoliday ? todaysHoliday.title : "the weekend"}!</strong>
+            <span>No attendance needed today.</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (onLeaveToday) {
+      return (
+        <div className="attendance-banner attendance-relax">
+          <span className="attendance-icon">🏖️</span>
+          <div className="attendance-text">
+            <strong>You&apos;re on leave today</strong>
+            <span>Enjoy your time off!</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (todaysAttendance?.check_out_at) {
+      return (
+        <div className="attendance-banner attendance-done">
+          <span className="attendance-icon">✅</span>
+          <div className="attendance-text">
+            <strong>Checked out at {formatClockTime(todaysAttendance.check_out_at)}</strong>
+            <span>You&apos;re done for today.</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (todaysAttendance?.check_in_at) {
+      return (
+        <div className="attendance-banner attendance-active">
+          <span className="attendance-icon">🟢</span>
+          <div className="attendance-text">
+            <strong>
+              Checked in at {formatClockTime(todaysAttendance.check_in_at)}
+              {todaysAttendance.is_late ? " (Late)" : ""}
+            </strong>
+            <span>Don&apos;t forget to check out later.</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="attendance-banner attendance-urgent">
+        <span className="attendance-icon">⚠️</span>
+        <div className="attendance-text">
+          <strong>You haven&apos;t checked in yet today!</strong>
+          <span>Check in from the mobile app.</span>
+        </div>
+      </div>
+    );
+  };
 
   // Celebrations: Birthdays and Anniversaries (15-day window)
   const windowMs = 15 * 24 * 60 * 60 * 1000;
@@ -154,76 +236,11 @@ export default function Dashboard() {
       <div style={{ marginBottom: "20px" }}>
         <EventBanner />
       </div>
-      <div className="stats-grid">
-        <StatsCard
-          icon="💰"
-          label="Late Fines"
-          value={`Rs. ${totalAmount.toLocaleString()}`}
-          sub={`${fines.length} records`}
-          color="#6366f1"
-        />
-        <StatsCard
-          icon="📝"
-          label="Standup Records"
-          value={standupFines.length}
-          sub={`${standupUnpaid.length} pending`}
-          color="#f43f5e"
-        />
-        <StatsCard
-          icon="⏳"
-          label="Unpaid Fines"
-          value={`Rs. ${unpaidAmount.toLocaleString()}`}
-          sub={`${fines.filter(f => f.status === 'unpaid').length} late entries`}
-          color="#ef4444"
-        />
-        <StatsCard
-          icon="👥"
-          label="Employees"
-          value={employees.length}
-          sub="active"
-          color="#f59e0b"
-        />
-        <StatsCard
-          icon="💸"
-          label="Collected & Withdrawn"
-          value={`Rs. ${paidAmount.toLocaleString()}`}
-          sub={`Rs. ${totalWithdrawn.toLocaleString()} withdrawn · Rs. ${remaining >= 0 ? remaining.toLocaleString() : 0} remaining`}
-          color="#10b981"
-        />
+
+      <div style={{ marginBottom: "20px" }}>
+        <AttendanceStatus />
       </div>
 
-      <div className="chart-container">
-        <h3 className="section-title">Fines by Employee</h3>
-        <div className="bar-chart">
-          {empData.map((emp) => (
-            <div key={emp.name} className="bar-row" style={{ position: 'relative' }}>
-              {animationsEnabled !== false && emp.name === leastFined?.name && (emp.paid + emp.unpaid) <= (leastFined.paid + leastFined.unpaid) && (
-                <LeastFinedHonoree />
-              )}
-              <span className="bar-label">{emp.name.split(' ')[0]}</span>
-              <div className="bar-track">
-                <div
-                  className="bar-fill bar-paid"
-                  style={{ width: `${(emp.paid / maxTotal) * 100}%` }}
-                >
-                  {emp.paid > 0 && <span className="bar-value">{emp.paid}</span>}
-                </div>
-                <div
-                  className="bar-fill bar-unpaid"
-                  style={{ width: `${(emp.unpaid / maxTotal) * 100}%` }}
-                >
-                  {emp.unpaid > 0 && <span className="bar-value">{emp.unpaid}</span>}
-                </div>
-              </div>
-              <span className="bar-total">Rs. {emp.paid + emp.unpaid}</span>
-            </div>
-          ))}
-        </div>
-        <div className="chart-legend">
-          <span className="legend-item"><span className="legend-dot paid" /> Paid</span>
-          <span className="legend-item"><span className="legend-dot unpaid" /> Unpaid</span>
-        </div>
-      </div>
       <div className="dashboard-extras-grid">
         <div className="chart-container">
           <h3 className="section-title">🕒 Pending Standups</h3>
@@ -302,8 +319,8 @@ export default function Dashboard() {
                   <div className="item-actions">
                     <span className="celebration-date">{c.displayDate}</span>
                     {c.isToday && (
-                      <button 
-                        className={`btn btn-sm btn-wish ${sendingWish === c.empName ? 'btn-loading' : ''}`} 
+                      <button
+                        className={`btn btn-sm btn-wish ${sendingWish === c.empName ? 'btn-loading' : ''}`}
                         onClick={() => !sendingWish && handleWish(c)}
                         disabled={!!sendingWish}
                         title={`Send ${c.type} wish`}
@@ -319,6 +336,76 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="chart-container">
+        <h3 className="section-title">Fines by Employee</h3>
+        <div className="bar-chart">
+          {empData.map((emp) => (
+            <div key={emp.name} className="bar-row" style={{ position: 'relative' }}>
+              {animationsEnabled !== false && emp.name === leastFined?.name && (emp.paid + emp.unpaid) <= (leastFined.paid + leastFined.unpaid) && (
+                <LeastFinedHonoree />
+              )}
+              <span className="bar-label">{emp.name.split(' ')[0]}</span>
+              <div className="bar-track">
+                <div
+                  className="bar-fill bar-paid"
+                  style={{ width: `${(emp.paid / maxTotal) * 100}%` }}
+                >
+                  {emp.paid > 0 && <span className="bar-value">{emp.paid}</span>}
+                </div>
+                <div
+                  className="bar-fill bar-unpaid"
+                  style={{ width: `${(emp.unpaid / maxTotal) * 100}%` }}
+                >
+                  {emp.unpaid > 0 && <span className="bar-value">{emp.unpaid}</span>}
+                </div>
+              </div>
+              <span className="bar-total">Rs. {emp.paid + emp.unpaid}</span>
+            </div>
+          ))}
+        </div>
+        <div className="chart-legend">
+          <span className="legend-item"><span className="legend-dot paid" /> Paid</span>
+          <span className="legend-item"><span className="legend-dot unpaid" /> Unpaid</span>
+        </div>
+      </div>
+      <div className="stats-grid">
+        <StatsCard
+          icon="💰"
+          label="Late Fines"
+          value={`Rs. ${totalAmount.toLocaleString()}`}
+          sub={`${fines.length} records`}
+          color="#6366f1"
+        />
+        <StatsCard
+          icon="📝"
+          label="Standup Records"
+          value={standupFines.length}
+          sub={`${standupUnpaid.length} pending`}
+          color="#f43f5e"
+        />
+        <StatsCard
+          icon="⏳"
+          label="Unpaid Fines"
+          value={`Rs. ${unpaidAmount.toLocaleString()}`}
+          sub={`${fines.filter(f => f.status === 'unpaid').length} late entries`}
+          color="#ef4444"
+        />
+        <StatsCard
+          icon="👥"
+          label="Employees"
+          value={employees.length}
+          sub="active"
+          color="#f59e0b"
+        />
+        <StatsCard
+          icon="💸"
+          label="Collected & Withdrawn"
+          value={`Rs. ${paidAmount.toLocaleString()}`}
+          sub={`Rs. ${totalWithdrawn.toLocaleString()} withdrawn · Rs. ${remaining >= 0 ? remaining.toLocaleString() : 0} remaining`}
+          color="#10b981"
+        />
       </div>
     </section>
   );
