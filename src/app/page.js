@@ -180,6 +180,21 @@ export default function Home() {
                     <div className="settings-dropdown-title">Preferences</div>
                     <ThemeToggle />
                     <AnimationToggle />
+                    {isAdmin && (
+                      <>
+                        <div className="settings-dropdown-divider" />
+                        <button
+                          className="settings-dropdown-link"
+                          onClick={() => {
+                            setActiveTab("leave-settings");
+                            setShowSettings(false);
+                          }}
+                        >
+                          <span>⚙️</span>
+                          <span>Leave Settings</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -314,14 +329,6 @@ export default function Home() {
         >
           🗂️ Retrospective
         </button>
-        {isAdmin && (
-          <button
-            className={`nav-tab nav-tab-right ${activeTab === "leave-settings" ? "nav-tab-active" : ""}`}
-            onClick={() => setActiveTab("leave-settings")}
-          >
-            ⚙️ Leave Settings
-          </button>
-        )}
         <button
           className={`nav-tab nav-tab-right ${activeTab === "employees" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("employees")}

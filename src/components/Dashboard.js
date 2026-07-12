@@ -4,7 +4,7 @@ import StatsCard from "./StatsCard";
 import EventBanner from "@/components/EventBanner";
 
 export default function Dashboard() {
-  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled, currentEmployee, attendance } = useApp();
+  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled } = useApp();
   const [sendingWish, setSendingWish] = useState(null); // empId
 
   // Late Fines
@@ -32,88 +32,6 @@ export default function Dashboard() {
     .filter((l) => l.end_date >= todayStr)
     .sort((a, b) => a.start_date.localeCompare(b.start_date))
     .slice(0, 5);
-
-  // Today's attendance status for the logged-in employee
-  const isWeekendToday = today.getDay() === 0 || today.getDay() === 6;
-  const todaysHoliday = publicHolidays.find((h) => h.date === todayStr);
-  const onLeaveToday = leaves.some(
-    (l) => l.employee_name === currentEmployee?.name && todayStr >= l.start_date && todayStr <= l.end_date
-  );
-  const todaysAttendance = attendance.find(
-    (a) => a.employee_name === currentEmployee?.name && a.date === todayStr
-  );
-
-  const formatClockTime = (isoStr) => {
-    if (!isoStr) return "";
-    return new Date(isoStr).toLocaleTimeString("en-US", {
-      timeZone: "Asia/Kathmandu",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
-
-  const AttendanceStatus = () => {
-    if (isWeekendToday || todaysHoliday) {
-      return (
-        <div className="attendance-banner attendance-relax">
-          <span className="attendance-icon">😌</span>
-          <div className="attendance-text">
-            <strong>Relax, it&apos;s {todaysHoliday ? todaysHoliday.title : "the weekend"}!</strong>
-            <span>No attendance needed today.</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (onLeaveToday) {
-      return (
-        <div className="attendance-banner attendance-relax">
-          <span className="attendance-icon">🏖️</span>
-          <div className="attendance-text">
-            <strong>You&apos;re on leave today</strong>
-            <span>Enjoy your time off!</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (todaysAttendance?.check_out_at) {
-      return (
-        <div className="attendance-banner attendance-done">
-          <span className="attendance-icon">✅</span>
-          <div className="attendance-text">
-            <strong>Checked out at {formatClockTime(todaysAttendance.check_out_at)}</strong>
-            <span>You&apos;re done for today.</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (todaysAttendance?.check_in_at) {
-      return (
-        <div className="attendance-banner attendance-active">
-          <span className="attendance-icon">🟢</span>
-          <div className="attendance-text">
-            <strong>
-              Checked in at {formatClockTime(todaysAttendance.check_in_at)}
-              {todaysAttendance.is_late ? " (Late)" : ""}
-            </strong>
-            <span>Don&apos;t forget to check out later.</span>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="attendance-banner attendance-urgent">
-        <span className="attendance-icon">⚠️</span>
-        <div className="attendance-text">
-          <strong>You haven&apos;t checked in yet today!</strong>
-          <span>Check in from the mobile app.</span>
-        </div>
-      </div>
-    );
-  };
 
   // Celebrations: Birthdays and Anniversaries (15-day window)
   const windowMs = 15 * 24 * 60 * 60 * 1000;
@@ -235,10 +153,6 @@ export default function Dashboard() {
     <section className="dashboard">
       <div style={{ marginBottom: "20px" }}>
         <EventBanner />
-      </div>
-
-      <div style={{ marginBottom: "20px" }}>
-        <AttendanceStatus />
       </div>
 
       <div className="dashboard-extras-grid">
