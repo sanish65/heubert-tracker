@@ -41,10 +41,9 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
 
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
   const activeLeaveTypes = (leaveTypes || []).filter((t) => t.is_active);
-  const currentYear = new Date().getFullYear();
   // Exclude the leave being edited so its own days don't count against its balance
   const otherLeaves = leave ? leaves.filter((l) => l.id !== leave.id) : leaves;
-  const balances = computeLeaveBalances(leave?.employee_name, otherLeaves, activeLeaveTypes, currentYear, holidaySet);
+  const balances = computeLeaveBalances(leave?.employee_name, otherLeaves, activeLeaveTypes, leave?.season_id ?? null, holidaySet);
 
   useEffect(() => {
     if (leave && isOpen) {

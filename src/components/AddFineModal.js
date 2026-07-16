@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 
-export default function AddFineModal({ isOpen, onClose }) {
+export default function AddFineModal({ isOpen, onClose, seasonId }) {
   const { addFine, employees, currentEmployee, fines } = useApp();
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
@@ -30,7 +30,7 @@ export default function AddFineModal({ isOpen, onClose }) {
   };
 
   const doAdd = () => {
-    addFine({ ...form, amount: Number(form.amount), createdAt: new Date().toISOString() });
+    addFine({ ...form, amount: Number(form.amount), seasonId, createdAt: new Date().toISOString() });
     setForm({ name: "", date: today, amount: 25, status: "unpaid" });
     setDuplicateWarning(false);
     onClose();

@@ -4,8 +4,9 @@ import { Link } from "expo-router";
 import { useApp } from "../../context/AppContext";
 import { API_BASE_URL } from "../../lib/supabase";
 import { useThemeColors, radius } from "../../lib/theme";
-import { Screen, Card, SectionTitle, EmptyState } from "../../components/ui";
+import { Screen, Card, SectionTitle, EmptyState, Chip } from "../../components/ui";
 import EventBanner from "../../components/EventBanner";
+import NewFiscalYearBanner from "../../components/NewFiscalYearBanner";
 import { getNepalDateStr } from "../../lib/attendance";
 
 function formatNepalTime(isoStr) {
@@ -124,9 +125,10 @@ function CompactRow({ left, right, badge, badgeColor }) {
 }
 
 export default function DashboardScreen() {
-  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays } = useApp();
+  const { fines, fineSeasons, standupFines, employees, leaves, withdrawals, publicHolidays } = useApp();
   const t = useThemeColors();
   const [sendingWish, setSendingWish] = useState(null);
+  const [selectedFineSeasonId, setSelectedFineSeasonId] = useState(null); // null = follow latest season
 
   const totalAmount = fines.reduce((s, f) => s + f.amount, 0);
   const paidAmount = fines.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0);
@@ -201,16 +203,29 @@ export default function DashboardScreen() {
     })
     .sort((a, b) => a.date - b.date);
 
+  // Fine seasons — the chart below is scoped to whichever season is selected,
+  // defaulting to the latest one. Stat cards elsewhere are unaffected — they
+  // always span every fine, regardless of season.
+  const sortedFineSeasons = [...fineSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const latestFineSeasonId = sortedFineSeasons[0]?.id ?? null;
+  const hasUnassignedFines = fines.some((f) => !f.season_id);
+  const effectiveFineSeasonId =
+    selectedFineSeasonId !== null ? selectedFineSeasonId : latestFineSeasonId ?? (hasUnassignedFines ? "unassigned" : null);
+  const activeFineSeason = sortedFineSeasons.find((s) => s.id === effectiveFineSeasonId);
+
+  const seasonFines = effectiveFineSeasonId === "unassigned" ? fines.filter((f) => !f.season_id) : fines.filter((f) => f.season_id === effectiveFineSeasonId);
+
   const empData = employees
-    .filter((emp) => emp.status !== "resigned" && emp.name !== "Developers")
+    .filter((emp) => emp.status !== "resigned" && emp.name !== "Developers" && emp.name !== "Sameer")
     .map((emp) => {
-      const empFines = fines.filter((f) => f.employee_name === emp.name);
+      const empFines = seasonFines.filter((f) => f.employee_name === emp.name);
       return {
         name: emp.name,
         paid: empFines.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0),
         unpaid: empFines.filter((f) => f.status === "unpaid").reduce((s, f) => s + f.amount, 0),
       };
     })
+    .filter((e) => e.paid + e.unpaid > 0)
     .sort((a, b) => b.paid + b.unpaid - (a.paid + a.unpaid));
 
   const maxTotal = Math.max(...empData.map((e) => e.paid + e.unpaid), 1);
@@ -240,6 +255,7 @@ export default function DashboardScreen() {
   return (
     <Screen>
       <EventBanner />
+      <NewFiscalYearBanner />
 
       <AttendanceCard />
 
@@ -331,8 +347,22 @@ export default function DashboardScreen() {
 
       <Card>
         <SectionTitle>Fines by Employee</SectionTitle>
+        {(sortedFineSeasons.length > 0 || hasUnassignedFines) && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 6 }}>
+            {sortedFineSeasons.map((s) => (
+              <Chip key={s.id} label={s.title} active={effectiveFineSeasonId === s.id} onPress={() => setSelectedFineSeasonId(s.id)} />
+            ))}
+            {hasUnassignedFines && (
+              <Chip
+                label="Pre Fiscal Year Fines"
+                active={effectiveFineSeasonId === "unassigned"}
+                onPress={() => setSelectedFineSeasonId("unassigned")}
+              />
+            )}
+          </View>
+        )}
         {empData.length === 0 ? (
-          <EmptyState text="No fine data yet." />
+          <EmptyState text={`No fines recorded in ${activeFineSeason ? activeFineSeason.title : "this season"} yet.`} />
         ) : (
           empData.map((emp) => (
             <View key={emp.name} style={{ marginBottom: 10 }}>

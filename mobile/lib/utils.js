@@ -110,11 +110,12 @@ export function leaveDayCount(leave, holidaySet) {
 }
 
 /**
- * Per-leave-type balances (annual / used / remaining) for one employee in a given year.
+ * Per-leave-type balances (annual / used / remaining) for one employee within a leave season.
  * Only active leave types are included. Leaves without a matching leave_type_id don't count
- * against any balance ("Uncategorized").
+ * against any balance ("Uncategorized"). Balances reset when the season changes (pass `seasonId`
+ * as `null` to scope to leaves recorded before seasons existed).
  */
-export function computeLeaveBalances(employeeName, leaves, leaveTypes, year, holidaySet) {
+export function computeLeaveBalances(employeeName, leaves, leaveTypes, seasonId, holidaySet) {
   return (leaveTypes || [])
     .filter((t) => t.is_active)
     .map((t) => {
@@ -123,8 +124,7 @@ export function computeLeaveBalances(employeeName, leaves, leaveTypes, year, hol
           (l) =>
             l.employee_name === employeeName &&
             l.leave_type_id === t.id &&
-            typeof l.start_date === "string" &&
-            l.start_date.startsWith(String(year))
+            (l.season_id ?? null) === (seasonId ?? null)
         )
         .reduce((sum, l) => sum + leaveDayCount(l, holidaySet), 0);
       return { ...t, used, remaining: Math.max(0, t.annual_days - used) };

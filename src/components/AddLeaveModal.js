@@ -21,7 +21,7 @@ function parseLocalDate(str) {
 
 
 
-export default function AddLeaveModal({ isOpen, onClose }) {
+export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
   const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes } = useApp();
   const today = toDateStr(new Date());
 
@@ -42,8 +42,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
 
   const activeLeaveTypes = (leaveTypes || []).filter((t) => t.is_active);
-  const currentYear = new Date().getFullYear();
-  const balances = computeLeaveBalances(form.name, leaves, activeLeaveTypes, currentYear, holidaySet);
+  const balances = computeLeaveBalances(form.name, leaves, activeLeaveTypes, seasonId ?? null, holidaySet);
 
   // Auto-select current employee if not admin
   useEffect(() => {
@@ -128,6 +127,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
       type: form.type,
       reason: finalReason,
       leaveTypeId: form.leaveTypeId ? Number(form.leaveTypeId) : null,
+      seasonId: seasonId ?? null,
       createdAt: new Date().toISOString(),
     });
 

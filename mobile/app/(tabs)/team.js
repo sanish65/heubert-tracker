@@ -5,6 +5,7 @@ import { useThemeColors } from "../../lib/theme";
 import { Screen, Card, SectionTitle, EmptyState, Button } from "../../components/ui";
 import AddEmployeeModal from "../../components/AddEmployeeModal";
 import EditEmployeeModal from "../../components/EditEmployeeModal";
+import EmployeeDetailModal from "../../components/EmployeeDetailModal";
 
 const STATUS_COLOR = { active: "accentGreen", resigned: "accentRed", "on-leave": "accentAmber" };
 
@@ -13,6 +14,7 @@ export default function TeamScreen() {
   const t = useThemeColors();
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
@@ -50,7 +52,7 @@ export default function TeamScreen() {
           employees.map((emp) => {
             const stats = getEmployeeStats(emp.name);
             return (
-              <View key={emp.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: t.border }}>
+              <Pressable key={emp.id} onPress={() => setViewing(emp)} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: t.border }}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.accentIndigo + "33", alignItems: "center", justifyContent: "center", marginRight: 10 }}>
                     <Text style={{ color: t.accentIndigo, fontWeight: "700" }}>{emp.name?.charAt(0)}</Text>
@@ -81,7 +83,7 @@ export default function TeamScreen() {
                     </Pressable>
                   </View>
                 )}
-              </View>
+              </Pressable>
             );
           })
         )}
@@ -89,6 +91,7 @@ export default function TeamScreen() {
 
       <AddEmployeeModal isOpen={showAdd} onClose={() => setShowAdd(false)} />
       <EditEmployeeModal isOpen={!!editing} onClose={() => setEditing(null)} employee={editing} />
+      <EmployeeDetailModal isOpen={!!viewing} onClose={() => setViewing(null)} employee={viewing} />
     </Screen>
   );
 }

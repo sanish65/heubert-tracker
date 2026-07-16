@@ -33,7 +33,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
   const activeLeaveTypes = (leaveTypes || []).filter((lt) => lt.is_active);
   const otherLeaves = leave ? leaves.filter((l) => l.id !== leave.id) : leaves;
-  const balances = computeLeaveBalances(leave?.employee_name, otherLeaves, activeLeaveTypes, new Date().getFullYear(), holidaySet);
+  const balances = computeLeaveBalances(leave?.employee_name, otherLeaves, activeLeaveTypes, leave?.season_id ?? null, holidaySet);
   const selectableBalances = isAdmin ? balances : balances.filter((b) => b.remaining > 0 || String(b.id) === String(leaveTypeId));
 
   useEffect(() => {

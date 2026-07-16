@@ -8,11 +8,13 @@ import { computeLeaveBalances } from "@/lib/utils";
 
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
+const PRE_SEASON = "pre-season";
 
-export default function LeavePage({ onAddLeave, onAddHoliday }) {
-  const { leaves, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
+export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEditSeason }) {
+  const { leaves, leaveSeasons, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
   const [filterEmployee, setFilterEmployee] = useState("");
   const [editingLeave, setEditingLeave] = useState(null);
+  const [activeSeasonId, setActiveSeasonId] = useState(null);
 
   const leaveTypeById = useMemo(() => {
     const map = new Map();
@@ -25,10 +27,32 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
     [publicHolidays]
   );
 
+  const sortedLeaveSeasons = useMemo(
+    () => [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
+    [leaveSeasons]
+  );
+
+  const hasPreSeasonLeaves = useMemo(() => leaves.some((l) => !l.season_id), [leaves]);
+
+  // Default to the latest season once seasons load, but only the first time
+  useMemo(() => {
+    if (activeSeasonId === null && sortedLeaveSeasons.length > 0) {
+      setActiveSeasonId(sortedLeaveSeasons[0].id);
+    }
+  }, [sortedLeaveSeasons, activeSeasonId]);
+
+  const activeSeason = activeSeasonId === PRE_SEASON ? null : sortedLeaveSeasons.find((s) => s.id === activeSeasonId);
+  const effectiveSeasonId = activeSeasonId === PRE_SEASON ? null : activeSeasonId;
+
+  const seasonLeaves = useMemo(() => {
+    if (activeSeasonId === PRE_SEASON) return leaves.filter((l) => !l.season_id);
+    return leaves.filter((l) => l.season_id === activeSeasonId);
+  }, [leaves, activeSeasonId]);
+
   const employeeBalances = useMemo(() => {
     if (!filterEmployee) return [];
-    return computeLeaveBalances(filterEmployee, leaves, leaveTypes, new Date().getFullYear(), holidaySet);
-  }, [filterEmployee, leaves, leaveTypes, holidaySet]);
+    return computeLeaveBalances(filterEmployee, leaves, leaveTypes, effectiveSeasonId, holidaySet);
+  }, [filterEmployee, leaves, leaveTypes, effectiveSeasonId, holidaySet]);
 
   const calculateDays = (start, end, type) => {
     let diff = 0;
@@ -56,24 +80,24 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
   };
 
   const filtered = useMemo(() => {
-    let list = [...leaves];
+    let list = [...seasonLeaves];
     if (filterEmployee) {
       list = list.filter((l) => l.employee_name === filterEmployee);
     }
     return list.sort((a, b) => (b.start_date > a.start_date ? -1 : 1)).reverse();
-  }, [leaves, filterEmployee]);
+  }, [seasonLeaves, filterEmployee]);
 
-  // Employee leave summary
+  // Employee leave summary — scoped to the active season, so a new season starts at zero
   const empSummary = useMemo(() => {
     return employees.map((emp) => {
-      const empLeaves = leaves.filter((l) => l.employee_name === emp.name);
+      const empLeaves = seasonLeaves.filter((l) => l.employee_name === emp.name);
       const totalDays = empLeaves.reduce((sum, l) => {
         const days = l.dates ? l.dates.length : calculateDays(l.start_date, l.end_date, l.type);
         return sum + (l.type === "half" ? days * 0.5 : days);
       }, 0);
       return { name: emp.name, records: empLeaves.length, totalDays };
     }).filter((e) => e.records > 0).sort((a, b) => b.totalDays - a.totalDays);
-  }, [employees, leaves]);
+  }, [employees, seasonLeaves]);
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr + "T00:00:00");
@@ -87,12 +111,52 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
   return (
     <>
       <div className="leave-page">
+      {/* Leave Seasons */}
+      <div className="leave-season-bar">
+        <div className="leave-season-chips">
+          {hasPreSeasonLeaves && (
+            <button
+              className={`leave-emp-chip ${activeSeasonId === PRE_SEASON ? "active" : ""}`}
+              onClick={() => setActiveSeasonId(PRE_SEASON)}
+            >
+              🗂️ Pre Fiscal Year Leaves
+            </button>
+          )}
+          {sortedLeaveSeasons.map((s) => (
+            <button
+              key={s.id}
+              className={`leave-emp-chip ${activeSeasonId === s.id ? "active" : ""}`}
+              onClick={() => setActiveSeasonId(s.id)}
+            >
+              🏖️ {s.title}
+              {isAdmin && (
+                <span
+                  className="leave-season-edit"
+                  onClick={(e) => { e.stopPropagation(); onEditSeason(s); }}
+                  title="Edit Season"
+                >
+                  ✏️
+                </span>
+              )}
+            </button>
+          ))}
+          {sortedLeaveSeasons.length === 0 && !hasPreSeasonLeaves && (
+            <span className="empty-msg">No leave seasons yet.</span>
+          )}
+        </div>
+        {isAdmin && (
+          <button className="btn btn-ghost btn-sm" onClick={onAddSeason}>
+            + New Season
+          </button>
+        )}
+      </div>
+
       <div className="leave-layout">
         {/* Left: Calendar */}
         <div className="leave-calendar-col">
-          <LeaveCalendar 
-            leaves={leaves} 
-            selectedEmployee={filterEmployee || null} 
+          <LeaveCalendar
+            leaves={seasonLeaves}
+            selectedEmployee={filterEmployee || null}
             publicHolidays={publicHolidays}
           />
         </div>
@@ -100,15 +164,18 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
         {/* Right: Leave records + summary */}
         <div className="leave-records-col">
           {/* Employee leave summary cards */}
-          {empSummary.length > 0 && (
+          {empSummary.length > 0 ? (
             <div className="leave-emp-summary">
-              <h4 className="section-title-sm">Leave Summary by Employee</h4>
+              <h4 className="section-title-sm">
+                Leave Summary by Employee
+                {activeSeason ? ` — ${activeSeason.title}` : activeSeasonId === PRE_SEASON ? " — Pre Fiscal Year Leaves" : ""}
+              </h4>
               <div className="leave-emp-chips">
                 <button
                   className={`leave-emp-chip ${filterEmployee === "" ? "active" : ""}`}
                   onClick={() => setFilterEmployee("")}
                 >
-                  All ({leaves.length})
+                  All ({seasonLeaves.length})
                 </button>
                 {empSummary.map((emp) => (
                   <button
@@ -124,12 +191,20 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
                 ))}
               </div>
             </div>
+          ) : (
+            <div className="leave-emp-summary">
+              <h4 className="section-title-sm">Leave Summary by Employee</h4>
+              <p className="empty-msg">No leave records in this season yet.</p>
+            </div>
           )}
 
           {/* Leave balances for the selected employee */}
           {filterEmployee && employeeBalances.length > 0 && (
             <div className="leave-emp-summary">
-              <h4 className="section-title-sm">{filterEmployee}'s Leave Balances ({new Date().getFullYear()})</h4>
+              <h4 className="section-title-sm">
+                {filterEmployee}'s Leave Balances
+                {activeSeason ? ` (${activeSeason.title})` : ""}
+              </h4>
               <div className="leave-emp-chips">
                 {employeeBalances.map((b) => (
                   <span key={b.id} className="leave-emp-chip">
@@ -154,7 +229,7 @@ export default function LeavePage({ onAddLeave, onAddHoliday }) {
                     🌴 Add Holiday
                   </button>
                 )}
-                <button className="btn btn-accent btn-sm btn-leave-record" onClick={onAddLeave}>
+                <button className="btn btn-accent btn-sm btn-leave-record" onClick={() => onAddLeave(effectiveSeasonId)}>
                   <span>+</span> Record Leave
                 </button>
               </div>

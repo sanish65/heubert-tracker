@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import EmployeeDetailModal from "./EmployeeDetailModal";
 
 export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
   const { employees, removeEmployee, getEmployeeStats, isAdmin } = useApp();
+  const [viewingEmployee, setViewingEmployee] = useState(null);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
@@ -49,10 +52,13 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
               </tr>
             ) : (
               employees.map((emp) => {
-                console.log("checking the ema details", emp);
                 const stats = getEmployeeStats(emp.name);
                 return (
-                  <tr key={emp.id}>
+                  <tr
+                    key={emp.id}
+                    className="clickable-row"
+                    onClick={() => setViewingEmployee(emp)}
+                  >
                     <td>
                       <div className="emp-name-cell">
                         <div className="emp-avatar">{emp.name?.charAt(0)}</div>
@@ -72,7 +78,7 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
                         {emp.status || 'active'}
                       </span>
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       {isAdmin && (
                         <div className="action-group">
                           <button
@@ -104,6 +110,12 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
           </tbody>
         </table>
       </div>
+
+      <EmployeeDetailModal
+        isOpen={!!viewingEmployee}
+        onClose={() => setViewingEmployee(null)}
+        employee={viewingEmployee}
+      />
     </div>
   );
 }

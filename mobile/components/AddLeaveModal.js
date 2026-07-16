@@ -16,10 +16,18 @@ const SEGMENT_OPTIONS = [
   { value: "second", label: "🌇 Second Half" },
 ];
 
-export default function AddLeaveModal({ isOpen, onClose }) {
-  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes } = useApp();
+export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
+  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes, leaveSeasons } = useApp();
   const t = useThemeColors();
   const today = toDateStr(new Date());
+
+  const latestLeaveSeasonId = leaveSeasons.length
+    ? [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id
+    : null;
+  // Only fall back to the latest season when the caller didn't pass a seasonId at all
+  // (e.g. the meeting screen's quick-add). An explicit null (e.g. viewing the
+  // Pre Fiscal Year bucket) must be respected, not silently upgraded.
+  const effectiveSeasonId = seasonId === undefined ? latestLeaveSeasonId : seasonId;
 
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState(today);
@@ -34,7 +42,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
 
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
   const activeLeaveTypes = (leaveTypes || []).filter((lt) => lt.is_active);
-  const balances = computeLeaveBalances(name, leaves, activeLeaveTypes, new Date().getFullYear(), holidaySet);
+  const balances = computeLeaveBalances(name, leaves, activeLeaveTypes, effectiveSeasonId, holidaySet);
   const selectableBalances = isAdmin ? balances : balances.filter((b) => b.remaining > 0);
 
   useEffect(() => {
@@ -89,7 +97,16 @@ export default function AddLeaveModal({ isOpen, onClose }) {
       finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
     }
 
-    addLeave({ name, startDate, endDate: finalEnd, dates, type, reason: finalReason, leaveTypeId: leaveTypeId ? Number(leaveTypeId) : null });
+    addLeave({
+      name,
+      startDate,
+      endDate: finalEnd,
+      dates,
+      type,
+      reason: finalReason,
+      leaveTypeId: leaveTypeId ? Number(leaveTypeId) : null,
+      seasonId: effectiveSeasonId,
+    });
     onClose();
   };
 

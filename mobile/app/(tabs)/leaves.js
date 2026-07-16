@@ -7,19 +7,25 @@ import LeaveCalendar from "../../components/LeaveCalendar";
 import AddLeaveModal from "../../components/AddLeaveModal";
 import EditLeaveModal from "../../components/EditLeaveModal";
 import AddPublicHolidayModal from "../../components/AddPublicHolidayModal";
+import AddLeaveSeasonModal from "../../components/AddLeaveSeasonModal";
+import EditLeaveSeasonModal from "../../components/EditLeaveSeasonModal";
 import { computeLeaveBalances } from "../../lib/utils";
 
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
 const TYPE_COLORS = { full: "accentIndigo", half: "accentAmber", early: "accentSky" };
+const PRE_SEASON = "pre-season";
 
 export default function LeavesScreen() {
-  const { leaves, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
+  const { leaves, leaveSeasons, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
   const t = useThemeColors();
   const [filterEmployee, setFilterEmployee] = useState("");
   const [editingLeave, setEditingLeave] = useState(null);
   const [showAddLeave, setShowAddLeave] = useState(false);
   const [showAddHoliday, setShowAddHoliday] = useState(false);
+  const [activeSeasonId, setActiveSeasonId] = useState(null);
+  const [showAddSeason, setShowAddSeason] = useState(false);
+  const [editingSeason, setEditingSeason] = useState(null);
 
   const leaveTypeById = useMemo(() => {
     const map = new Map();
@@ -32,10 +38,30 @@ export default function LeavesScreen() {
     [publicHolidays]
   );
 
+  const sortedLeaveSeasons = useMemo(
+    () => [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
+    [leaveSeasons]
+  );
+
+  const hasPreSeasonLeaves = useMemo(() => leaves.some((l) => !l.season_id), [leaves]);
+
+  // Default to the latest season once seasons load, but only the first time
+  useMemo(() => {
+    if (activeSeasonId === null && sortedLeaveSeasons.length > 0) setActiveSeasonId(sortedLeaveSeasons[0].id);
+  }, [sortedLeaveSeasons, activeSeasonId]);
+
+  const activeSeason = activeSeasonId === PRE_SEASON ? null : sortedLeaveSeasons.find((s) => s.id === activeSeasonId);
+  const effectiveSeasonId = activeSeasonId === PRE_SEASON ? null : activeSeasonId;
+
+  const seasonLeaves = useMemo(() => {
+    if (activeSeasonId === PRE_SEASON) return leaves.filter((l) => !l.season_id);
+    return leaves.filter((l) => l.season_id === activeSeasonId);
+  }, [leaves, activeSeasonId]);
+
   const employeeBalances = useMemo(() => {
     if (!filterEmployee) return [];
-    return computeLeaveBalances(filterEmployee, leaves, leaveTypes, new Date().getFullYear(), holidaySet);
-  }, [filterEmployee, leaves, leaveTypes, holidaySet]);
+    return computeLeaveBalances(filterEmployee, leaves, leaveTypes, effectiveSeasonId, holidaySet);
+  }, [filterEmployee, leaves, leaveTypes, effectiveSeasonId, holidaySet]);
 
   const calculateDays = (start, end, type) => {
     let diff = 0;
@@ -56,15 +82,16 @@ export default function LeavesScreen() {
   };
 
   const filtered = useMemo(() => {
-    let list = [...leaves];
+    let list = [...seasonLeaves];
     if (filterEmployee) list = list.filter((l) => l.employee_name === filterEmployee);
     return list.sort((a, b) => (b.start_date > a.start_date ? -1 : 1)).reverse();
-  }, [leaves, filterEmployee]);
+  }, [seasonLeaves, filterEmployee]);
 
+  // Employee leave summary — scoped to the active season, so a new season starts at zero
   const empSummary = useMemo(() => {
     return employees
       .map((emp) => {
-        const empLeaves = leaves.filter((l) => l.employee_name === emp.name);
+        const empLeaves = seasonLeaves.filter((l) => l.employee_name === emp.name);
         const totalDays = empLeaves.reduce((sum, l) => {
           const days = l.dates ? l.dates.length : calculateDays(l.start_date, l.end_date, l.type);
           return sum + (l.type === "half" ? days * 0.5 : days);
@@ -73,7 +100,7 @@ export default function LeavesScreen() {
       })
       .filter((e) => e.records > 0)
       .sort((a, b) => b.totalDays - a.totalDays);
-  }, [employees, leaves]);
+  }, [employees, seasonLeaves]);
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr + "T00:00:00");
@@ -97,14 +124,42 @@ export default function LeavesScreen() {
   return (
     <Screen>
       <Card>
-        <LeaveCalendar leaves={leaves} selectedEmployee={filterEmployee || null} publicHolidays={publicHolidays} />
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <SectionTitle>🏖️ Leave Seasons</SectionTitle>
+          {isAdmin && <Button title="+ Season" small variant="ghost" onPress={() => setShowAddSeason(true)} />}
+        </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {hasPreSeasonLeaves && (
+            <Chip label="🗂️ Pre Fiscal Year Leaves" active={activeSeasonId === PRE_SEASON} onPress={() => setActiveSeasonId(PRE_SEASON)} />
+          )}
+          {sortedLeaveSeasons.map((s) => (
+            <View key={s.id} style={{ flexDirection: "row", alignItems: "center" }}>
+              <Chip label={`🏖️ ${s.title}`} active={activeSeasonId === s.id} onPress={() => setActiveSeasonId(s.id)} />
+              {isAdmin && (
+                <Pressable onPress={() => setEditingSeason(s)} style={{ marginLeft: -4, marginRight: 8, marginBottom: 8 }} hitSlop={8}>
+                  <Text style={{ fontSize: 12 }}>✏️</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+          {sortedLeaveSeasons.length === 0 && !hasPreSeasonLeaves && (
+            <Text style={{ color: t.textMuted, fontSize: 13 }}>No leave seasons yet.</Text>
+          )}
+        </View>
       </Card>
 
-      {empSummary.length > 0 && (
+      <Card>
+        <LeaveCalendar leaves={seasonLeaves} selectedEmployee={filterEmployee || null} publicHolidays={publicHolidays} />
+      </Card>
+
+      {empSummary.length > 0 ? (
         <Card>
-          <SectionTitle>Leave Summary by Employee</SectionTitle>
+          <SectionTitle>
+            Leave Summary by Employee
+            {activeSeason ? ` — ${activeSeason.title}` : activeSeasonId === PRE_SEASON ? " — Pre Fiscal Year Leaves" : ""}
+          </SectionTitle>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            <Chip label={`All (${leaves.length})`} active={filterEmployee === ""} onPress={() => setFilterEmployee("")} />
+            <Chip label={`All (${seasonLeaves.length})`} active={filterEmployee === ""} onPress={() => setFilterEmployee("")} />
             {empSummary.map((emp) => (
               <Chip
                 key={emp.name}
@@ -115,11 +170,18 @@ export default function LeavesScreen() {
             ))}
           </View>
         </Card>
+      ) : (
+        <Card>
+          <SectionTitle>Leave Summary by Employee</SectionTitle>
+          <EmptyState text="No leave records in this season yet." />
+        </Card>
       )}
 
       {filterEmployee && employeeBalances.length > 0 && (
         <Card>
-          <SectionTitle>{filterEmployee}'s Leave Balances ({new Date().getFullYear()})</SectionTitle>
+          <SectionTitle>
+            {filterEmployee}'s Leave Balances{activeSeason ? ` (${activeSeason.title})` : ""}
+          </SectionTitle>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {employeeBalances.map((b) => (
               <Chip key={b.id} label={`${b.name}: ${b.remaining}/${b.annual_days}`} active={false} onPress={() => {}} />
@@ -208,9 +270,11 @@ export default function LeavesScreen() {
         )}
       </Card>
 
-      <AddLeaveModal isOpen={showAddLeave} onClose={() => setShowAddLeave(false)} />
+      <AddLeaveModal isOpen={showAddLeave} onClose={() => setShowAddLeave(false)} seasonId={effectiveSeasonId} />
       <EditLeaveModal isOpen={!!editingLeave} onClose={() => setEditingLeave(null)} leave={editingLeave} />
       <AddPublicHolidayModal isOpen={showAddHoliday} onClose={() => setShowAddHoliday(false)} />
+      <AddLeaveSeasonModal isOpen={showAddSeason} onClose={() => setShowAddSeason(false)} />
+      <EditLeaveSeasonModal isOpen={!!editingSeason} onClose={() => setEditingSeason(null)} season={editingSeason} />
     </Screen>
   );
 }

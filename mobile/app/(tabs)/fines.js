@@ -8,6 +8,39 @@ import AddFineModal from "../../components/AddFineModal";
 import EditFineModal from "../../components/EditFineModal";
 import AddStandupFineModal from "../../components/AddStandupFineModal";
 import EditStandupModal from "../../components/EditStandupModal";
+import AddFineSeasonModal from "../../components/AddFineSeasonModal";
+import EditFineSeasonModal from "../../components/EditFineSeasonModal";
+
+const UNASSIGNED = "unassigned";
+
+function SeasonChip({ label, active, onPress, onEdit }) {
+  const t = useThemeColors();
+  const activeColor = t.accentIndigo;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: active ? activeColor : t.border,
+        backgroundColor: active ? activeColor + "22" : "transparent",
+        marginRight: 8,
+        marginBottom: 8,
+      }}
+    >
+      <Text style={{ color: active ? activeColor : t.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      {onEdit && (
+        <Pressable onPress={onEdit} style={{ marginLeft: 6 }} hitSlop={8}>
+          <Text style={{ fontSize: 12 }}>✏️</Text>
+        </Pressable>
+      )}
+    </Pressable>
+  );
+}
 
 function formatDate(dateStr) {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -41,7 +74,7 @@ function FineRow({ f, canManage, onEdit, onDelete, onToggle }) {
 }
 
 export default function FinesScreen() {
-  const { fines, standupFines, toggleFineStatus, deleteFine, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin, withdrawals, isLoaded } = useApp();
+  const { fines, fineSeasons, standupFines, toggleFineStatus, deleteFine, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin, withdrawals, isLoaded } = useApp();
   const t = useThemeColors();
   const canManage = isAdmin || isFineAdmin;
 
@@ -52,16 +85,41 @@ export default function FinesScreen() {
   const [editingFine, setEditingFine] = useState(null);
   const [showAddStandup, setShowAddStandup] = useState(false);
   const [editingStandup, setEditingStandup] = useState(null);
+  const [activeSeasonId, setActiveSeasonId] = useState(null);
+  const [showAddSeason, setShowAddSeason] = useState(false);
+  const [editingSeason, setEditingSeason] = useState(null);
+
+  const sortedSeasons = useMemo(
+    () => [...fineSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
+    [fineSeasons]
+  );
+  const latestSeasonId = sortedSeasons[0]?.id ?? null;
+
+  // Default to the latest season once seasons load, but only the first time
+  useMemo(() => {
+    if (activeSeasonId === null && latestSeasonId !== null) setActiveSeasonId(latestSeasonId);
+  }, [latestSeasonId, activeSeasonId]);
+
+  const unassignedCount = useMemo(() => fines.filter((f) => !f.season_id).length, [fines]);
+
+  const seasonFines = useMemo(() => {
+    if (activeSeasonId === UNASSIGNED) return fines.filter((f) => !f.season_id);
+    return fines.filter((f) => f.season_id === activeSeasonId);
+  }, [fines, activeSeasonId]);
+
+  // Accumulation always spans every fine ever recorded, regardless of season
+  const accumulatedTotal = useMemo(() => fines.reduce((s, f) => s + f.amount, 0), [fines]);
+  const accumulatedUnpaid = useMemo(() => fines.filter((f) => f.status === "unpaid").reduce((s, f) => s + f.amount, 0), [fines]);
 
   const filteredFines = useMemo(() => {
-    let list = [...fines];
+    let list = [...seasonFines];
     if (statusFilter !== "all") list = list.filter((f) => f.status === statusFilter);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((f) => f.employee_name.toLowerCase().includes(q) || f.date.includes(q) || String(f.amount).includes(q));
     }
     return list.sort((a, b) => b.date.localeCompare(a.date));
-  }, [fines, statusFilter, search]);
+  }, [seasonFines, statusFilter, search]);
 
   const filteredStandups = useMemo(() => {
     let list = [...standupFines];
@@ -109,6 +167,36 @@ export default function FinesScreen() {
         <Chip label="💰 Late Fines" active={tab === "late"} onPress={() => setTab("late")} />
         <Chip label="📝 Standup Fines" active={tab === "standup"} onPress={() => setTab("standup")} />
       </View>
+
+      {tab === "late" && (
+        <Card>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <SectionTitle>💰 Fine Seasons</SectionTitle>
+            {canManage && <Button title="+ Season" small variant="ghost" onPress={() => setShowAddSeason(true)} />}
+          </View>
+          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {unassignedCount > 0 && (
+              <SeasonChip label="🗂️ Pre Fiscal Year Fines" active={activeSeasonId === UNASSIGNED} onPress={() => setActiveSeasonId(UNASSIGNED)} />
+            )}
+            {sortedSeasons.length === 0 && unassignedCount === 0 ? (
+              <Text style={{ color: t.textMuted, fontSize: 13 }}>No seasons yet</Text>
+            ) : (
+              sortedSeasons.map((s) => (
+                <SeasonChip
+                  key={s.id}
+                  label={s.title}
+                  active={activeSeasonId === s.id}
+                  onPress={() => setActiveSeasonId(s.id)}
+                  onEdit={canManage ? () => setEditingSeason(s) : null}
+                />
+              ))
+            )}
+          </View>
+          <Text style={{ color: t.textMuted, fontSize: 12, marginTop: 4 }}>
+            Accumulated total (all seasons): Rs. {accumulatedTotal.toLocaleString()} · Rs. {accumulatedUnpaid.toLocaleString()} unpaid
+          </Text>
+        </Card>
+      )}
 
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
@@ -161,6 +249,8 @@ export default function FinesScreen() {
       <EditFineModal isOpen={!!editingFine} onClose={() => setEditingFine(null)} fine={editingFine} />
       <AddStandupFineModal isOpen={showAddStandup} onClose={() => setShowAddStandup(false)} />
       <EditStandupModal isOpen={!!editingStandup} onClose={() => setEditingStandup(null)} record={editingStandup} />
+      <AddFineSeasonModal isOpen={showAddSeason} onClose={() => setShowAddSeason(false)} />
+      <EditFineSeasonModal isOpen={!!editingSeason} onClose={() => setEditingSeason(null)} season={editingSeason} />
     </Screen>
   );
 }

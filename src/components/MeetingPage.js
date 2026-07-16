@@ -10,15 +10,18 @@ import EditWordModal from "@/components/EditWordModal";
 import EditLeaveModal from "@/components/EditLeaveModal";
 import HumanLoader from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
+import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
 import { computeLeaveBalances } from "@/lib/utils";
 
 export default function MeetingPage() {
-  const { 
-    fines, 
-    standupFines, 
-    leaves, 
-    words, 
-    wordSeasons, 
+  const {
+    fines,
+    fineSeasons,
+    standupFines,
+    leaves,
+    leaveSeasons,
+    words,
+    wordSeasons,
     addFine, 
     addStandupFine,
     addWord, 
@@ -367,6 +370,7 @@ export default function MeetingPage() {
   return (
     <div className="meeting-layout">
       <EventBanner />
+      <NewFiscalYearBanner />
       <header className="meeting-header">
         <div className="meeting-title-group">
           <Link href="/" className="exit-link">← Exit Meeting</Link>
@@ -668,6 +672,7 @@ export default function MeetingPage() {
           employees={employees}
           today={today}
           fines={fines}
+          fineSeasons={fineSeasons}
         />
       )}
       {showAddStandup && (
@@ -721,6 +726,7 @@ export default function MeetingPage() {
           employees={employees}
           today={today}
           leaves={leaves}
+          leaveSeasons={leaveSeasons}
           leaveTypes={leaveTypes}
           publicHolidays={publicHolidays}
           isAdmin={isAdmin}
@@ -731,10 +737,15 @@ export default function MeetingPage() {
 }
 
 // COMPACT INLINE MODALS FOR MEETING MODE
-function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines }) {
+function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, fineSeasons }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState(25);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
+
+  const latestFineSeasonId = useMemo(() => {
+    if (!fineSeasons || fineSeasons.length === 0) return null;
+    return [...fineSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id;
+  }, [fineSeasons]);
 
   const hSubmit = (e) => {
     e.preventDefault();
@@ -751,7 +762,7 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines }
       return;
     }
 
-    addFine({ name, amount: parseFloat(amount), date: today, status: "unpaid" });
+    addFine({ name, amount: parseFloat(amount), date: today, status: "unpaid", seasonId: latestFineSeasonId });
     onClose();
   };
 
@@ -970,7 +981,7 @@ function IdleNudge({ phrases }) {
   );
 }
 
-function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves, leaveTypes, publicHolidays, isAdmin }) {
+function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves, leaveSeasons, leaveTypes, publicHolidays, isAdmin }) {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("full");   // full | half | early
   const [segment, setSegment] = useState("first");    // first | second
@@ -989,7 +1000,11 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
     [publicHolidays]
   );
   const activeLeaveTypes = (leaveTypes || []).filter((t) => t.is_active);
-  const balances = computeLeaveBalances(name, leaves, activeLeaveTypes, new Date().getFullYear(), holidaySet);
+  const latestSeasonId = useMemo(() => {
+    if (!leaveSeasons || leaveSeasons.length === 0) return null;
+    return [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id;
+  }, [leaveSeasons]);
+  const balances = computeLeaveBalances(name, leaves, activeLeaveTypes, latestSeasonId, holidaySet);
   const defaultLeaveType = activeLeaveTypes.find((t) => !t.is_unpaid) || activeLeaveTypes[0];
   const effectiveLeaveTypeId = leaveTypeId || (defaultLeaveType ? String(defaultLeaveType.id) : "");
 
@@ -1023,6 +1038,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
       endDate: today,
       reason: finalReason,
       leaveTypeId: effectiveLeaveTypeId ? Number(effectiveLeaveTypeId) : null,
+      seasonId: latestSeasonId,
     });
     onClose();
   };

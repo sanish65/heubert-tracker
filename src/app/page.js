@@ -18,6 +18,10 @@ import WordPage from "@/components/WordPage";
 import AddWordSeasonModal from "@/components/AddWordSeasonModal";
 import AddWordModal from "@/components/AddWordModal";
 import EditWordSeasonModal from "@/components/EditWordSeasonModal";
+import AddFineSeasonModal from "@/components/AddFineSeasonModal";
+import EditFineSeasonModal from "@/components/EditFineSeasonModal";
+import AddLeaveSeasonModal from "@/components/AddLeaveSeasonModal";
+import EditLeaveSeasonModal from "@/components/EditLeaveSeasonModal";
 import Link from "next/link";
 import CapacityPage from "@/components/CapacityPage";
 import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
@@ -86,6 +90,14 @@ export default function Home() {
   const [editingSeason, setEditingSeason] = useState(null);
   const [showEditEvent, setShowEditEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [showAddFineSeason, setShowAddFineSeason] = useState(false);
+  const [showEditFineSeason, setShowEditFineSeason] = useState(false);
+  const [editingFineSeason, setEditingFineSeason] = useState(null);
+  const [selectedFineSeasonId, setSelectedFineSeasonId] = useState(null);
+  const [showAddLeaveSeason, setShowAddLeaveSeason] = useState(false);
+  const [showEditLeaveSeason, setShowEditLeaveSeason] = useState(false);
+  const [editingLeaveSeason, setEditingLeaveSeason] = useState(null);
+  const [selectedLeaveSeasonId, setSelectedLeaveSeasonId] = useState(null);
 
   // Load active tab from localStorage on mount
   useEffect(() => {
@@ -115,6 +127,16 @@ export default function Home() {
   const handleEditSeason = (season) => {
     setEditingSeason(season);
     setShowEditSeason(true);
+  };
+
+  const handleEditFineSeason = (season) => {
+    setEditingFineSeason(season);
+    setShowEditFineSeason(true);
+  };
+
+  const handleEditLeaveSeason = (season) => {
+    setEditingLeaveSeason(season);
+    setShowEditLeaveSeason(true);
   };
 
   const handleEditEvent = (event) => {
@@ -352,10 +374,15 @@ export default function Home() {
           />
         )}
         {activeTab === "records" && (
-          <FineTable 
-            selectedEmployee={selectedEmployee} 
-            onAddFine={() => setShowAddFine(true)}
+          <FineTable
+            selectedEmployee={selectedEmployee}
+            onAddFine={(sid) => {
+              setSelectedFineSeasonId(sid);
+              setShowAddFine(true);
+            }}
             onWithdraw={() => setShowWithdraw(true)}
+            onAddSeason={() => setShowAddFineSeason(true)}
+            onEditSeason={handleEditFineSeason}
           />
         )}
         {activeTab === "standup" && (
@@ -365,9 +392,14 @@ export default function Home() {
           />
         )}
         {activeTab === "leaves" && (
-          <LeavePage 
-            onAddLeave={() => setShowAddLeave(true)} 
+          <LeavePage
+            onAddLeave={(sid) => {
+              setSelectedLeaveSeasonId(sid);
+              setShowAddLeave(true);
+            }}
             onAddHoliday={() => setShowAddHoliday(true)}
+            onAddSeason={() => setShowAddLeaveSeason(true)}
+            onEditSeason={handleEditLeaveSeason}
           />
         )}
         {activeTab === "attendance" && <AttendancePage />}
@@ -437,10 +469,36 @@ export default function Home() {
       <AddFineModal
         isOpen={showAddFine}
         onClose={() => setShowAddFine(false)}
+        seasonId={selectedFineSeasonId}
+      />
+      <AddFineSeasonModal
+        isOpen={showAddFineSeason}
+        onClose={() => setShowAddFineSeason(false)}
+      />
+      <EditFineSeasonModal
+        isOpen={showEditFineSeason}
+        onClose={() => {
+          setShowEditFineSeason(false);
+          setEditingFineSeason(null);
+        }}
+        season={editingFineSeason}
       />
       <AddLeaveModal
         isOpen={showAddLeave}
         onClose={() => setShowAddLeave(false)}
+        seasonId={selectedLeaveSeasonId}
+      />
+      <AddLeaveSeasonModal
+        isOpen={showAddLeaveSeason}
+        onClose={() => setShowAddLeaveSeason(false)}
+      />
+      <EditLeaveSeasonModal
+        isOpen={showEditLeaveSeason}
+        onClose={() => {
+          setShowEditLeaveSeason(false);
+          setEditingLeaveSeason(null);
+        }}
+        season={editingLeaveSeason}
       />
       <AddStandupFineModal
         isOpen={showAddStandup}

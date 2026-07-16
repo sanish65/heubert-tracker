@@ -5,8 +5,8 @@ import { toDateStr } from "../lib/utils";
 import { FormModal, TextField, Select, Button } from "./ui";
 import { useThemeColors } from "../lib/theme";
 
-export default function AddFineModal({ isOpen, onClose }) {
-  const { addFine, employees, currentEmployee, fines } = useApp();
+export default function AddFineModal({ isOpen, onClose, seasonId }) {
+  const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
   const t = useThemeColors();
   const today = toDateStr(new Date());
 
@@ -31,8 +31,12 @@ export default function AddFineModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
+  const latestFineSeasonId = fineSeasons.length
+    ? [...fineSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id
+    : null;
+
   const doAdd = () => {
-    addFine({ name, date, amount: Number(amount), status });
+    addFine({ name, date, amount: Number(amount), status, seasonId: seasonId ?? latestFineSeasonId });
     setDuplicateWarning(false);
     onClose();
   };

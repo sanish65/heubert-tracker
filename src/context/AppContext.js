@@ -27,6 +27,8 @@ export function AppProvider({ children }) {
   const [withdrawals, setWithdrawals] = useState([]);
   const [wordSeasons, setWordSeasons] = useState([]);
   const [words, setWords] = useState([]);
+  const [fineSeasons, setFineSeasons] = useState([]);
+  const [leaveSeasons, setLeaveSeasons] = useState([]);
   const [publicHolidays, setPublicHolidays] = useState([]);
   const [companyEvents, setCompanyEvents] = useState([]);
   const [sprints, setSprints] = useState([]);
@@ -67,7 +69,9 @@ export function AppProvider({ children }) {
       const results = await Promise.all([
         supabase.from("employees").select("*").order("name"),
         supabase.from("fines").select("*").order("date", { ascending: false }),
+        supabase.from("fine_seasons").select("*").order("created_at", { ascending: true }),
         supabase.from("leaves").select("*").order("start_date", { ascending: false }),
+        supabase.from("leave_seasons").select("*").order("created_at", { ascending: true }),
         supabase.from("standup_records").select("*").order("date", { ascending: false }),
         supabase.from("withdrawals").select("*").order("created_at", { ascending: false }),
         supabase.from("word_seasons").select("*").order("created_at", { ascending: true }),
@@ -86,7 +90,9 @@ export function AppProvider({ children }) {
       const [
         { data: empData },
         { data: fineData },
+        { data: fineSeasonData },
         { data: leaveData },
+        { data: leaveSeasonData },
         { data: standupData },
         { data: withdrawalData },
         { data: seasonData },
@@ -104,7 +110,9 @@ export function AppProvider({ children }) {
 
       if (empData) setEmployees(empData);
       if (fineData) setFines(fineData);
+      if (fineSeasonData) setFineSeasons(fineSeasonData);
       if (leaveData) setLeaves(leaveData);
+      if (leaveSeasonData) setLeaveSeasons(leaveSeasonData);
       if (standupData) setStandupFines(standupData);
       if (withdrawalData) setWithdrawals(withdrawalData);
       if (seasonData) setWordSeasons(seasonData);
@@ -369,7 +377,8 @@ export function AppProvider({ children }) {
         employee_name: fine.name,
         date: fine.date,
         amount: fine.amount,
-        status: fine.status
+        status: fine.status,
+        season_id: fine.seasonId ?? null
     };
     const { data, error } = await supabase.from("fines").insert([payload]).select();
     if (data) setFines(prev => [data[0], ...prev]);
@@ -404,6 +413,28 @@ export function AppProvider({ children }) {
     return { data, error };
   };
 
+  const addFineSeason = async (title) => {
+    const { data, error } = await supabase.from("fine_seasons").insert([{ title, created_by: user?.email }]).select();
+    if (data) setFineSeasons(prev => [...prev, data[0]]);
+    return { data, error };
+  };
+
+  const deleteFineSeason = async (id) => {
+    const { error } = await supabase.from("fine_seasons").delete().eq("id", id);
+    if (!error) {
+      setFineSeasons(prev => prev.filter(s => s.id !== id));
+      // Fines keep accumulating regardless of season — only clear their season_id (mirrors ON DELETE SET NULL)
+      setFines(prev => prev.map(f => f.season_id === id ? { ...f, season_id: null } : f));
+    }
+    return { error };
+  };
+
+  const updateFineSeason = async (id, title) => {
+    const { data, error } = await supabase.from("fine_seasons").update({ title }).eq("id", id).select();
+    if (data) setFineSeasons(prev => prev.map(s => s.id === id ? data[0] : s));
+    return { data, error };
+  };
+
   const addLeave = async (leave) => {
     const payload = {
         employee_name: leave.name,
@@ -412,6 +443,7 @@ export function AppProvider({ children }) {
         type: leave.type,
         reason: leave.reason,
         leave_type_id: leave.leaveTypeId ?? null,
+        season_id: leave.seasonId ?? null,
     };
     const { data } = await supabase.from("leaves").insert([payload]).select();
     if (data) setLeaves(prev => [data[0], ...prev]);
@@ -438,6 +470,28 @@ export function AppProvider({ children }) {
     if (data) {
       setLeaves(prev => prev.map(l => l.id === id ? data[0] : l));
     }
+    return { data, error };
+  };
+
+  const addLeaveSeason = async (title) => {
+    const { data, error } = await supabase.from("leave_seasons").insert([{ title, created_by: user?.email }]).select();
+    if (data) setLeaveSeasons(prev => [...prev, data[0]]);
+    return { data, error };
+  };
+
+  const deleteLeaveSeason = async (id) => {
+    const { error } = await supabase.from("leave_seasons").delete().eq("id", id);
+    if (!error) {
+      setLeaveSeasons(prev => prev.filter(s => s.id !== id));
+      // Leave history keeps accumulating regardless of season — only clear their season_id (mirrors ON DELETE SET NULL)
+      setLeaves(prev => prev.map(l => l.season_id === id ? { ...l, season_id: null } : l));
+    }
+    return { error };
+  };
+
+  const updateLeaveSeason = async (id, title) => {
+    const { data, error } = await supabase.from("leave_seasons").update({ title }).eq("id", id).select();
+    if (data) setLeaveSeasons(prev => prev.map(s => s.id === id ? data[0] : s));
     return { data, error };
   };
 
@@ -825,10 +879,18 @@ export function AppProvider({ children }) {
         toggleFineStatus,
         deleteFine,
         updateFine,
+        fineSeasons,
+        addFineSeason,
+        deleteFineSeason,
+        updateFineSeason,
         getEmployeeStats,
         addLeave,
         deleteLeave,
         updateLeave,
+        leaveSeasons,
+        addLeaveSeason,
+        deleteLeaveSeason,
+        updateLeaveSeason,
         addStandupFine,
         toggleStandupFineStatus,
         deleteStandupFine,

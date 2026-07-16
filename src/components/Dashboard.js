@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import StatsCard from "./StatsCard";
 import EventBanner from "@/components/EventBanner";
+import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
 
 export default function Dashboard() {
-  const { fines, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled } = useApp();
+  const { fines, fineSeasons, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled } = useApp();
   const [sendingWish, setSendingWish] = useState(null); // empId
+  const [selectedFineSeasonId, setSelectedFineSeasonId] = useState(null); // null = follow latest season
 
   // Late Fines
   const totalAmount = fines.reduce((s, f) => s + f.amount, 0);
@@ -111,18 +113,37 @@ export default function Dashboard() {
     }
   };
 
+  // Fine seasons — the chart below is scoped to whichever season is selected,
+  // defaulting to the latest one. Accumulated totals in the stat cards above
+  // are unaffected — they always span every fine, regardless of season.
+  const sortedFineSeasons = [...fineSeasons].sort(
+    (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+  );
+  const latestFineSeasonId = sortedFineSeasons[0]?.id ?? null;
+  const hasUnassignedFines = fines.some((f) => !f.season_id);
+  const effectiveFineSeasonId =
+    selectedFineSeasonId !== null
+      ? selectedFineSeasonId
+      : latestFineSeasonId ?? (hasUnassignedFines ? "unassigned" : null);
+  const activeFineSeason = sortedFineSeasons.find((s) => s.id === effectiveFineSeasonId);
+
+  const seasonFines =
+    effectiveFineSeasonId === "unassigned"
+      ? fines.filter((f) => !f.season_id)
+      : fines.filter((f) => f.season_id === effectiveFineSeasonId);
+
   // Per-employee breakdown for bar chart
   const empData = employees
     .filter(emp => emp.status !== 'resigned')
     .map((emp) => {
-      const empFines = fines.filter((f) => f.employee_name === emp.name);
+      const empFines = seasonFines.filter((f) => f.employee_name === emp.name);
       return {
         name: emp.name,
         paid: empFines.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0),
         unpaid: empFines.filter((f) => f.status === "unpaid").reduce((s, f) => s + f.amount, 0),
       };
     }).sort((a, b) => (b.paid + b.unpaid) - (a.paid + a.unpaid))
-    .filter(e => e.name !== 'Developers');
+    .filter(e => e.name !== 'Developers' && e.name !== 'Sameer');
 
   const leastFined = empData.length > 0 ? empData[empData.length - 1] : null;
 
@@ -153,6 +174,9 @@ export default function Dashboard() {
     <section className="dashboard">
       <div style={{ marginBottom: "20px" }}>
         <EventBanner />
+      </div>
+      <div style={{ marginBottom: "20px" }}>
+        <NewFiscalYearBanner />
       </div>
 
       <div className="dashboard-extras-grid">
@@ -253,32 +277,54 @@ export default function Dashboard() {
       </div>
 
       <div className="chart-container">
-        <h3 className="section-title">Fines by Employee</h3>
-        <div className="bar-chart">
-          {empData.map((emp) => (
-            <div key={emp.name} className="bar-row" style={{ position: 'relative' }}>
-              {animationsEnabled !== false && emp.name === leastFined?.name && (emp.paid + emp.unpaid) <= (leastFined.paid + leastFined.unpaid) && (
-                <LeastFinedHonoree />
-              )}
-              <span className="bar-label">{emp.name.split(' ')[0]}</span>
-              <div className="bar-track">
-                <div
-                  className="bar-fill bar-paid"
-                  style={{ width: `${(emp.paid / maxTotal) * 100}%` }}
-                >
-                  {emp.paid > 0 && <span className="bar-value">{emp.paid}</span>}
-                </div>
-                <div
-                  className="bar-fill bar-unpaid"
-                  style={{ width: `${(emp.unpaid / maxTotal) * 100}%` }}
-                >
-                  {emp.unpaid > 0 && <span className="bar-value">{emp.unpaid}</span>}
-                </div>
-              </div>
-              <span className="bar-total">Rs. {emp.paid + emp.unpaid}</span>
-            </div>
-          ))}
+        <div className="chart-header-row">
+          <h3 className="section-title">Fines by Employee</h3>
+          {(sortedFineSeasons.length > 0 || hasUnassignedFines) && (
+            <select
+              className="season-select"
+              value={String(effectiveFineSeasonId)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedFineSeasonId(val === "unassigned" ? "unassigned" : Number(val));
+              }}
+              title="Select fine season"
+            >
+              {sortedFineSeasons.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+              {hasUnassignedFines && <option value="unassigned">Pre Fiscal Year Fines</option>}
+            </select>
+          )}
         </div>
+        {empData.length === 0 ? (
+          <p className="empty-msg">No fines recorded in {activeFineSeason ? activeFineSeason.title : "this season"} yet.</p>
+        ) : (
+          <div className="bar-chart">
+            {empData.map((emp) => (
+              <div key={emp.name} className="bar-row" style={{ position: 'relative' }}>
+                {animationsEnabled !== false && emp.name === leastFined?.name && (emp.paid + emp.unpaid) <= (leastFined.paid + leastFined.unpaid) && (
+                  <LeastFinedHonoree />
+                )}
+                <span className="bar-label">{emp.name.split(' ')[0]}</span>
+                <div className="bar-track">
+                  <div
+                    className="bar-fill bar-paid"
+                    style={{ width: `${(emp.paid / maxTotal) * 100}%` }}
+                  >
+                    {emp.paid > 0 && <span className="bar-value">{emp.paid}</span>}
+                  </div>
+                  <div
+                    className="bar-fill bar-unpaid"
+                    style={{ width: `${(emp.unpaid / maxTotal) * 100}%` }}
+                  >
+                    {emp.unpaid > 0 && <span className="bar-value">{emp.unpaid}</span>}
+                  </div>
+                </div>
+                <span className="bar-total">Rs. {emp.paid + emp.unpaid}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="chart-legend">
           <span className="legend-item"><span className="legend-dot paid" /> Paid</span>
           <span className="legend-item"><span className="legend-dot unpaid" /> Unpaid</span>
