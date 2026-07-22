@@ -360,7 +360,7 @@ export default function RetrospectivePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setSession(data.session); setCards([]); setCardVotes([]);
+      setSession(data.session); setCards([]);
       setView("board"); setIsHost(true);
       setParticipantName(creatorName.trim());
       localStorage.setItem("heubert_retro_session_id", data.session.id);
@@ -522,8 +522,8 @@ export default function RetrospectivePage() {
     return counts;
   };
   const hasReacted = (cardId, emoji) => cardReactions.some(r => String(r.card_id) === String(cardId) && r.participant_name === participantName && r.emoji === emoji);
-  const voteCountFor = (cardId) => reactionCountsFor(cardId)["👍"] || 0;
-  const hasVotedFor  = (cardId) => hasReacted(cardId, "👍");
+  const voteCountFor = (cardId) => Object.values(reactionCountsFor(cardId)).reduce((sum, n) => sum + n, 0);
+  const hasVotedFor  = (cardId) => cardReactions.some(r => String(r.card_id) === String(cardId) && r.participant_name === participantName);
   const cardsFor = (colKey) => cards.filter(c => c.column_type === colKey).sort((a, b) => {
     const diff = voteCountFor(b.id) - voteCountFor(a.id);
     if (diff !== 0) return diff;
