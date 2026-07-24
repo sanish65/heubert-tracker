@@ -9,11 +9,13 @@ import EditLeaveModal from "../../components/EditLeaveModal";
 import AddPublicHolidayModal from "../../components/AddPublicHolidayModal";
 import AddLeaveSeasonModal from "../../components/AddLeaveSeasonModal";
 import EditLeaveSeasonModal from "../../components/EditLeaveSeasonModal";
-import { computeLeaveBalances } from "../../lib/utils";
+import { computeLeaveBalances, parseHalfDaySegment, stripHalfDaySegmentPrefix } from "../../lib/utils";
 
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
 const TYPE_COLORS = { full: "accentIndigo", half: "accentAmber", early: "accentSky" };
+const SEGMENT_LABELS = { first: "First Half", second: "Second Half" };
+const SEGMENT_ICONS = { first: "🌅", second: "🌇" };
 const PRE_SEASON = "pre-season";
 
 export default function LeavesScreen() {
@@ -212,6 +214,7 @@ export default function LeavesScreen() {
                     <Text style={{ color: t.textPrimary, fontWeight: "700", fontSize: 14 }}>{leave.employee_name}</Text>
                     <Text style={{ color: t.textMuted, fontSize: 12, marginTop: 2 }}>
                       {TYPE_ICONS[leave.type]} {TYPE_LABELS[leave.type]} · {leaveTypeById.get(leave.leave_type_id)?.name || "Uncategorized"}
+                      {parseHalfDaySegment(leave) ? ` · ${SEGMENT_ICONS[parseHalfDaySegment(leave)]} ${SEGMENT_LABELS[parseHalfDaySegment(leave)]}` : ""}
                     </Text>
                   </View>
                   {canEdit && (
@@ -234,7 +237,7 @@ export default function LeavesScreen() {
                     {dayCount || calculateDays(leave.start_date, leave.end_date, leave.type)} working days
                   </Text>
                 </View>
-                {leave.reason ? <Text style={{ color: t.textMuted, fontSize: 12, marginTop: 6 }}>💬 {leave.reason}</Text> : null}
+                {stripHalfDaySegmentPrefix(leave.reason) ? <Text style={{ color: t.textMuted, fontSize: 12, marginTop: 6 }}>💬 {stripHalfDaySegmentPrefix(leave.reason)}</Text> : null}
               </View>
             );
           })
