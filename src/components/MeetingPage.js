@@ -11,7 +11,12 @@ import EditLeaveModal from "@/components/EditLeaveModal";
 import HumanLoader from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
-import { computeLeaveBalances } from "@/lib/utils";
+import { computeLeaveBalances, parseHalfDaySegment } from "@/lib/utils";
+
+const MEETING_TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
+const MEETING_TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
+const MEETING_SEGMENT_LABELS = { first: "First Half", second: "Second Half" };
+const MEETING_SEGMENT_ICONS = { first: "🌅", second: "🌇" };
 
 export default function MeetingPage() {
   const {
@@ -240,6 +245,11 @@ export default function MeetingPage() {
       return dtStr >= l.start_date && dtStr <= l.end_date;
     });
   }, [leaves, publicHolidays]);
+  const leaveTypeById = useMemo(() => {
+    const map = new Map();
+    (leaveTypes || []).forEach((t) => map.set(t.id, t));
+    return map;
+  }, [leaveTypes]);
   // Shared/system emails — never expected to submit standups
   const nonStandupEmails = new Set([
     "developers@heubert.com",
@@ -452,10 +462,15 @@ export default function MeetingPage() {
             {activeLeaves.length === 0 ? (
               <p className="empty-msg">Full strength today! 💪</p>
             ) : (
-              activeLeaves.map((l, index) => (
+              activeLeaves.map((l, index) => {
+                const segment = parseHalfDaySegment(l);
+                return (
                 <div key={`leave-item-${index}`} className="meeting-item group">
                   <span className="item-name">{l.employee_name}</span>
-                  <span className="leave-type-tag">{l.type}</span>
+                  <span className="leave-type-tag">
+                    {MEETING_TYPE_ICONS[l.type]} {MEETING_TYPE_LABELS[l.type]} · {leaveTypeById.get(l.leave_type_id)?.name || "Uncategorized"}
+                    {segment ? ` · ${MEETING_SEGMENT_ICONS[segment]} ${MEETING_SEGMENT_LABELS[segment]}` : ""}
+                  </span>
                   {isAdmin && (
                     <div className="item-actions">
                       <button onClick={() => { setEditingLeave(l); setShowEditLeave(true); }} title="Edit">✏️</button>
@@ -463,7 +478,8 @@ export default function MeetingPage() {
                     </div>
                   )}
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>
