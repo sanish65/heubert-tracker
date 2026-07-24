@@ -125,3 +125,32 @@ export function computeLeaveBalances(employeeName, leaves, leaveTypes, seasonId,
       return { ...t, used, remaining: Math.max(0, t.annual_days - used) };
     });
 }
+
+const HALF_DAY_SEGMENT_PREFIXES = { first: "[First Half]", second: "[Second Half]" };
+
+/**
+ * Which half of the day a half-day leave falls in, parsed from the bracketed
+ * prefix convention stored in `reason` (e.g. "[First Half] dentist"). Returns
+ * null for full-day/early leaves, or half-day leaves with no recognized prefix.
+ */
+export function parseHalfDaySegment(leave) {
+  if (!leave || leave.type !== "half") return null;
+  const reason = leave.reason || "";
+  if (reason.startsWith(HALF_DAY_SEGMENT_PREFIXES.first)) return "first";
+  if (reason.startsWith(HALF_DAY_SEGMENT_PREFIXES.second)) return "second";
+  return null;
+}
+
+/**
+ * Reason text with the half-day segment prefix (if any) removed, for clean display.
+ */
+export function stripHalfDaySegmentPrefix(reason) {
+  if (!reason) return "";
+  if (reason.startsWith(HALF_DAY_SEGMENT_PREFIXES.first)) {
+    return reason.replace(HALF_DAY_SEGMENT_PREFIXES.first, "").trim();
+  }
+  if (reason.startsWith(HALF_DAY_SEGMENT_PREFIXES.second)) {
+    return reason.replace(HALF_DAY_SEGMENT_PREFIXES.second, "").trim();
+  }
+  return reason;
+}
