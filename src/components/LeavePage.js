@@ -4,10 +4,12 @@ import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import LeaveCalendar from "./LeaveCalendar";
 import EditLeaveModal from "./EditLeaveModal";
-import { computeLeaveBalances } from "@/lib/utils";
+import { computeLeaveBalances, parseHalfDaySegment, stripHalfDaySegmentPrefix } from "@/lib/utils";
 
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
+const SEGMENT_LABELS = { first: "First Half", second: "Second Half" };
+const SEGMENT_ICONS = { first: "🌅", second: "🌇" };
 const PRE_SEASON = "pre-season";
 
 export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEditSeason }) {
@@ -263,6 +265,11 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
                           <span className="leave-type-badge">
                             {leaveTypeById.get(leave.leave_type_id)?.name || "Uncategorized"}
                           </span>
+                          {parseHalfDaySegment(leave) && (
+                            <span className="leave-type-badge leave-segment-badge">
+                              {SEGMENT_ICONS[parseHalfDaySegment(leave)]} {SEGMENT_LABELS[parseHalfDaySegment(leave)]}
+                            </span>
+                          )}
                         </div>
                         {(isAdmin || (currentEmployee && leave.employee_name === currentEmployee.name)) && (
                           <div className="action-btns">
@@ -294,9 +301,9 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
                           {dayCount || calculateDays(leave.start_date, leave.end_date, leave.type)} working days
                         </span>
                       </div>
-                      {leave.reason && (
+                      {stripHalfDaySegmentPrefix(leave.reason) && (
                         <div className="leave-card-reason">
-                          💬 {leave.reason}
+                          💬 {stripHalfDaySegmentPrefix(leave.reason)}
                         </div>
                       )}
                     </div>
