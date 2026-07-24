@@ -12,6 +12,12 @@ import AddLeaveModal from "../components/AddLeaveModal";
 import EditLeaveModal from "../components/EditLeaveModal";
 import AddWordModal from "../components/AddWordModal";
 import EditWordModal from "../components/EditWordModal";
+import { parseHalfDaySegment } from "../lib/utils";
+
+const MEETING_TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
+const MEETING_TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
+const MEETING_SEGMENT_LABELS = { first: "First Half", second: "Second Half" };
+const MEETING_SEGMENT_ICONS = { first: "🌅", second: "🌇" };
 
 function AdminItemActions({ onEdit, onDelete }) {
   return (
@@ -35,6 +41,7 @@ export default function MeetingScreen() {
     wordSeasons,
     employees,
     publicHolidays,
+    leaveTypes,
     standupSubmissions,
     standupQuestions,
     isAdmin,
@@ -93,6 +100,12 @@ export default function MeetingScreen() {
     if (isWeekend || isHoliday) return [];
     return leaves.filter((l) => (l.dates && Array.isArray(l.dates) ? l.dates.includes(dtStr) : dtStr >= l.start_date && dtStr <= l.end_date));
   }, [leaves, publicHolidays]);
+
+  const leaveTypeById = useMemo(() => {
+    const map = new Map();
+    (leaveTypes || []).forEach((t) => map.set(t.id, t));
+    return map;
+  }, [leaveTypes]);
 
   const nonStandupEmails = new Set(["developers@heubert.com"]);
   const nonStandupFirstNames = new Set(["sameer"]);
@@ -177,17 +190,23 @@ export default function MeetingScreen() {
         {activeLeaves.length === 0 ? (
           <EmptyState icon="💪" text="Full strength today!" />
         ) : (
-          activeLeaves.map((l, i) => (
-            <View key={i} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
-              <Text style={{ color: t.textPrimary, fontSize: 14 }}>{l.employee_name}</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <Text style={{ color: t.textMuted, fontSize: 13 }}>{l.type}</Text>
-                {isAdmin && (
-                  <AdminItemActions onEdit={() => setEditingLeave(l)} onDelete={() => confirmDeleteLeave(l)} />
-                )}
+          activeLeaves.map((l, i) => {
+            const segment = parseHalfDaySegment(l);
+            return (
+              <View key={i} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
+                <Text style={{ color: t.textPrimary, fontSize: 14 }}>{l.employee_name}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <Text style={{ color: t.textMuted, fontSize: 13 }}>
+                    {MEETING_TYPE_ICONS[l.type]} {MEETING_TYPE_LABELS[l.type]} · {leaveTypeById.get(l.leave_type_id)?.name || "Uncategorized"}
+                    {segment ? ` · ${MEETING_SEGMENT_ICONS[segment]} ${MEETING_SEGMENT_LABELS[segment]}` : ""}
+                  </Text>
+                  {isAdmin && (
+                    <AdminItemActions onEdit={() => setEditingLeave(l)} onDelete={() => confirmDeleteLeave(l)} />
+                  )}
+                </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </Card>
 
