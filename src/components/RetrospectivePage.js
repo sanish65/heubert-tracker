@@ -255,14 +255,26 @@ export default function RetrospectivePage() {
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
+  const fetchRecentSessions = useCallback(async (retriesLeft = 2) => {
+    try {
+      const res = await fetch("/api/retro");
+      if (!res.ok) throw new Error(`Failed to load boards (${res.status})`);
+      const data = await res.json();
+      if (data.sessions) setRecentSessions(data.sessions);
+    } catch (err) {
+      if (retriesLeft > 0) {
+        setTimeout(() => fetchRecentSessions(retriesLeft - 1), 800);
+      } else {
+        console.error("Failed to load retro boards:", err);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (view === "home") {
-      fetch("/api/retro")
-        .then(res => res.json())
-        .then(data => { if (data.sessions) setRecentSessions(data.sessions); })
-        .catch(() => {});
+      fetchRecentSessions();
     }
-  }, [view]);
+  }, [view, fetchRecentSessions]);
 
   useEffect(() => { document.body.style.overflow = isEnlarged ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [isEnlarged]);
   useEffect(() => { if (activeCompose && composeRef.current) composeRef.current.focus(); }, [activeCompose]);

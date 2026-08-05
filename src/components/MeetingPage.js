@@ -466,7 +466,7 @@ export default function MeetingPage() {
                 const segment = parseHalfDaySegment(l);
                 return (
                 <div key={`leave-item-${index}`} className="meeting-item group">
-                  <span className="item-name">{l.employee_name}</span>
+                  <span className="item-name">{l.employee_name?.trim() ? l.employee_name : "Unknown"}</span>
                   <span className="leave-type-tag">
                     {MEETING_TYPE_ICONS[l.type]} {MEETING_TYPE_LABELS[l.type]} · {leaveTypeById.get(l.leave_type_id)?.name || "Uncategorized"}
                     {segment ? ` · ${MEETING_SEGMENT_ICONS[segment]} ${MEETING_SEGMENT_LABELS[segment]}` : ""}
@@ -746,6 +746,7 @@ export default function MeetingPage() {
           leaveTypes={leaveTypes}
           publicHolidays={publicHolidays}
           isAdmin={isAdmin}
+          currentEmployee={currentEmployee}
         />
       )}
     </div>
@@ -997,13 +998,20 @@ function IdleNudge({ phrases }) {
   );
 }
 
-function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves, leaveSeasons, leaveTypes, publicHolidays, isAdmin }) {
+function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves, leaveSeasons, leaveTypes, publicHolidays, isAdmin, currentEmployee }) {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("full");   // full | half | early
   const [segment, setSegment] = useState("first");    // first | second
   const [leaveTypeId, setLeaveTypeId] = useState("");
   const [overrideBalance, setOverrideBalance] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
+
+  // Auto-select current employee if not admin, matching AddLeaveModal's behavior
+  useEffect(() => {
+    if (isOpen && !isAdmin && currentEmployee && !name) {
+      setName(currentEmployee.name);
+    }
+  }, [isOpen, isAdmin, currentEmployee, name]);
 
   const DURATION_OPTS = [
     { value: "full",  label: "Full Day",     icon: "📅" },
@@ -1024,9 +1032,9 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
   const defaultLeaveType = activeLeaveTypes.find((t) => !t.is_unpaid) || activeLeaveTypes[0];
   const effectiveLeaveTypeId = leaveTypeId || (defaultLeaveType ? String(defaultLeaveType.id) : "");
 
-  const hSubmit = (e) => {
+  const hSubmit = async (e) => {
     e.preventDefault();
-    if (!name) return;
+    if (!name || !name.trim()) return;
 
     const isDuplicate = leaves.some(l =>
       l.employee_name === name &&
@@ -1047,7 +1055,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
 
     let finalReason = duration === "half" ? (segment === "first" ? "[First Half]" : "[Second Half]") : "";
 
-    addLeave({
+    const { error: submitError } = await addLeave({
       name,
       type: duration,
       startDate: today,
@@ -1056,6 +1064,12 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
       leaveTypeId: effectiveLeaveTypeId ? Number(effectiveLeaveTypeId) : null,
       seasonId: latestSeasonId,
     });
+
+    if (submitError) {
+      alert(`Failed to save the leave: ${submitError.message || "please try again."}`);
+      return;
+    }
+
     onClose();
   };
 

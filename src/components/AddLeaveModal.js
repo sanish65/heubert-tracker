@@ -87,7 +87,7 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
   const workingDayCount =
     form.type === "half" ? previewDates.length * 0.5 : previewDates.length;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name) { setError("Please select an employee"); return; }
     if (!form.startDate) { setError("Please select a start date"); return; }
@@ -119,7 +119,7 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
       finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
     }
 
-    addLeave({
+    const { error: submitError } = await addLeave({
       name: form.name,
       startDate: form.startDate,
       endDate: finalEnd,
@@ -130,6 +130,11 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
       seasonId: seasonId ?? null,
       createdAt: new Date().toISOString(),
     });
+
+    if (submitError) {
+      setError(submitError.message || "Failed to save the leave. Please try again.");
+      return;
+    }
 
     setForm({ name: "", startDate: today, type: "full", segment: "first", reason: "", leaveTypeId: "" });
     setMultiDay(false);

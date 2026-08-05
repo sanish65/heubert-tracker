@@ -436,6 +436,7 @@ export function AppProvider({ children }) {
   };
 
   const addLeave = async (leave) => {
+    if (!leave.name || !leave.name.trim()) return { data: null, error: new Error("Employee name is required") };
     const payload = {
         employee_name: leave.name,
         start_date: leave.startDate,
@@ -445,8 +446,9 @@ export function AppProvider({ children }) {
         leave_type_id: leave.leaveTypeId ?? null,
         season_id: leave.seasonId ?? null,
     };
-    const { data } = await supabase.from("leaves").insert([payload]).select();
+    const { data, error } = await supabase.from("leaves").insert([payload]).select();
     if (data) setLeaves(prev => [data[0], ...prev]);
+    return { data, error };
   };
 
   const deleteLeave = async (id) => {

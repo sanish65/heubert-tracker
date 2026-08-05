@@ -74,7 +74,7 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
   const previewDates = startDate ? buildWorkingDates(startDate, effectiveEnd >= startDate ? effectiveEnd : startDate, holidaySet) : [];
   const workingDayCount = type === "half" ? previewDates.length * 0.5 : previewDates.length;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name) return setError("Please select an employee");
     if (!startDate) return setError("Please select a start date");
     if (multiDay && endDate && endDate < startDate) return setError("End date cannot be before start date");
@@ -97,7 +97,7 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
       finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
     }
 
-    addLeave({
+    const { error: submitError } = await addLeave({
       name,
       startDate,
       endDate: finalEnd,
@@ -107,6 +107,12 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
       leaveTypeId: leaveTypeId ? Number(leaveTypeId) : null,
       seasonId: effectiveSeasonId,
     });
+
+    if (submitError) {
+      setError(submitError.message || "Failed to save the leave. Please try again.");
+      return;
+    }
+
     onClose();
   };
 

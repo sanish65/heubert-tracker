@@ -194,7 +194,7 @@ export default function MeetingScreen() {
             const segment = parseHalfDaySegment(l);
             return (
               <View key={i} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
-                <Text style={{ color: t.textPrimary, fontSize: 14 }}>{l.employee_name}</Text>
+                <Text style={{ color: t.textPrimary, fontSize: 14 }}>{l.employee_name?.trim() ? l.employee_name : "Unknown"}</Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                   <Text style={{ color: t.textMuted, fontSize: 13 }}>
                     {MEETING_TYPE_ICONS[l.type]} {MEETING_TYPE_LABELS[l.type]} · {leaveTypeById.get(l.leave_type_id)?.name || "Uncategorized"}
