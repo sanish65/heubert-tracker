@@ -18,6 +18,7 @@ const SEGMENT_OPTIONS = [
 
 export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
   const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes, leaveSeasons } = useApp();
+  const selectableEmployees = employees.filter(e => e.status !== "resigned" && e.name !== "Developers");
   const t = useThemeColors();
   const today = toDateStr(new Date());
 
@@ -121,7 +122,7 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
       {!isAdmin && currentEmployee ? (
         <TextField label="Employee" value={currentEmployee.name} editable={false} />
       ) : (
-        <Select label="Employee" value={name} onSelect={setName} options={employees.map((e) => ({ value: e.name, label: e.name }))} />
+        <Select label="Employee" value={name} onSelect={setName} options={selectableEmployees.map((e) => ({ value: e.name, label: e.name }))} />
       )}
 
       <Select label="Leave Type" value={type} onSelect={setType} options={TYPE_OPTIONS} />

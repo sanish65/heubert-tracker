@@ -7,6 +7,7 @@ import { useThemeColors } from "../lib/theme";
 
 export default function AddFineModal({ isOpen, onClose, seasonId }) {
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
+  const selectableEmployees = employees.filter(e => e.status !== "resigned" && e.name !== "Developers");
   const t = useThemeColors();
   const today = toDateStr(new Date());
 
@@ -55,7 +56,7 @@ export default function AddFineModal({ isOpen, onClose, seasonId }) {
 
   return (
     <FormModal visible={isOpen} onClose={onClose} title="Record a Fine">
-      <Select label="Employee" value={name} onSelect={(v) => { setName(v); setError(""); setDuplicateWarning(false); }} options={employees.map((e) => ({ value: e.name, label: e.name }))} />
+      <Select label="Employee" value={name} onSelect={(v) => { setName(v); setError(""); setDuplicateWarning(false); }} options={selectableEmployees.map((e) => ({ value: e.name, label: e.name }))} />
       <TextField label="Date (YYYY-MM-DD)" value={date} onChangeText={(v) => { setDate(v); setDuplicateWarning(false); }} />
       <Select label="Amount (Rs.)" value={amount} onSelect={(v) => { setAmount(v); setDuplicateWarning(false); }} options={[{ value: 25, label: "Rs 25" }, { value: 50, label: "Rs 50" }]} />
       <Select label="Status" value={status} onSelect={setStatus} options={[{ value: "unpaid", label: "Unpaid" }, { value: "paid", label: "Paid" }]} />

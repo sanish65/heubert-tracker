@@ -32,8 +32,7 @@ export default function Dashboard() {
   const tomorrowStr = tomorrow.toISOString().split('T')[0];
   const upcomingLeaves = leaves
     .filter((l) => l.end_date >= todayStr)
-    .sort((a, b) => a.start_date.localeCompare(b.start_date))
-    .slice(0, 5);
+    .sort((a, b) => a.start_date.localeCompare(b.start_date));
 
   // Celebrations: Birthdays and Anniversaries (15-day window)
   const windowMs = 15 * 24 * 60 * 60 * 1000;
@@ -184,7 +183,7 @@ export default function Dashboard() {
           <h3 className="section-title">🕒 Pending Standups</h3>
           <div className="compact-list">
             {standupUnpaid.length > 0 ? (
-              standupUnpaid.slice(0, 5).map((f) => (
+              standupUnpaid.map((f) => (
                 <div key={f.id} className="compact-item">
                   <span className="item-name">{f.employee_name}</span>
                   <span className="item-meta">{f.date}</span>
@@ -222,7 +221,6 @@ export default function Dashboard() {
             {publicHolidays
               .filter((h) => h.date >= todayStr)
               .sort((a, b) => a.date.localeCompare(b.date))
-              .slice(0, 5)
               .map((h) => (
                 <div key={h.id} className="compact-item holiday-item">
                   <div className="item-info">

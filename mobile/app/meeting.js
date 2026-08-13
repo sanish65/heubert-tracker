@@ -34,8 +34,8 @@ function AdminItemActions({ onEdit, onDelete }) {
 
 export default function MeetingScreen() {
   const {
-    fines,
-    standupFines,
+    fines: allFines,
+    standupFines: allStandupFines,
     leaves,
     words,
     wordSeasons,
@@ -50,6 +50,8 @@ export default function MeetingScreen() {
     deleteLeave,
     deleteWord,
   } = useApp();
+  const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
+  const standupFines = useMemo(() => allStandupFines.filter(f => f.employee_name !== "Developers"), [allStandupFines]);
   const t = useThemeColors();
 
   const [showAddFine, setShowAddFine] = useState(false);

@@ -8,7 +8,8 @@ import EditFineModal from "./EditFineModal";
 const UNASSIGNED = "unassigned";
 
 export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onAddSeason, onEditSeason }) {
-  const { fines, fineSeasons, employees, toggleFineStatus, deleteFine, isAdmin, isFineAdmin } = useApp();
+  const { fines: allFines, fineSeasons, employees, toggleFineStatus, deleteFine, isAdmin, isFineAdmin } = useApp();
+  const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
   const canManageSeasons = isAdmin || isFineAdmin;
 
   const [activeSeasonId, setActiveSeasonId] = useState(null);

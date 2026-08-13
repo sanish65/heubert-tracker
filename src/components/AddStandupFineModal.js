@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 
 export default function AddStandupFineModal({ isOpen, onClose }) {
   const { addStandupFine, employees, currentEmployee, standupFines } = useApp();
+  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && emp.name !== "Developers");
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
     name: "",
@@ -66,7 +67,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
                   autoFocus
                 >
                   <option value="">Choose...</option>
-                  {employees.map((emp) => (
+                  {selectableEmployees.map((emp) => (
                     <option key={emp.id} value={emp.name}>{emp.name}</option>
                   ))}
                 </select>

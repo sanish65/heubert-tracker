@@ -74,7 +74,9 @@ function FineRow({ f, canManage, onEdit, onDelete, onToggle }) {
 }
 
 export default function FinesScreen() {
-  const { fines, fineSeasons, standupFines, toggleFineStatus, deleteFine, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin, withdrawals, isLoaded } = useApp();
+  const { fines: allFines, fineSeasons, standupFines: allStandupFines, toggleFineStatus, deleteFine, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin, withdrawals, isLoaded } = useApp();
+  const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
+  const standupFines = useMemo(() => allStandupFines.filter(f => f.employee_name !== "Developers"), [allStandupFines]);
   const t = useThemeColors();
   const canManage = isAdmin || isFineAdmin;
 

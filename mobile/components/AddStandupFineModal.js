@@ -7,6 +7,7 @@ import { useThemeColors } from "../lib/theme";
 
 export default function AddStandupFineModal({ isOpen, onClose }) {
   const { addStandupFine, employees, currentEmployee, standupFines } = useApp();
+  const selectableEmployees = employees.filter(e => e.status !== "resigned" && e.name !== "Developers");
   const t = useThemeColors();
   const today = toDateStr(new Date());
 
@@ -47,7 +48,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
 
   return (
     <FormModal visible={isOpen} onClose={onClose} title="Missing Standup Report">
-      <Select label="Employee" value={name} onSelect={(v) => { setName(v); setError(""); setDuplicateWarning(false); }} options={employees.map((e) => ({ value: e.name, label: e.name }))} />
+      <Select label="Employee" value={name} onSelect={(v) => { setName(v); setError(""); setDuplicateWarning(false); }} options={selectableEmployees.map((e) => ({ value: e.name, label: e.name }))} />
       <TextField label="Date of Incident (YYYY-MM-DD)" value={date} onChangeText={(v) => { setDate(v); setDuplicateWarning(false); }} />
       <Select label="Payment Status" value={status} onSelect={setStatus} options={[{ value: "unpaid", label: "Pending" }, { value: "paid", label: "Complete" }]} />
 

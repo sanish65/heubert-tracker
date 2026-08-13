@@ -20,9 +20,9 @@ const MEETING_SEGMENT_ICONS = { first: "🌅", second: "🌇" };
 
 export default function MeetingPage() {
   const {
-    fines,
+    fines: allFines,
     fineSeasons,
-    standupFines,
+    standupFines: allStandupFines,
     leaves,
     leaveSeasons,
     words,
@@ -52,6 +52,9 @@ export default function MeetingPage() {
     isAuthReady,
     animationsEnabled
   } = useApp();
+  const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
+  const standupFines = useMemo(() => allStandupFines.filter(f => f.employee_name !== "Developers"), [allStandupFines]);
+  const selectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && e.name !== "Developers"), [employees]);
   const router = useRouter();
   const [viewDate, setViewDate] = useState("");
   const [isEnlarged, setIsEnlarged] = useState(false);
@@ -498,7 +501,7 @@ export default function MeetingPage() {
               <div className="date-navigator">
                 <button className="btn-nav" onClick={handlePrevDate}>◀</button>
                 <span className="view-date-label">
-                  {viewDate === today ? "Today" : (viewDate ? new Date(viewDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "...")}
+                  {viewDate === today ? "Today" : (viewDate ? new Date(viewDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : "...")}
                 </span>
                 <button className="btn-nav" onClick={handleNextDate} disabled={viewDate >= today}>▶</button>
               </div>
@@ -685,7 +688,7 @@ export default function MeetingPage() {
           isOpen={showAddFine}
           onClose={() => setShowAddFine(false)}
           addFine={addFine}
-          employees={employees}
+          employees={selectableEmployees}
           today={today}
           fines={fines}
           fineSeasons={fineSeasons}
@@ -696,7 +699,7 @@ export default function MeetingPage() {
           isOpen={showAddStandup}
           onClose={() => setShowAddStandup(false)}
           addStandupFine={addStandupFine}
-          employees={employees}
+          employees={selectableEmployees}
           today={today}
           standupFines={standupFines}
         />

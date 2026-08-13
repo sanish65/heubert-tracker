@@ -5,7 +5,8 @@ import { useApp } from "@/context/AppContext";
 import EditStandupModal from "./EditStandupModal";
 
 export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
-  const { standupFines, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin } = useApp();
+  const { standupFines: allStandupFines, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin } = useApp();
+  const standupFines = useMemo(() => allStandupFines.filter(f => f.employee_name !== "Developers"), [allStandupFines]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all"); // all, paid, unpaid
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "desc" });

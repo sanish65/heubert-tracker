@@ -13,7 +13,8 @@ const SEGMENT_ICONS = { first: "🌅", second: "🌇" };
 const PRE_SEASON = "pre-season";
 
 export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEditSeason }) {
-  const { leaves, leaveSeasons, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
+  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
+  const leaves = useMemo(() => allLeaves.filter(l => l.employee_name !== "Developers"), [allLeaves]);
   const [filterEmployee, setFilterEmployee] = useState("");
   const [editingLeave, setEditingLeave] = useState(null);
   const [activeSeasonId, setActiveSeasonId] = useState(null);

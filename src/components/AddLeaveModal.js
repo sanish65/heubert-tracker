@@ -23,6 +23,7 @@ function parseLocalDate(str) {
 
 export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
   const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes } = useApp();
+  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && emp.name !== "Developers");
   const today = toDateStr(new Date());
 
   const [form, setForm] = useState({
@@ -171,7 +172,7 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
                     ) : (
                       <>
                         <option value="">Select employee</option>
-                        {employees.map((emp) => (
+                        {selectableEmployees.map((emp) => (
                           <option key={emp.id} value={emp.name}>{emp.name}</option>
                         ))}
                       </>

@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 
 export default function AddFineModal({ isOpen, onClose, seasonId }) {
   const { addFine, employees, currentEmployee, fines } = useApp();
+  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && emp.name !== "Developers");
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
     name: "",
@@ -75,7 +76,7 @@ export default function AddFineModal({ isOpen, onClose, seasonId }) {
                   autoFocus
                 >
                   <option value="">Select employee</option>
-                  {employees.map((emp) => (
+                  {selectableEmployees.map((emp) => (
                     <option key={emp.id} value={emp.name}>{emp.name}</option>
                   ))}
                 </select>
