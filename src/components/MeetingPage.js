@@ -72,6 +72,31 @@ export default function MeetingPage() {
   // Tracks if user has scrolled to the bottom of submissions (seen all entries)
   const hasScrolledToBottomRef = useRef(false);
 
+  // Sticky meeting timer — restarts from 0 every time the Daily Sync view is enlarged
+  const [enlargedSeconds, setEnlargedSeconds] = useState(0);
+  const enlargedTimerIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (isEnlarged) {
+      setEnlargedSeconds(0);
+      enlargedTimerIntervalRef.current = setInterval(() => {
+        setEnlargedSeconds((s) => s + 1);
+      }, 1000);
+    }
+    return () => {
+      if (enlargedTimerIntervalRef.current) {
+        clearInterval(enlargedTimerIntervalRef.current);
+        enlargedTimerIntervalRef.current = null;
+      }
+    };
+  }, [isEnlarged]);
+
+  const formatElapsed = (totalSeconds) => {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
   useEffect(() => {
     setIsClient(true);
     const todayStr = new Date().toLocaleDateString('en-CA');
@@ -491,6 +516,9 @@ export default function MeetingPage() {
         <section className={`meeting-card submissions-card ${isEnlarged ? 'enlarged' : ''}`}>
           {isEnlarged && showEnlargedIdle && (
             <ConfusedHuman onDismiss={() => setShowEnlargedIdle(false)} />
+          )}
+          {isEnlarged && (
+            <div className="enlarged-timer">⏱ {formatElapsed(enlargedSeconds)}</div>
           )}
           <div className="card-header-with-actions">
             <h2 className="card-title">✅ Daily Submissions</h2>
