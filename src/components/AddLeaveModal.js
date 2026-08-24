@@ -21,10 +21,20 @@ function parseLocalDate(str) {
 
 
 
-export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
-  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes } = useApp();
+export default function AddLeaveModal({ isOpen, onClose }) {
+  const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes, leaveSeasons } = useApp();
   const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && emp.name !== "Developers");
   const today = toDateStr(new Date());
+
+  // A new leave always belongs to the season that is current NOW — never to an earlier
+  // season, and never to the pre-season bucket (null), whichever season the Leaves tab
+  // happens to be browsing. Stamping anything else drops the leave out of the
+  // season-scoped Leave Calendar and its balances while it still shows up in the
+  // Dashboard's "Upcoming Leaves", which is what made this bug keep coming back.
+  // null only remains possible when no leave season exists at all.
+  const currentSeasonId = (leaveSeasons || []).length
+    ? [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id
+    : null;
 
   const [form, setForm] = useState({
     name: "",
@@ -43,7 +53,7 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
 
   const activeLeaveTypes = (leaveTypes || []).filter((t) => t.is_active);
-  const balances = computeLeaveBalances(form.name, leaves, activeLeaveTypes, seasonId ?? null, holidaySet);
+  const balances = computeLeaveBalances(form.name, leaves, activeLeaveTypes, currentSeasonId, holidaySet);
 
   // Auto-select current employee if not admin
   useEffect(() => {
@@ -128,7 +138,7 @@ export default function AddLeaveModal({ isOpen, onClose, seasonId }) {
       type: form.type,
       reason: finalReason,
       leaveTypeId: form.leaveTypeId ? Number(form.leaveTypeId) : null,
-      seasonId: seasonId ?? null,
+      seasonId: currentSeasonId,
       createdAt: new Date().toISOString(),
     });
 

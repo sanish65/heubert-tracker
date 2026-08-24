@@ -3,8 +3,16 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 
-export default function AddWordModal({ isOpen, onClose, seasonId }) {
-  const { addWord } = useApp();
+export default function AddWordModal({ isOpen, onClose }) {
+  const { addWord, wordSeasons } = useApp();
+
+  // A new word always belongs to the season that is current NOW — never an earlier season
+  // and never a null season, whichever season the page happens to be browsing. Anything else
+  // drops the record out of the season-scoped views while it still shows up in totals.
+  // null only remains possible when no season exists at all.
+  const currentSeasonId = (wordSeasons || []).length
+    ? [...wordSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id
+    : null;
   const [word, setWord] = useState("");
   const [phonetic, setPhonetic] = useState("");
   const [definition, setDefinition] = useState("");
@@ -21,7 +29,7 @@ export default function AddWordModal({ isOpen, onClose, seasonId }) {
     setSubmitting(true);
     try {
       await addWord({
-        seasonId,
+        seasonId: currentSeasonId,
         word,
         phonetic,
         definition,

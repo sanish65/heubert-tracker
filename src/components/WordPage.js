@@ -119,7 +119,7 @@ export default function WordPage({ onAddSeason, onAddWord, onEditWord, onEditSea
               />
             </div>
             {activeSeasonId && (
-              <button className="btn btn-primary" onClick={() => onAddWord(activeSeasonId)}>
+              <button className="btn btn-primary" onClick={() => onAddWord()}>
                 + Add Word
               </button>
             )}
@@ -131,7 +131,7 @@ export default function WordPage({ onAddSeason, onAddWord, onEditWord, onEditSea
             <div className="empty-state">
               <div className="empty-icon">📖</div>
               <p>No words found in this season yet.</p>
-              <button className="btn btn-secondary" onClick={() => onAddWord(activeSeasonId)}>
+              <button className="btn btn-secondary" onClick={() => onAddWord()}>
                 Be the first to share!
               </button>
             </div>

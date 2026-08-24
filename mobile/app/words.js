@@ -132,7 +132,7 @@ export default function WordsScreen() {
 
       <AddWordSeasonModal isOpen={showAddSeason} onClose={() => setShowAddSeason(false)} />
       <EditWordSeasonModal isOpen={!!editingSeason} onClose={() => setEditingSeason(null)} season={editingSeason} />
-      <AddWordModal isOpen={showAddWord} onClose={() => setShowAddWord(false)} seasonId={effectiveSeasonId} />
+      <AddWordModal isOpen={showAddWord} onClose={() => setShowAddWord(false)} />
       <EditWordModal isOpen={!!editingWord} onClose={() => setEditingWord(null)} word={editingWord} />
     </Screen>
   );

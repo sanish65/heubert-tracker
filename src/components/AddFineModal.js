@@ -3,10 +3,18 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 
-export default function AddFineModal({ isOpen, onClose, seasonId }) {
-  const { addFine, employees, currentEmployee, fines } = useApp();
+export default function AddFineModal({ isOpen, onClose }) {
+  const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
   const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && emp.name !== "Developers");
   const today = new Date().toISOString().split("T")[0];
+
+  // A new fine always belongs to the season that is current NOW — never an earlier season
+  // and never a null season, whichever season the page happens to be browsing. Anything else
+  // drops the record out of the season-scoped views while it still shows up in totals.
+  // null only remains possible when no season exists at all.
+  const currentSeasonId = (fineSeasons || []).length
+    ? [...fineSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id
+    : null;
   const [form, setForm] = useState({
     name: "",
     date: today,
@@ -31,7 +39,7 @@ export default function AddFineModal({ isOpen, onClose, seasonId }) {
   };
 
   const doAdd = () => {
-    addFine({ ...form, amount: Number(form.amount), seasonId, createdAt: new Date().toISOString() });
+    addFine({ ...form, amount: Number(form.amount), seasonId: currentSeasonId, createdAt: new Date().toISOString() });
     setForm({ name: "", date: today, amount: 25, status: "unpaid" });
     setDuplicateWarning(false);
     onClose();

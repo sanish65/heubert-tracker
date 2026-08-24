@@ -1,0 +1,66 @@
+{
+  "takenAt": "2026-08-24T06:22:49.143Z",
+  "note": "Pre-backfill season_id values. To roll back, set each id back to season_id (null).",
+  "rows": [
+    {
+      "id": 93,
+      "season_id": null
+    },
+    {
+      "id": 94,
+      "season_id": null
+    },
+    {
+      "id": 101,
+      "season_id": null
+    },
+    {
+      "id": 104,
+      "season_id": null
+    },
+    {
+      "id": 105,
+      "season_id": null
+    },
+    {
+      "id": 114,
+      "season_id": null
+    },
+    {
+      "id": 115,
+      "season_id": null
+    },
+    {
+      "id": 116,
+      "season_id": null
+    },
+    {
+      "id": 117,
+      "season_id": null
+    },
+    {
+      "id": 118,
+      "season_id": null
+    },
+    {
+      "id": 138,
+      "season_id": null
+    },
+    {
+      "id": 139,
+      "season_id": null
+    },
+    {
+      "id": 142,
+      "season_id": null
+    },
+    {
+      "id": 143,
+      "season_id": null
+    },
+    {
+      "id": 144,
+      "season_id": null
+    }
+  ]
+}

@@ -250,7 +250,7 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
               </div>
               <button
                 className="btn btn-primary"
-                onClick={() => onAddFine(latestSeasonId)}
+                onClick={() => onAddFine()}
               >
                 <span>+</span> Record Fine
               </button>

@@ -80,7 +80,6 @@ export default function Home() {
   const [showAddWord, setShowAddWord] = useState(false);
   const [showAddHoliday, setShowAddHoliday] = useState(false);
   const [showAddEvent, setShowAddEvent] = useState(false);
-  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -93,11 +92,9 @@ export default function Home() {
   const [showAddFineSeason, setShowAddFineSeason] = useState(false);
   const [showEditFineSeason, setShowEditFineSeason] = useState(false);
   const [editingFineSeason, setEditingFineSeason] = useState(null);
-  const [selectedFineSeasonId, setSelectedFineSeasonId] = useState(null);
   const [showAddLeaveSeason, setShowAddLeaveSeason] = useState(false);
   const [showEditLeaveSeason, setShowEditLeaveSeason] = useState(false);
   const [editingLeaveSeason, setEditingLeaveSeason] = useState(null);
-  const [selectedLeaveSeasonId, setSelectedLeaveSeasonId] = useState(null);
 
   // Load active tab from localStorage on mount
   useEffect(() => {
@@ -376,10 +373,7 @@ export default function Home() {
         {activeTab === "records" && (
           <FineTable
             selectedEmployee={selectedEmployee}
-            onAddFine={(sid) => {
-              setSelectedFineSeasonId(sid);
-              setShowAddFine(true);
-            }}
+            onAddFine={() => setShowAddFine(true)}
             onWithdraw={() => setShowWithdraw(true)}
             onAddSeason={() => setShowAddFineSeason(true)}
             onEditSeason={handleEditFineSeason}
@@ -393,10 +387,7 @@ export default function Home() {
         )}
         {activeTab === "leaves" && (
           <LeavePage
-            onAddLeave={(sid) => {
-              setSelectedLeaveSeasonId(sid);
-              setShowAddLeave(true);
-            }}
+            onAddLeave={() => setShowAddLeave(true)}
             onAddHoliday={() => setShowAddHoliday(true)}
             onAddSeason={() => setShowAddLeaveSeason(true)}
             onEditSeason={handleEditLeaveSeason}
@@ -408,10 +399,7 @@ export default function Home() {
           <WordPage 
             onAddSeason={() => setShowAddSeason(true)} 
             onEditSeason={handleEditSeason}
-            onAddWord={(sid) => {
-              setSelectedSeasonId(sid);
-              setShowAddWord(true);
-            }} 
+            onAddWord={() => setShowAddWord(true)} 
             onEditWord={handleEditWord}
           />
         )}
@@ -469,7 +457,6 @@ export default function Home() {
       <AddFineModal
         isOpen={showAddFine}
         onClose={() => setShowAddFine(false)}
-        seasonId={selectedFineSeasonId}
       />
       <AddFineSeasonModal
         isOpen={showAddFineSeason}
@@ -486,7 +473,6 @@ export default function Home() {
       <AddLeaveModal
         isOpen={showAddLeave}
         onClose={() => setShowAddLeave(false)}
-        seasonId={selectedLeaveSeasonId}
       />
       <AddLeaveSeasonModal
         isOpen={showAddLeaveSeason}
@@ -523,7 +509,6 @@ export default function Home() {
       <AddWordModal
         isOpen={showAddWord}
         onClose={() => setShowAddWord(false)}
-        seasonId={selectedSeasonId}
       />
       <AddPublicHolidayModal
         isOpen={showAddHoliday}

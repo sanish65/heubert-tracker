@@ -52,6 +52,13 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
     return leaves.filter((l) => l.season_id === activeSeasonId);
   }, [leaves, activeSeasonId]);
 
+  // Real leaves the season filter keeps off the calendar — passed in so the calendar can
+  // flag them instead of silently swallowing them.
+  const outOfSeasonLeaves = useMemo(() => {
+    if (activeSeasonId === PRE_SEASON) return leaves.filter((l) => !!l.season_id);
+    return leaves.filter((l) => (l.season_id ?? null) !== activeSeasonId);
+  }, [leaves, activeSeasonId]);
+
   const employeeBalances = useMemo(() => {
     if (!filterEmployee) return [];
     return computeLeaveBalances(filterEmployee, leaves, leaveTypes, effectiveSeasonId, holidaySet);
@@ -161,6 +168,7 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
             leaves={seasonLeaves}
             selectedEmployee={filterEmployee || null}
             publicHolidays={publicHolidays}
+            outOfSeasonLeaves={outOfSeasonLeaves}
           />
         </div>
 
@@ -232,7 +240,7 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
                     🌴 Add Holiday
                   </button>
                 )}
-                <button className="btn btn-accent btn-sm btn-leave-record" onClick={() => onAddLeave(effectiveSeasonId)}>
+                <button className="btn btn-accent btn-sm btn-leave-record" onClick={() => onAddLeave()}>
                   <span>+</span> Record Leave
                 </button>
               </div>

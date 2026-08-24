@@ -1556,6 +1556,17 @@ body {
   color: var(--accent-indigo);
 }
 
+/* Leaves hidden by the season filter — flagged so they are never silently dropped */
+.cal-stat-warn {
+  margin-left: auto;
+  color: var(--accent-orange);
+  cursor: help;
+}
+
+.cal-stat-warn .cal-stat-num {
+  color: var(--accent-orange);
+}
+
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);

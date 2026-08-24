@@ -870,10 +870,12 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
   const [word, setWord] = useState("");
   const [def, setDef] = useState("");
   
-  // Find latest season by ID (assuming higher ID is newer)
+  // Default to the most recently CREATED season. Sorting by id assumed higher id = newer,
+  // which is not guaranteed (seasons can be deleted and re-created), and defaulting to an
+  // older season silently files the word under a past season.
   const latestSeasonId = useMemo(() => {
     if (!seasons || seasons.length === 0) return "";
-    return [...seasons].sort((a, b) => b.id - a.id)[0].id;
+    return [...seasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id;
   }, [seasons]);
 
   const [seasonId, setSeasonId] = useState("");

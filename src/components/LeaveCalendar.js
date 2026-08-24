@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -8,14 +8,21 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays = [] }) {
+export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays = [], outOfSeasonLeaves = [] }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
 
+  // Normalized once: `date` may come back as "YYYY-MM-DD" or a full timestamp
+  const holidaySet = useMemo(
+    () => new Set((publicHolidays || []).map((h) => h.date?.split("T")[0])),
+    [publicHolidays]
+  );
+
   // Helper to generate dates between start and end (legacy fallback)
-  const getDatesInRange = (start, end) => {
+  const getDatesInRange = useCallback((start, end) => {
     const dates = [];
+    if (!start || !end) return dates;
     let current = new Date(start + "T00:00:00");
     const last = new Date(end + "T00:00:00");
     while (current <= last) {
@@ -24,17 +31,16 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       const m = String(current.getMonth() + 1).padStart(2, "0");
       const d = String(current.getDate()).padStart(2, "0");
       const dtStr = `${y}-${m}-${d}`;
-      
+
       const isWeekend = dow === 0 || dow === 6;
-      const isHoliday = publicHolidays.some(h => h.date === dtStr);
-      
-      if (!isWeekend && !isHoliday) {
+
+      if (!isWeekend && !holidaySet.has(dtStr)) {
         dates.push(dtStr);
       }
       current.setDate(current.getDate() + 1);
     }
     return dates;
-  };
+  }, [holidaySet]);
 
   // Build a map: date-string → [{ type, name }]
   const leaveDateMap = useMemo(() => {
@@ -51,7 +57,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       });
     });
     return map;
-  }, [leaves, selectedEmployee]);
+  }, [leaves, selectedEmployee, getDatesInRange]);
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -79,7 +85,23 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
     });
 
     return { filteredLeavesCount: count, totalDays: days };
-  }, [leaves, selectedEmployee, viewYear, viewMonth]);
+  }, [leaves, selectedEmployee, viewYear, viewMonth, getDatesInRange]);
+
+  // Leaves that exist for this month but sit in a different season, so they are filtered
+  // out of the grid above. Surfaced instead of silently dropped — a leave that shows up in
+  // "Upcoming Leaves" but nowhere on the calendar is otherwise impossible to explain.
+  const hiddenThisMonth = useMemo(() => {
+    const candidates = selectedEmployee
+      ? (outOfSeasonLeaves || []).filter((l) => l.employee_name === selectedEmployee)
+      : outOfSeasonLeaves || [];
+    return candidates.filter((l) => {
+      const dates = l.dates || getDatesInRange(l.start_date, l.end_date);
+      return dates.some((d) => {
+        const dt = new Date(d + "T00:00:00");
+        return dt.getFullYear() === viewYear && dt.getMonth() === viewMonth;
+      });
+    }).length;
+  }, [outOfSeasonLeaves, selectedEmployee, viewYear, viewMonth, getDatesInRange]);
 
   const prevMonth = () => {
     if (viewMonth === 0) {
@@ -118,8 +140,8 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       viewMonth === now.getMonth() &&
       viewYear === now.getFullYear();
 
-    const isHoliday = publicHolidays.some(h => h.date === dateStr);
-    const holidayTitle = publicHolidays.find(h => h.date === dateStr)?.title;
+    const isHoliday = holidaySet.has(dateStr);
+    const holidayTitle = publicHolidays.find((h) => h.date?.split("T")[0] === dateStr)?.title;
 
     let cellClass = "cal-cell";
     if (isToday) cellClass += " cal-today";
@@ -187,6 +209,11 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
         <span className="cal-stat">
           <span className="cal-stat-num">{totalDays}</span> total days
         </span>
+        {hiddenThisMonth > 0 && (
+          <span className="cal-stat cal-stat-warn" title="These leaves belong to a different leave season — switch season above to see them.">
+            ⚠️ <span className="cal-stat-num">{hiddenThisMonth}</span> in another season
+          </span>
+        )}
       </div>
 
       <div className="cal-grid">

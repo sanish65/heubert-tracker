@@ -38,7 +38,6 @@ export default function MeetingScreen() {
     standupFines: allStandupFines,
     leaves,
     words,
-    wordSeasons,
     employees,
     publicHolidays,
     leaveTypes,
@@ -279,7 +278,7 @@ export default function MeetingScreen() {
       <EditStandupModal isOpen={!!editingStandup} onClose={() => setEditingStandup(null)} record={editingStandup} />
       <AddLeaveModal isOpen={showAddLeave} onClose={() => setShowAddLeave(false)} />
       <EditLeaveModal isOpen={!!editingLeave} onClose={() => setEditingLeave(null)} leave={editingLeave} />
-      <AddWordModal isOpen={showAddWord} onClose={() => setShowAddWord(false)} seasonId={wordSeasons[wordSeasons.length - 1]?.id} />
+      <AddWordModal isOpen={showAddWord} onClose={() => setShowAddWord(false)} />
       <EditWordModal isOpen={!!editingWord} onClose={() => setEditingWord(null)} word={editingWord} />
     </Screen>
   );

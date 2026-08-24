@@ -5,7 +5,7 @@ import { toDateStr } from "../lib/utils";
 import { FormModal, TextField, Select, Button } from "./ui";
 import { useThemeColors } from "../lib/theme";
 
-export default function AddFineModal({ isOpen, onClose, seasonId }) {
+export default function AddFineModal({ isOpen, onClose }) {
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
   const selectableEmployees = employees.filter(e => e.status !== "resigned" && e.name !== "Developers");
   const t = useThemeColors();
@@ -32,12 +32,15 @@ export default function AddFineModal({ isOpen, onClose, seasonId }) {
     }
   }, [isOpen]);
 
-  const latestFineSeasonId = fineSeasons.length
+  // A new fine always belongs to the season that is current NOW — never an earlier season
+  // and never a null season, whichever season the screen happens to be browsing.
+  // null only remains possible when no season exists at all.
+  const currentSeasonId = fineSeasons.length
     ? [...fineSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id
     : null;
 
   const doAdd = () => {
-    addFine({ name, date, amount: Number(amount), status, seasonId: seasonId ?? latestFineSeasonId });
+    addFine({ name, date, amount: Number(amount), status, seasonId: currentSeasonId });
     setDuplicateWarning(false);
     onClose();
   };

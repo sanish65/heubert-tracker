@@ -274,7 +274,7 @@ export default function LeavesScreen() {
         )}
       </Card>
 
-      <AddLeaveModal isOpen={showAddLeave} onClose={() => setShowAddLeave(false)} seasonId={effectiveSeasonId} />
+      <AddLeaveModal isOpen={showAddLeave} onClose={() => setShowAddLeave(false)} />
       <EditLeaveModal isOpen={!!editingLeave} onClose={() => setEditingLeave(null)} leave={editingLeave} />
       <AddPublicHolidayModal isOpen={showAddHoliday} onClose={() => setShowAddHoliday(false)} />
       <AddLeaveSeasonModal isOpen={showAddSeason} onClose={() => setShowAddSeason(false)} />
