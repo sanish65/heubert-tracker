@@ -154,3 +154,104 @@ export function stripHalfDaySegmentPrefix(reason) {
   }
   return reason;
 }
+
+/**
+ * A late fine is one-per-person-per-day: if someone is late, they are fined once for that
+ * day, whatever the amount. Returns the existing fine for that person/date, or null.
+ * Deliberately ignores `amount` — a Rs 25 fine and a Rs 50 fine on the same day are still
+ * the same duplicate — and ignores season, since the same date can only fall in one season.
+ */
+export function findExistingLateFine(fines, employeeName, date) {
+  if (!employeeName || !date) return null;
+  const day = String(date).split("T")[0];
+  return (
+    (fines || []).find(
+      (f) => f.employee_name === employeeName && String(f.date).split("T")[0] === day
+    ) || null
+  );
+}
+
+/**
+ * A public holiday is one-per-date: the calendar shows a single name for a day, and the
+ * working-day maths keys off the date alone. Returns the holiday already occupying that
+ * date, or null. Deliberately ignores `title` — a second holiday on a taken date is a
+ * duplicate whatever it is called.
+ */
+export function findExistingPublicHoliday(publicHolidays, date) {
+  if (!date) return null;
+  const day = String(date).split("T")[0];
+  return (
+    (publicHolidays || []).find((h) => String(h.date).split("T")[0] === day) || null
+  );
+}
+
+/**
+ * How to refer to a leave in a message, e.g. "full-day leave", "first-half leave".
+ */
+export function describeLeave(leave) {
+  if (!leave) return "leave";
+  if (leave.type === "half") {
+    const segment = parseHalfDaySegment(leave);
+    if (segment === "first") return "first-half leave";
+    if (segment === "second") return "second-half leave";
+    return "half-day leave";
+  }
+  if (leave.type === "early") return "early leave";
+  return "full-day leave";
+}
+
+/**
+ * A person cannot be on leave twice for the same working day. Returns the first clash as
+ * { date, leave }, or null.
+ *
+ * The one legitimate overlap is two half-days covering opposite halves of a day — a first
+ * half plus a second half add up to one full day. Everything else double-books the person:
+ * full-day and early leaves occupy the whole day, so they clash with anything at all,
+ * including half-days.
+ *
+ * Weekends and public holidays are excluded from both sides via buildWorkingDates, so a
+ * Mon–Fri leave does not clash with a half-day on a holiday Wednesday. Season is
+ * deliberately ignored — a date falls in exactly one season, so a clash is a clash whichever
+ * season either record was filed under.
+ */
+export function findLeaveConflict({
+  employeeName,
+  dates,
+  type,
+  segment,
+  leaves,
+  holidaySet,
+  ignoreLeaveId = null,
+}) {
+  if (!employeeName || !dates || dates.length === 0) return null;
+
+  const candidateDates = new Set(dates);
+  const candidateSegment = type === "half" ? segment ?? null : null;
+
+  for (const leave of leaves || []) {
+    if (leave.employee_name !== employeeName) continue;
+    if (ignoreLeaveId != null && String(leave.id) === String(ignoreLeaveId)) continue;
+    if (!leave.start_date) continue;
+
+    const existingDates = buildWorkingDates(
+      String(leave.start_date).split("T")[0],
+      String(leave.end_date || leave.start_date).split("T")[0],
+      holidaySet
+    );
+
+    for (const date of existingDates) {
+      if (!candidateDates.has(date)) continue;
+
+      const bothHalf = type === "half" && leave.type === "half";
+      const existingSegment = parseHalfDaySegment(leave);
+      // Opposite halves of the same day are the only overlap that isn't a double-booking.
+      // An unknown segment on either side is treated as a clash rather than guessed at.
+      if (bothHalf && candidateSegment && existingSegment && candidateSegment !== existingSegment) {
+        continue;
+      }
+      return { date, leave };
+    }
+  }
+
+  return null;
+}

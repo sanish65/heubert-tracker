@@ -132,7 +132,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
         leave_type_id: form.leaveTypeId ? Number(form.leaveTypeId) : null,
       });
       if (!error) onClose();
-      else setError("Failed to update leave record.");
+      else setError(error.message || "Failed to update leave record.");
     } catch (err) {
       console.error("Update error:", err);
       setError("Error updating leave.");

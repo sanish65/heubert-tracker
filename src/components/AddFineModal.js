@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { findExistingLateFine } from "@/lib/utils";
 
 export default function AddFineModal({ isOpen, onClose }) {
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
@@ -22,7 +23,6 @@ export default function AddFineModal({ isOpen, onClose }) {
     status: "unpaid",
   });
   const [error, setError] = useState("");
-  const [duplicateWarning, setDuplicateWarning] = useState(false);
 
   useEffect(() => {
     if (isOpen && currentEmployee && !form.name) {
@@ -35,33 +35,31 @@ export default function AddFineModal({ isOpen, onClose }) {
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
     setError("");
-    setDuplicateWarning(false);
   };
 
-  const doAdd = () => {
-    addFine({ ...form, amount: Number(form.amount), seasonId: currentSeasonId, createdAt: new Date().toISOString() });
-    setForm({ name: "", date: today, amount: 25, status: "unpaid" });
-    setDuplicateWarning(false);
-    onClose();
-  };
+  // A late fine is one per person per day, whatever the amount — surfaced live so the
+  // block is visible before the user tries to submit.
+  const existingFine = findExistingLateFine(fines, form.name, form.date);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name) { setError("Please select an employee"); return; }
     if (!form.amount) { setError("Please fill all required fields"); return; }
 
-    const isDuplicate = fines.some(f =>
-      f.employee_name === form.name &&
-      f.date === form.date &&
-      Number(f.amount) === Number(form.amount)
-    );
+    const { error: submitError } = await addFine({
+      ...form,
+      amount: Number(form.amount),
+      seasonId: currentSeasonId,
+      createdAt: new Date().toISOString(),
+    });
 
-    if (isDuplicate && !duplicateWarning) {
-      setDuplicateWarning(true);
+    if (submitError) {
+      setError(submitError.message || "Failed to save the fine. Please try again.");
       return;
     }
 
-    doAdd();
+    setForm({ name: "", date: today, amount: 25, status: "unpaid" });
+    onClose();
   };
 
   return (
@@ -131,29 +129,27 @@ export default function AddFineModal({ isOpen, onClose }) {
 
           {error && <span className="form-error">{error}</span>}
 
-          {duplicateWarning && (
+          {existingFine && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">⚠️</span>
+              <span className="duplicate-warning-icon">🚫</span>
               <div className="duplicate-warning-text">
-                <strong>Duplicate entry detected</strong>
-                <p>A RS {form.amount} fine for <strong>{form.name}</strong> on <strong>{form.date}</strong> already exists. Add it anyway?</p>
+                <strong>Already fined for this day</strong>
+                <p>
+                  <strong>{form.name}</strong> already has a RS {existingFine.amount} late fine on{" "}
+                  <strong>{form.date}</strong>. A late fine is one per person per day — edit or
+                  delete the existing fine instead.
+                </p>
               </div>
             </div>
           )}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            {duplicateWarning ? (
-              <button type="submit" className="btn btn-warning">
-                Add Anyway
-              </button>
-            ) : (
-              <button type="submit" className="btn btn-primary">
-                Add Fine
-              </button>
-            )}
+            <button type="submit" className="btn btn-primary" disabled={!!existingFine}>
+              Add Fine
+            </button>
           </div>
         </form>
       </div>

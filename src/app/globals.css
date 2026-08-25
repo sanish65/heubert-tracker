@@ -423,7 +423,8 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  transition: all 0.3s ease;
+  /* narrow, not `all`: motion writes transform inline every frame */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
   position: relative;
   overflow: hidden;
 }
@@ -441,7 +442,6 @@ body {
 
 .stats-card:hover {
   border-color: var(--border-hover);
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
@@ -1593,6 +1593,9 @@ body {
   transition: all 0.2s ease;
   position: relative;
   min-height: 80px;
+  /* A busy day must never paint outside its own cell — without this, overflow
+     lands on the next week's row and collides with that day's number. */
+  overflow: hidden;
 }
 
 .cal-cell:hover {
@@ -1628,26 +1631,26 @@ body {
 .cal-dot-half { background: var(--accent-indigo); }
 .cal-dot-early { background: var(--accent-green); }
 
-.cal-names {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 4px;
-}
-
-.cal-name {
+/* Who is off is in the cell's tooltip; this is the at-a-glance number. Anchored to
+   the bottom with margin-top:auto so it sits in the same place in every cell,
+   however many dot rows are above it. */
+.cal-count {
+  margin-top: auto;
   font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-weight: 500;
 }
 
-.cal-name-full { background: var(--accent-amber-soft); color: var(--accent-amber); }
-.cal-name-half { background: var(--accent-indigo-soft); color: var(--accent-indigo); }
-.cal-name-early { background: var(--accent-green-soft); color: var(--accent-green); }
+/* Cells are only ~40px wide on a phone, where "4 on leave" would clip to "4 o…".
+   The dots and the tooltip still carry the detail, so drop to the bare number. */
+@media (max-width: 768px) {
+  .cal-count-label {
+    display: none;
+  }
+}
 
 .cal-legend {
   display: flex;
@@ -7081,4 +7084,64 @@ a.jira-tag-key:hover {
 .changelog-empty {
   text-align: center;
   padding: 3rem 1rem;
+}
+
+/* ===== MOTION (motion/react) ===== */
+
+/* Enter/exit for these modals is owned by <Modal>, not by keyframes. */
+.modal-overlay.is-motion,
+.modal-overlay.is-motion .modal-content {
+  animation: none;
+}
+
+/* Cursor spotlight layer inside <StatsCard>. Sits under the card content and
+   above the card background; the accent bar (::before) still paints on top. */
+.stats-card-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.stats-card-icon,
+.stats-card-info {
+  position: relative;
+  z-index: 1;
+}
+
+/* Global fallback for the ~48 CSS keyframe animations motion doesn't manage. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Cursor-reactive ambient background (<AmbientAurora>). Negative z-index keeps
+   it under all in-flow page content without needing a stacking context on each
+   page wrapper; overflow hides the blobs that overhang the viewport edges. */
+.aurora-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.aurora-blob {
+  position: absolute;
+  translate: -50% -50%; /* centres on the left/top anchor, before motion's transform */
+  border-radius: 50%;
+  filter: blur(60px);
+  will-change: transform;
+}
+
+/* Light theme halves the body gradients, so halve these to match. */
+[data-theme="light"] .aurora-layer {
+  opacity: 0.5;
 }

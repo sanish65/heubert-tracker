@@ -159,3 +159,19 @@ export function stripHalfDaySegmentPrefix(reason) {
   }
   return reason;
 }
+
+/**
+ * A late fine is one-per-person-per-day: if someone is late, they are fined once for that
+ * day, whatever the amount. Returns the existing fine for that person/date, or null.
+ * Deliberately ignores `amount` — a Rs 25 fine and a Rs 50 fine on the same day are still
+ * the same duplicate — and ignores season, since the same date can only fall in one season.
+ */
+export function findExistingLateFine(fines, employeeName, date) {
+  if (!employeeName || !date) return null;
+  const day = String(date).split("T")[0];
+  return (
+    (fines || []).find(
+      (f) => f.employee_name === employeeName && String(f.date).split("T")[0] === day
+    ) || null
+  );
+}

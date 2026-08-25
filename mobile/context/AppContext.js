@@ -6,6 +6,17 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { supabase, supabaseStandup, API_BASE_URL } from "../lib/supabase";
 import { haversineMeters, computeLateness, isWorkingDay, getNepalDateStr } from "../lib/attendance";
 import { registerForPushNotificationsAsync } from "../lib/pushNotifications";
+import { findExistingLateFine } from "../lib/utils";
+
+// The season a new record belongs to: the most recently CREATED one. Callers may omit a
+// season (e.g. the attendance auto-fine) and must still land on the current season rather
+// than null, which would file the record in the pre-season bucket and hide it from the
+// season-scoped views.
+function latestSeasonId(seasons) {
+  if (!seasons || seasons.length === 0) return null;
+  return [...seasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id;
+}
+
 
 const AppContext = createContext(null);
 
@@ -294,12 +305,25 @@ export function AppProvider({ children }) {
   };
 
   const addFine = async (fine) => {
+    // One late fine per person per day, regardless of amount — being late is a single
+    // event, so a second fine for the same day is always a duplicate. Enforced here so
+    // every entry point (main page, meeting quick-add, mobile) is covered.
+    const existing = findExistingLateFine(fines, fine.name, fine.date);
+    if (existing) {
+      return {
+        data: null,
+        error: new Error(
+          `${fine.name} already has a Rs ${existing.amount} late fine on ${String(existing.date).split("T")[0]}. Late fines are one per person per day — edit or delete the existing one instead.`
+        ),
+      };
+    }
+
     const payload = {
       employee_name: fine.name,
       date: fine.date,
       amount: fine.amount,
       status: fine.status,
-      season_id: fine.seasonId ?? null,
+      season_id: fine.seasonId ?? latestSeasonId(fineSeasons),
     };
     const { data, error } = await supabase.from("fines").insert([payload]).select();
     if (data) setFines((prev) => [data[0], ...prev]);
@@ -361,7 +385,7 @@ export function AppProvider({ children }) {
       type: leave.type,
       reason: leave.reason,
       leave_type_id: leave.leaveTypeId ?? null,
-      season_id: leave.seasonId ?? null,
+      season_id: leave.seasonId ?? latestSeasonId(leaveSeasons),
     };
     const { data, error } = await supabase.from("leaves").insert([payload]).select();
     if (data) setLeaves((prev) => [data[0], ...prev]);
@@ -632,7 +656,7 @@ export function AppProvider({ children }) {
 
   const addWord = async (wordData) => {
     const payload = {
-      season_id: wordData.seasonId,
+      season_id: wordData.seasonId ?? latestSeasonId(wordSeasons),
       word: wordData.word,
       phonetic: wordData.phonetic,
       definition: wordData.definition,

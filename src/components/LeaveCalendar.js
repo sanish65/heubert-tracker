@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { describeLeave } from "@/lib/utils";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// Dots are a type summary, capped so they stay on one row. The "N on leave" line
+// underneath is the authoritative count, so capping here never hides information.
+const MAX_DOTS = 6;
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -53,7 +58,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       const dates = leave.dates || getDatesInRange(leave.start_date, leave.end_date);
       dates.forEach((d) => {
         if (!map[d]) map[d] = [];
-        map[d].push({ type: leave.type, name: leave.employee_name, id: leave.id });
+        map[d].push({ type: leave.type, name: leave.employee_name, id: leave.id, reason: leave.reason });
       });
     });
     return map;
@@ -156,36 +161,28 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       else if (hasEarly) cellClass += " cal-early-leave";
     }
 
+    // One tooltip for the whole cell, one line per person. No titles on the dots
+    // themselves — a child title would replace this one when hovering a dot.
+    const tooltipLines = [];
+    if (isHoliday) tooltipLines.push(`Holiday: ${holidayTitle}`);
+    dayLeaves.forEach((l) => tooltipLines.push(`${l.name} — ${describeLeave(l)}`));
+    const tooltip = tooltipLines.join("\n");
+
     cells.push(
-      <div 
-        key={day} 
-        className={cellClass} 
-        title={`${isHoliday ? `Holiday: ${holidayTitle} | ` : ''}${dayLeaves.map((l) => `${l.name} (${l.type})`).join(", ")}`}
-      >
+      <div key={day} className={cellClass} {...(tooltip ? { title: tooltip } : {})}>
         <span className="cal-day-num">{day}</span>
         {dayLeaves.length > 0 && (
-          <div className="cal-dots">
-            {dayLeaves.slice(0, 3).map((l, i) => (
-              <span
-                key={i}
-                className={`cal-dot cal-dot-${l.type}`}
-                title={`${l.name} (${l.type})`}
-              />
-            ))}
-            {dayLeaves.length > 3 && <span className="cal-dot-more">+{dayLeaves.length - 3}</span>}
-          </div>
-        )}
-        {dayLeaves.length > 0 && (
-          <div className="cal-names">
-            {dayLeaves.slice(0, 2).map((l, i) => (
-              <span key={i} className={`cal-name cal-name-${l.type}`}>
-                {l.name.split(" ")[0]}
-              </span>
-            ))}
-            {dayLeaves.length > 2 && (
-              <span className="cal-name cal-name-more">+{dayLeaves.length - 2}</span>
-            )}
-          </div>
+          <>
+            <div className="cal-dots">
+              {dayLeaves.slice(0, MAX_DOTS).map((l, i) => (
+                <span key={i} className={`cal-dot cal-dot-${l.type}`} />
+              ))}
+            </div>
+            <span className="cal-count">
+              {dayLeaves.length}
+              <span className="cal-count-label"> on leave</span>
+            </span>
+          </>
         )}
       </div>
     );

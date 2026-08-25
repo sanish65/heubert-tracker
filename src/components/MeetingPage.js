@@ -11,7 +11,7 @@ import EditLeaveModal from "@/components/EditLeaveModal";
 import HumanLoader from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
-import { computeLeaveBalances, parseHalfDaySegment } from "@/lib/utils";
+import { computeLeaveBalances, parseHalfDaySegment, findExistingLateFine } from "@/lib/utils";
 
 const MEETING_TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const MEETING_TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
@@ -788,29 +788,33 @@ export default function MeetingPage() {
 function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, fineSeasons }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState(25);
-  const [duplicateWarning, setDuplicateWarning] = useState(false);
+  const [error, setError] = useState("");
 
   const latestFineSeasonId = useMemo(() => {
     if (!fineSeasons || fineSeasons.length === 0) return null;
     return [...fineSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id;
   }, [fineSeasons]);
 
-  const hSubmit = (e) => {
+  // A late fine is one per person per day, whatever the amount.
+  const existingFine = findExistingLateFine(fines, name, today);
+
+  const hSubmit = async (e) => {
     e.preventDefault();
     if (!name) return;
 
-    const isDuplicate = fines.some(f =>
-      f.employee_name === name &&
-      f.date === today &&
-      Number(f.amount) === Number(amount)
-    );
+    const { error: submitError } = await addFine({
+      name,
+      amount: parseFloat(amount),
+      date: today,
+      status: "unpaid",
+      seasonId: latestFineSeasonId,
+    });
 
-    if (isDuplicate && !duplicateWarning) {
-      setDuplicateWarning(true);
+    if (submitError) {
+      setError(submitError.message || "Failed to save the fine. Please try again.");
       return;
     }
 
-    addFine({ name, amount: parseFloat(amount), date: today, status: "unpaid", seasonId: latestFineSeasonId });
     onClose();
   };
 
@@ -821,7 +825,7 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, 
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
             <label>Employee</label>
-            <select value={name} onChange={e => { setName(e.target.value); setDuplicateWarning(false); }} required>
+            <select value={name} onChange={e => { setName(e.target.value); setError(""); }} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
@@ -836,29 +840,29 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, 
                     name="fineAmount"
                     value={val}
                     checked={amount == val}
-                    onChange={() => { setAmount(val); setDuplicateWarning(false); }}
+                    onChange={() => { setAmount(val); setError(""); }}
                   />
                   <span>RS {val}</span>
                 </label>
               ))}
             </div>
           </div>
-          {duplicateWarning && (
+          {existingFine && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">⚠️</span>
+              <span className="duplicate-warning-icon">🚫</span>
               <div className="duplicate-warning-text">
-                <strong>Duplicate entry detected</strong>
-                <p>A RS {amount} fine for <strong>{name}</strong> today already exists. Add it anyway?</p>
+                <strong>Already fined for this day</strong>
+                <p>
+                  <strong>{name}</strong> already has a RS {existingFine.amount} late fine today.
+                  A late fine is one per person per day.
+                </p>
               </div>
             </div>
           )}
+          {error && <span className="form-error">{error}</span>}
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
-            {duplicateWarning ? (
-              <button type="submit" className="btn btn-warning">Add Anyway</button>
-            ) : (
-              <button type="submit" className="btn btn-primary">Save Fine</button>
-            )}
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={!!existingFine}>Save Fine</button>
           </div>
         </form>
       </div>
@@ -1113,7 +1117,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
             <label>Employee</label>
-            <select value={name} onChange={e => { setName(e.target.value); setDuplicateWarning(false); }} required>
+            <select value={name} onChange={e => { setName(e.target.value); setError(""); }} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
@@ -1241,7 +1245,7 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
             <label>Employee</label>
-            <select value={name} onChange={e => { setName(e.target.value); setDuplicateWarning(false); }} required>
+            <select value={name} onChange={e => { setName(e.target.value); setError(""); }} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>

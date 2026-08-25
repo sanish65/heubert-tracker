@@ -1,6 +1,8 @@
 import { AppProvider } from "@/context/AppContext";
 import "./globals.css";
 import GoogleOneTap from "@/components/GoogleOneTap";
+import MotionProvider from "@/components/MotionProvider";
+import AmbientAurora from "@/components/AmbientAurora";
 
 export const metadata = {
   title: "Heubert Tracker — Office Penalty System",
@@ -20,8 +22,11 @@ export default function RootLayout({ children }) {
       </head>
       <body suppressHydrationWarning>
         <AppProvider>
-          <GoogleOneTap />
-          {children}
+          <MotionProvider>
+            <AmbientAurora />
+            <GoogleOneTap />
+            {children}
+          </MotionProvider>
         </AppProvider>
       </body>
     </html>

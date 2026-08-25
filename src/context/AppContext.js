@@ -3,6 +3,36 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase, supabaseStandup } from "@/lib/supabase";
 import { wordSeedSeasons, wordSeedWords } from "@/data/wordSeedData";
+import {
+  findExistingLateFine,
+  findExistingPublicHoliday,
+  findLeaveConflict,
+  describeLeave,
+  buildWorkingDates,
+  parseHalfDaySegment,
+} from "@/lib/utils";
+
+// The season a new record belongs to: the most recently CREATED one. Callers may omit a
+// season (e.g. the attendance auto-fine) and must still land on the current season rather
+// than null, which would file the record in the pre-season bucket and hide it from the
+// season-scoped views.
+function latestSeasonId(seasons) {
+  if (!seasons || seasons.length === 0) return null;
+  return [...seasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id;
+}
+
+// Working days a leave actually covers, with weekends and public holidays removed — the
+// same basis the balances and calendar use, so a clash means the same thing everywhere.
+function leaveWorkingDates(leave, publicHolidays) {
+  const holidaySet = new Set(
+    (publicHolidays || []).map((h) => String(h.date).split("T")[0])
+  );
+  const startDate = String(leave.startDate || leave.start_date || "").split("T")[0];
+  const endDate = String(
+    leave.endDate || leave.end_date || leave.startDate || leave.start_date || ""
+  ).split("T")[0];
+  return { holidaySet, dates: buildWorkingDates(startDate, endDate, holidaySet) };
+}
 
 function toDateStr(d) {
   const y = d.getFullYear();
@@ -373,15 +403,29 @@ export function AppProvider({ children }) {
   };
 
   const addFine = async (fine) => {
+    // One late fine per person per day, regardless of amount — being late is a single
+    // event, so a second fine for the same day is always a duplicate. Enforced here so
+    // every entry point (main page, meeting quick-add, mobile) is covered.
+    const existing = findExistingLateFine(fines, fine.name, fine.date);
+    if (existing) {
+      return {
+        data: null,
+        error: new Error(
+          `${fine.name} already has a Rs ${existing.amount} late fine on ${String(existing.date).split("T")[0]}. Late fines are one per person per day — edit or delete the existing one instead.`
+        ),
+      };
+    }
+
     const payload = {
         employee_name: fine.name,
         date: fine.date,
         amount: fine.amount,
         status: fine.status,
-        season_id: fine.seasonId ?? null
+        season_id: fine.seasonId ?? latestSeasonId(fineSeasons)
     };
     const { data, error } = await supabase.from("fines").insert([payload]).select();
     if (data) setFines(prev => [data[0], ...prev]);
+    return { data, error };
   };
 
   const toggleFineStatus = async (id) => {
@@ -437,6 +481,29 @@ export function AppProvider({ children }) {
 
   const addLeave = async (leave) => {
     if (!leave.name || !leave.name.trim()) return { data: null, error: new Error("Employee name is required") };
+
+    // One leave per person per working day. A full-day or early leave takes the whole day,
+    // so nothing else can be booked on it; two half-days only coexist when they cover
+    // opposite halves. Enforced here so every entry point (leave modal, meeting quick-add)
+    // is covered rather than each form re-implementing it.
+    const { holidaySet, dates } = leaveWorkingDates(leave, publicHolidays);
+    const clash = findLeaveConflict({
+      employeeName: leave.name,
+      dates,
+      type: leave.type,
+      segment: parseHalfDaySegment({ type: leave.type, reason: leave.reason }),
+      leaves,
+      holidaySet,
+    });
+    if (clash) {
+      return {
+        data: null,
+        error: new Error(
+          `${leave.name} already has a ${describeLeave(clash.leave)} on ${clash.date}. One leave per person per day — edit or delete the existing one instead.`
+        ),
+      };
+    }
+
     const payload = {
         employee_name: leave.name,
         start_date: leave.startDate,
@@ -444,7 +511,7 @@ export function AppProvider({ children }) {
         type: leave.type,
         reason: leave.reason,
         leave_type_id: leave.leaveTypeId ?? null,
-        season_id: leave.seasonId ?? null,
+        season_id: leave.seasonId ?? latestSeasonId(leaveSeasons),
     };
     const { data, error } = await supabase.from("leaves").insert([payload]).select();
     if (data) setLeaves(prev => [data[0], ...prev]);
@@ -457,6 +524,27 @@ export function AppProvider({ children }) {
   };
 
   const updateLeave = async (id, updatedData) => {
+    // Same one-per-day rule as addLeave, or editing a leave onto an occupied date would be
+    // a way straight around it. The record being edited is excluded from its own check.
+    const { holidaySet, dates } = leaveWorkingDates(updatedData, publicHolidays);
+    const clash = findLeaveConflict({
+      employeeName: updatedData.employee_name ?? leaves.find((l) => l.id === id)?.employee_name,
+      dates,
+      type: updatedData.type,
+      segment: parseHalfDaySegment({ type: updatedData.type, reason: updatedData.reason }),
+      leaves,
+      holidaySet,
+      ignoreLeaveId: id,
+    });
+    if (clash) {
+      return {
+        data: null,
+        error: new Error(
+          `That clashes with an existing ${describeLeave(clash.leave)} on ${clash.date}. One leave per person per day.`
+        ),
+      };
+    }
+
     const { data, error } = await supabase
       .from("leaves")
       .update({
@@ -605,7 +693,7 @@ export function AppProvider({ children }) {
 
   const addWord = async (wordData) => {
     const payload = {
-      season_id: wordData.seasonId,
+      season_id: wordData.seasonId ?? latestSeasonId(wordSeasons),
       word: wordData.word,
       phonetic: wordData.phonetic,
       definition: wordData.definition,
@@ -646,6 +734,19 @@ export function AppProvider({ children }) {
   };
 
   const addPublicHoliday = async (date, title) => {
+    // One holiday per date: the calendar renders a single name per day and the working-day
+    // maths keys off the date alone. public_holidays.date also has a UNIQUE index, but that
+    // only surfaces as a raw Postgres error, so the readable message is produced here.
+    const existing = findExistingPublicHoliday(publicHolidays, date);
+    if (existing) {
+      return {
+        data: null,
+        error: new Error(
+          `${existing.title} is already the holiday on ${String(existing.date).split("T")[0]}. Delete it first to rename or replace it.`
+        ),
+      };
+    }
+
     const { data, error } = await supabase.from("public_holidays").insert([{ date, title }]).select();
     if (data) setPublicHolidays(prev => [...prev, data[0]]);
     return { data, error };

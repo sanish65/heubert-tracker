@@ -2,21 +2,33 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { findExistingPublicHoliday } from "@/lib/utils";
 
 export default function AddPublicHolidayModal({ isOpen, onClose }) {
-  const { addPublicHoliday } = useApp();
+  const { addPublicHoliday, publicHolidays } = useApp();
   const [date, setDate] = useState("");
   const [title, setTitle] = useState("");
+  const [error, setError] = useState("");
+
+  // Flag the clash as soon as the date is picked, rather than waiting for submit.
+  const taken = findExistingPublicHoliday(publicHolidays, date);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!date || !title) return;
-    await addPublicHoliday(date, title);
+
+    const { error: submitError } = await addPublicHoliday(date, title);
+    if (submitError) {
+      setError(submitError.message || "Failed to add the holiday. Please try again.");
+      return;
+    }
+
     onClose();
     setDate("");
     setTitle("");
+    setError("");
   };
 
   return (
@@ -32,7 +44,7 @@ export default function AddPublicHolidayModal({ isOpen, onClose }) {
             <input 
               type="date" 
               value={date} 
-              onChange={(e) => setDate(e.target.value)} 
+              onChange={(e) => { setDate(e.target.value); setError(""); }} 
               required 
             />
           </div>
@@ -42,13 +54,20 @@ export default function AddPublicHolidayModal({ isOpen, onClose }) {
               type="text" 
               placeholder="e.g. Dashain"
               value={title} 
-              onChange={(e) => setTitle(e.target.value)} 
+              onChange={(e) => { setTitle(e.target.value); setError(""); }} 
               required 
             />
           </div>
+          {taken && (
+            <span className="form-error">
+              {taken.title} is already the holiday on this date. Delete it first to rename or replace it.
+            </span>
+          )}
+          {error && !taken && <span className="form-error">{error}</span>}
+
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Add Holiday</button>
+            <button type="submit" className="btn btn-primary" disabled={!!taken}>Add Holiday</button>
           </div>
         </form>
       </div>
