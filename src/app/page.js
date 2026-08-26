@@ -39,6 +39,7 @@ import AddMemoryModal from "@/components/AddMemoryModal";
 import AttendancePage from "@/components/AttendancePage";
 import ReleaseUpdatesModal from "@/components/ReleaseUpdatesModal";
 import LeaveSettingsPage from "@/components/LeaveSettingsPage";
+import ProjectsPage from "@/components/ProjectsPage";
 
 export default function Home() {
   const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin } = useApp();
@@ -99,7 +100,7 @@ export default function Home() {
   // Load active tab from localStorage on mount
   useEffect(() => {
     const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "leave-settings", "attendance", "words", "capacity", "events", "poker", "retro", "memories"].includes(savedTab)) {
+    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "leave-settings", "attendance", "words", "capacity", "events", "projects", "poker", "retro", "memories"].includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
@@ -337,6 +338,12 @@ export default function Home() {
           📅 Events
         </button>
         <button
+          className={`nav-tab ${activeTab === "projects" ? "nav-tab-active" : ""}`}
+          onClick={() => setActiveTab("projects")}
+        >
+          🚀 Projects
+        </button>
+        <button
           className={`nav-tab ${activeTab === "poker" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("poker")}
         >
@@ -409,6 +416,7 @@ export default function Home() {
             onEditEvent={handleEditEvent}
           />
         )}
+        {activeTab === "projects" && <ProjectsPage />}
         {activeTab === "poker" && <PlanningPokerPage />}
         {activeTab === "retro" && <RetrospectivePage />}
         {activeTab === "leave-settings" && <LeaveSettingsPage />}

@@ -7145,3 +7145,427 @@ a.jira-tag-key:hover {
 [data-theme="light"] .aurora-layer {
   opacity: 0.5;
 }
+
+/* ===== PROJECTS ===== */
+.projects-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.project-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.project-filter-chip:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.project-filter-chip.active {
+  border-color: var(--accent-indigo);
+  background: var(--accent-indigo-soft);
+  color: var(--text-primary);
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-indigo);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+}
+
+.project-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+  border-left-color: var(--accent-indigo);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Status is carried by the card's left edge as well as the badge, so a board of
+   cards reads at a glance without hunting for the pill. */
+.project-card.status-planning { border-left-color: var(--accent-amber); }
+.project-card.status-active { border-left-color: var(--accent-green); }
+.project-card.status-on-hold { border-left-color: var(--accent-orange); }
+.project-card.status-completed { border-left-color: var(--accent-indigo); }
+.project-card.status-archived { border-left-color: var(--text-muted); }
+
+.project-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-card-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.project-card-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.project-card-client {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.project-card-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.project-status-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.project-status-badge.status-planning {
+  background: var(--accent-amber-soft);
+  color: var(--accent-amber);
+}
+
+.project-status-badge.status-active {
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+}
+
+.project-status-badge.status-on-hold {
+  background: var(--accent-orange-soft);
+  color: var(--accent-orange);
+}
+
+.project-status-badge.status-completed {
+  background: var(--accent-indigo-soft);
+  color: var(--accent-indigo);
+}
+
+.project-status-badge.status-archived {
+  background: var(--bg-glass);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+
+.project-card-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.project-icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  padding: 4px 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.project-icon-btn:hover {
+  background: var(--bg-glass);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.project-icon-btn-danger:hover {
+  background: var(--accent-red-soft);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+.project-card-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.project-card-dates {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.project-tech-row,
+.project-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.project-tech-chip {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.project-card-block {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.project-block-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+.project-block-empty {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.project-env-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.project-env-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+}
+
+.project-env-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+/* Production is deliberately the loudest badge — clicking it by mistake is the
+   expensive mistake on this card. */
+.project-env-badge.env-prod {
+  background: var(--accent-red-soft);
+  color: var(--accent-red);
+}
+
+.project-env-badge.env-stage {
+  background: var(--accent-amber-soft);
+  color: var(--accent-amber);
+}
+
+.project-env-badge.env-dev {
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+}
+
+.project-env-badge.env-other {
+  background: var(--accent-indigo-soft);
+  color: var(--accent-indigo);
+}
+
+.project-env-url {
+  font-size: 0.78rem;
+  color: var(--accent-indigo);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.project-env-url:hover {
+  text-decoration: underline;
+}
+
+.project-env-url-missing {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.project-env-branch {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.project-env-notes {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  width: 100%;
+}
+
+.project-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.project-link-chip:hover {
+  border-color: var(--accent-indigo);
+  background: var(--accent-indigo-soft);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+/* ===== PROJECT FORM ===== */
+.modal-content-wide {
+  max-width: 760px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.project-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.project-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.project-form-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-form-section-head h3 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+}
+
+.project-form-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.project-row-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-row-input {
+  flex: 1 1 130px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+
+.project-row-input:focus {
+  outline: none;
+  border-color: var(--accent-indigo);
+}
+
+.project-row-input-wide {
+  flex: 2 1 200px;
+}
+
+.project-row-input-sm {
+  flex: 0 1 120px;
+}
+
+.project-row-remove {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.project-row-remove:hover {
+  background: var(--accent-red-soft);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+[data-theme="light"] .project-card {
+  background: #ffffff;
+}
+
+[data-theme="light"] .project-card:hover {
+  background: #ffffff;
+}

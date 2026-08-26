@@ -76,6 +76,9 @@ export function AppProvider({ children }) {
   const [attendance, setAttendance] = useState([]);
   const [officeSettings, setOfficeSettings] = useState(null);
   const [leaveTypes, setLeaveTypes] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [projectLinks, setProjectLinks] = useState([]);
+  const [projectEnvironments, setProjectEnvironments] = useState([]);
 
   const adminEmails = [
     "sanish@heubert.com",
@@ -115,6 +118,9 @@ export function AppProvider({ children }) {
         supabase.from("attendance").select("*").order("date", { ascending: false }),
         supabase.from("office_settings").select("*").eq("id", 1).single(),
         supabase.from("leave_types").select("*").order("sort_order", { ascending: true }),
+        supabase.from("projects").select("*").order("name"),
+        supabase.from("project_links").select("*").order("sort_order", { ascending: true }),
+        supabase.from("project_environments").select("*").order("sort_order", { ascending: true }),
       ]);
 
       const [
@@ -136,6 +142,9 @@ export function AppProvider({ children }) {
         { data: attendanceData },
         { data: officeSettingsData },
         { data: leaveTypesData },
+        { data: projectsData },
+        { data: projectLinksData },
+        { data: projectEnvironmentsData },
       ] = results;
 
       if (empData) setEmployees(empData);
@@ -160,6 +169,9 @@ export function AppProvider({ children }) {
       if (attendanceData) setAttendance(attendanceData);
       if (officeSettingsData) setOfficeSettings(officeSettingsData);
       if (leaveTypesData) setLeaveTypes(leaveTypesData);
+      if (projectsData) setProjects(projectsData);
+      if (projectLinksData) setProjectLinks(projectLinksData);
+      if (projectEnvironmentsData) setProjectEnvironments(projectEnvironmentsData);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -617,6 +629,114 @@ export function AppProvider({ children }) {
     return { error };
   };
 
+  // ===== PROJECTS =====
+  // A project's links and environments are submitted together with the project itself,
+  // so the child rows are diffed against what is already stored: rows the admin kept are
+  // updated in place, new ones inserted, removed ones deleted. Delete-all-then-reinsert
+  // would be shorter but loses every row for the project if one insert fails.
+  const syncProjectChildren = async (table, projectId, rows, buildPayload, existingRows) => {
+    const keptIds = rows.map(r => r.id).filter(Boolean);
+    const staleIds = existingRows.filter(r => !keptIds.includes(r.id)).map(r => r.id);
+    if (staleIds.length > 0) {
+      const { error } = await supabase.from(table).delete().in("id", staleIds);
+      if (error) return { error };
+    }
+    for (const [index, row] of rows.entries()) {
+      const payload = { ...buildPayload(row, index), project_id: projectId };
+      const { error } = row.id
+        ? await supabase.from(table).update(payload).eq("id", row.id)
+        : await supabase.from(table).insert([payload]);
+      if (error) return { error };
+    }
+    return { error: null };
+  };
+
+  // Child rows are re-read after a write instead of patched in locally: sort_order and
+  // generated ids come from the DB, and a partial failure then shows the real state.
+  const reloadProjectChildren = async (table, setter, projectId) => {
+    const { data } = await supabase
+      .from(table)
+      .select("*")
+      .eq("project_id", projectId)
+      .order("sort_order", { ascending: true });
+    setter(prev => [...prev.filter(r => r.project_id !== projectId), ...(data || [])]);
+  };
+
+  const projectLinkPayload = (link, index) => ({
+    label: link.label.trim(),
+    url: link.url.trim(),
+    category: link.category || "other",
+    sort_order: index,
+  });
+
+  const projectEnvPayload = (env, index) => ({
+    name: env.name.trim(),
+    url: (env.url || "").trim() || null,
+    branch: (env.branch || "").trim() || null,
+    notes: (env.notes || "").trim() || null,
+    sort_order: index,
+  });
+
+  const projectPayload = (project) => ({
+    name: project.name.trim(),
+    client: (project.client || "").trim() || null,
+    description: (project.description || "").trim() || null,
+    status: project.status || "active",
+    tech_stack: (project.techStack || "").trim() || null,
+    start_date: project.startDate || null,
+    end_date: project.endDate || null,
+  });
+
+  const sortProjectsByName = (a, b) => a.name.localeCompare(b.name);
+
+  const addProject = async (project) => {
+    const payload = { ...projectPayload(project), created_by: user?.email || null };
+    const { data, error } = await supabase.from("projects").insert([payload]).select();
+    if (error) return { error };
+    const created = data[0];
+    setProjects(prev => [...prev, created].sort(sortProjectsByName));
+
+    const { error: linkError } = await syncProjectChildren(
+      "project_links", created.id, project.links || [], projectLinkPayload, []
+    );
+    const { error: envError } = await syncProjectChildren(
+      "project_environments", created.id, project.environments || [], projectEnvPayload, []
+    );
+    await reloadProjectChildren("project_links", setProjectLinks, created.id);
+    await reloadProjectChildren("project_environments", setProjectEnvironments, created.id);
+    return { data: created, error: linkError || envError || null };
+  };
+
+  const updateProject = async (id, project) => {
+    const payload = { ...projectPayload(project), updated_at: new Date().toISOString() };
+    const { data, error } = await supabase.from("projects").update(payload).eq("id", id).select();
+    if (error) return { error };
+    if (data) setProjects(prev => prev.map(p => (p.id === id ? data[0] : p)).sort(sortProjectsByName));
+
+    const { error: linkError } = await syncProjectChildren(
+      "project_links", id, project.links || [], projectLinkPayload,
+      projectLinks.filter(l => l.project_id === id)
+    );
+    const { error: envError } = await syncProjectChildren(
+      "project_environments", id, project.environments || [], projectEnvPayload,
+      projectEnvironments.filter(e => e.project_id === id)
+    );
+    await reloadProjectChildren("project_links", setProjectLinks, id);
+    await reloadProjectChildren("project_environments", setProjectEnvironments, id);
+    return { data: data?.[0], error: linkError || envError || null };
+  };
+
+  const deleteProject = async (id) => {
+    // project_links / project_environments are removed by the DB's ON DELETE CASCADE.
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (!error) {
+      setProjects(prev => prev.filter(p => p.id !== id));
+      setProjectLinks(prev => prev.filter(l => l.project_id !== id));
+      setProjectEnvironments(prev => prev.filter(e => e.project_id !== id));
+    }
+    return { error };
+  };
+
   const addStandupFine = async (record) => {
     const payload = {
         employee_name: record.name,
@@ -1039,6 +1159,12 @@ export function AppProvider({ children }) {
         addLeaveType,
         updateLeaveType,
         deleteLeaveType,
+        projects,
+        projectLinks,
+        projectEnvironments,
+        addProject,
+        updateProject,
+        deleteProject,
       }}
     >
       {children}

@@ -16,20 +16,22 @@ import { useApp } from "@/context/AppContext";
  *   - `tracks: true` follows the cursor directly with spring lag. This is the
  *     one that makes the effect legible — measured against anchored blobs alone,
  *     a ~200px drift of a 660px blurred blob moved the gutter's mean colour by
- *     0.3/255, i.e. invisibly.
+ *     0.3/255, i.e. invisibly. Its alpha sits *below* the anchored blobs': as the
+ *     only blob that moves with the cursor it draws the eye anyway, and matching
+ *     their alpha made it read as a bright spotlight rather than ambient light.
  *   - the rest are anchored at a fixed % of the viewport and drift *toward* the
  *     cursor by at most `drift` px, on softer springs so they trail the leader.
  *     They carry the ambient wash; the tracker carries the reaction.
  */
 const BLOBS = [
   {
-    color: "rgba(129, 140, 248, 0.34)", // follows the cursor
+    color: "rgba(129, 140, 248, 0.22)", // follows the cursor
     size: 620,
     tracks: true,
     spring: { stiffness: 90, damping: 26, mass: 0.7 },
   },
   {
-    color: "rgba(99, 102, 241, 0.30)", // indigo — left gutter
+    color: "rgba(99, 102, 241, 0.24)", // indigo — left gutter
     size: 760,
     x: "6%",
     y: "20%",
@@ -37,7 +39,7 @@ const BLOBS = [
     spring: { stiffness: 26, damping: 18, mass: 1.2 },
   },
   {
-    color: "rgba(139, 92, 246, 0.26)", // violet — right gutter
+    color: "rgba(139, 92, 246, 0.21)", // violet — right gutter
     size: 660,
     x: "94%",
     y: "44%",
@@ -45,7 +47,7 @@ const BLOBS = [
     spring: { stiffness: 44, damping: 20, mass: 0.9 },
   },
   {
-    color: "rgba(129, 140, 248, 0.18)", // pale indigo — bottom left, trails
+    color: "rgba(129, 140, 248, 0.15)", // pale indigo — bottom left, trails
     size: 560,
     x: "10%",
     y: "88%",
