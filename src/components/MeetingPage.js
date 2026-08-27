@@ -12,6 +12,7 @@ import HumanLoader from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
 import { computeLeaveBalances, parseHalfDaySegment, findExistingLateFine } from "@/lib/utils";
+import { useDialog } from "@/context/DialogContext";
 
 const MEETING_TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const MEETING_TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
@@ -50,14 +51,18 @@ export default function MeetingPage() {
     user,
     currentEmployee,
     isAuthReady,
-    animationsEnabled
+    animationsEnabled,
+    projects,
+    projectMembers,
   } = useApp();
+  const { confirmDialog } = useDialog();
   const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
   const standupFines = useMemo(() => allStandupFines.filter(f => f.employee_name !== "Developers"), [allStandupFines]);
   const selectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && e.name !== "Developers"), [employees]);
   const router = useRouter();
   const [viewDate, setViewDate] = useState("");
   const [isEnlarged, setIsEnlarged] = useState(false);
+  const [projectFilter, setProjectFilter] = useState("all");
   const [isClient, setIsClient] = useState(false);
   // Must be declared before the allSubmissions useMemo that depends on it
   const [sortNewestFirst, setSortNewestFirst] = useState(false);
@@ -75,6 +80,10 @@ export default function MeetingPage() {
   // Sticky meeting timer — restarts from 0 every time the Daily Sync view is enlarged
   const [enlargedSeconds, setEnlargedSeconds] = useState(0);
   const enlargedTimerIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!isEnlarged) setProjectFilter("all");
+  }, [isEnlarged]);
 
   useEffect(() => {
     if (isEnlarged) {
@@ -353,11 +362,48 @@ export default function MeetingPage() {
     return [...missingSubmissions, ...sortedActual];
   }, [standupSubmissions, viewDate, employees, isClient, sortNewestFirst]);
 
+  // Projects with at least one staffed employee, for the enlarged view's filter pills.
+  const membersByProject = useMemo(() => {
+    const employeesById = new Map((employees || []).map((e) => [e.id, e]));
+    const map = new Map();
+    for (const row of projectMembers || []) {
+      const emp = employeesById.get(row.employee_id);
+      if (!emp) continue;
+      if (!map.has(row.project_id)) map.set(row.project_id, []);
+      map.get(row.project_id).push(emp);
+    }
+    return map;
+  }, [projectMembers, employees]);
+
+  const staffedProjects = useMemo(
+    () => (projects || []).filter((p) => (membersByProject.get(p.id) || []).length > 0),
+    [projects, membersByProject]
+  );
+
+  // A submission (real or synthetic "missing") is matched to an employee the same way the
+  // missing-submission list matches employees above: by email first, then by first name.
+  const submissionMatchesEmployee = (submission, emp) => {
+    const subEmail = submission.email?.trim().toLowerCase();
+    const workEmail = emp.work_email?.trim().toLowerCase();
+    const personalEmail = emp.personal_email?.trim().toLowerCase();
+    if (subEmail && (subEmail === workEmail || subEmail === personalEmail)) return true;
+
+    const subFirstName = submission.name?.trim().split(/\s+/)[0].toLowerCase();
+    const empFirstName = emp.name?.trim().split(/\s+/)[0].toLowerCase();
+    return !!subFirstName && subFirstName === empFirstName;
+  };
+
+  const filteredSubmissions = useMemo(() => {
+    if (projectFilter === "all") return allSubmissions;
+    const members = membersByProject.get(projectFilter) || [];
+    return allSubmissions.filter((s) => members.some((emp) => submissionMatchesEmployee(s, emp)));
+  }, [allSubmissions, projectFilter, membersByProject]);
+
   const stats = useMemo(() => {
-    const total = allSubmissions.length;
-    const submitted = allSubmissions.filter(s => !s.isMissing).length;
+    const total = filteredSubmissions.length;
+    const submitted = filteredSubmissions.filter(s => !s.isMissing).length;
     return { total, submitted, missing: total - submitted };
-  }, [allSubmissions]);
+  }, [filteredSubmissions]);
 
   const handlePrevDate = () => {
     const d = new Date(viewDate);
@@ -451,7 +497,7 @@ export default function MeetingPage() {
                   {isAdmin && (
                     <div className="item-actions">
                       <button onClick={() => { setEditingFine(f); setShowEditFine(true); }} title="Edit">✏️</button>
-                      <button onClick={() => { if(confirm("Delete fine?")) deleteFine(f.id); }} title="Delete">🗑</button>
+                      <button onClick={async () => { if (await confirmDialog("Delete fine?", { danger: true })) deleteFine(f.id); }} title="Delete">🗑</button>
                     </div>
                   )}
                 </div>
@@ -474,7 +520,7 @@ export default function MeetingPage() {
                   {isAdmin && (
                     <div className="item-actions">
                       <button onClick={() => { setEditingStandup(s); setShowEditStandup(true); }} title="Edit">✏️</button>
-                      <button onClick={() => { if(confirm("Delete record?")) deleteStandupFine(s.id); }} title="Delete">🗑</button>
+                      <button onClick={async () => { if (await confirmDialog("Delete record?", { danger: true })) deleteStandupFine(s.id); }} title="Delete">🗑</button>
                     </div>
                   )}
                 </div>
@@ -502,7 +548,7 @@ export default function MeetingPage() {
                   {isAdmin && (
                     <div className="item-actions">
                       <button onClick={() => { setEditingLeave(l); setShowEditLeave(true); }} title="Edit">✏️</button>
-                      <button onClick={() => { if(confirm("Delete leave?")) deleteLeave(l.id); }} title="Delete">🗑</button>
+                      <button onClick={async () => { if (await confirmDialog("Delete leave?", { danger: true })) deleteLeave(l.id); }} title="Delete">🗑</button>
                     </div>
                   )}
                 </div>
@@ -549,9 +595,29 @@ export default function MeetingPage() {
               </button>
             </div>
           </div>
+          {isEnlarged && staffedProjects.length > 0 && (
+            <div className="meeting-project-pills">
+              <button
+                className={`meeting-project-pill ${projectFilter === "all" ? "active" : ""}`}
+                onClick={() => setProjectFilter("all")}
+              >
+                All
+              </button>
+              {staffedProjects.map((p) => (
+                <button
+                  key={p.id}
+                  className={`meeting-project-pill ${projectFilter === p.id ? "active" : ""}`}
+                  onClick={() => setProjectFilter(p.id)}
+                  title={`Show standups for ${p.name}`}
+                >
+                  🚀 {p.name}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="submissions-list" onScroll={() => window.dispatchEvent(new Event('mousemove'))}>
-            {allSubmissions.length > 0 ? (
-              allSubmissions.map((s, index) => {
+            {filteredSubmissions.length > 0 ? (
+              filteredSubmissions.map((s, index) => {
                 const subId = s.id || `sub-${index}`;
                 const isIdleTarget = idleSubmissionId === subId;
                 const HIDDEN_STATUSES = ['on hold', 'rejected', 'backlog'];
@@ -668,7 +734,11 @@ export default function MeetingPage() {
                 );
               })
             ) : (
-              <p className="empty-msg">No submissions for this date. 📥</p>
+              <p className="empty-msg">
+                {projectFilter === "all"
+                  ? "No submissions for this date. 📥"
+                  : "No one on this project has a standup for this date. 📥"}
+              </p>
             )}
           </div>
         </section>
@@ -684,7 +754,7 @@ export default function MeetingPage() {
                 {isAdmin && (
                   <div className="word-actions-inline">
                     <button onClick={() => { setEditingWord(todaysWord); setShowEditWord(true); }} title="Edit Word">✏️</button>
-                    <button onClick={() => { if(confirm("Delete word?")) deleteWord(todaysWord.id); }} title="Delete Word">🗑</button>
+                    <button onClick={async () => { if (await confirmDialog("Delete word?", { danger: true })) deleteWord(todaysWord.id); }} title="Delete Word">🗑</button>
                   </div>
                 )}
               </div>
@@ -758,11 +828,12 @@ export default function MeetingPage() {
       />
 
       {showAddWord && (
-        <QuickAddWordModal 
-          isOpen={showAddWord} 
-          onClose={() => setShowAddWord(false)} 
-          addWord={addWord} 
+        <QuickAddWordModal
+          isOpen={showAddWord}
+          onClose={() => setShowAddWord(false)}
+          addWord={addWord}
           seasons={wordSeasons}
+          words={words}
         />
       )}
       {showAddLeave && (
@@ -870,10 +941,18 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, 
   );
 }
 
-function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
+function QuickAddWordModal({ isOpen, onClose, addWord, seasons, words }) {
   const [word, setWord] = useState("");
   const [def, setDef] = useState("");
-  
+
+  // Checked across every season, not just the one being filed into — a word already
+  // used in an earlier season shouldn't get re-added under a new one.
+  const isDuplicate = useMemo(() => {
+    const trimmed = word.trim().toLowerCase();
+    if (!trimmed) return false;
+    return (words || []).some((w) => w.word?.trim().toLowerCase() === trimmed);
+  }, [word, words]);
+
   // Default to the most recently CREATED season. Sorting by id assumed higher id = newer,
   // which is not guaranteed (seasons can be deleted and re-created), and defaulting to an
   // older season silently files the word under a past season.
@@ -893,7 +972,7 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
 
   const hSubmit = (e) => {
     e.preventDefault();
-    if (!word || !def || !seasonId) return;
+    if (!word || !def || !seasonId || isDuplicate) return;
     addWord({ word, definition: def, seasonId });
     onClose();
   };
@@ -913,6 +992,7 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
           <div className="form-group-interactive">
             <label>Word</label>
             <input type="text" value={word} onChange={e => setWord(e.target.value)} required />
+            {isDuplicate && <span className="form-error">Oops, this one has already been mentioned.</span>}
           </div>
           <div className="form-group-interactive">
             <label>Definition</label>
@@ -920,7 +1000,7 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons }) {
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Save Word</button>
+            <button type="submit" className="btn btn-primary" disabled={isDuplicate}>Save Word</button>
           </div>
         </form>
       </div>
@@ -1036,6 +1116,7 @@ function IdleNudge({ phrases }) {
 }
 
 function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves, leaveSeasons, leaveTypes, publicHolidays, isAdmin, currentEmployee }) {
+  const { alertDialog } = useDialog();
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("full");   // full | half | early
   const [segment, setSegment] = useState("first");    // first | second
@@ -1086,7 +1167,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
     const requestedDays = duration === "half" ? 0.5 : 1;
     const selectedBalance = balances.find((b) => String(b.id) === String(effectiveLeaveTypeId));
     if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
-      alert(`Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`);
+      await alertDialog(`Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`, { tone: "error" });
       return;
     }
 
@@ -1103,7 +1184,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
     });
 
     if (submitError) {
-      alert(`Failed to save the leave: ${submitError.message || "please try again."}`);
+      await alertDialog(`Failed to save the leave: ${submitError.message || "please try again."}`, { tone: "error" });
       return;
     }
 
@@ -1117,7 +1198,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
             <label>Employee</label>
-            <select value={name} onChange={e => { setName(e.target.value); setError(""); }} required>
+            <select value={name} onChange={e => setName(e.target.value)} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
@@ -1245,7 +1326,7 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
             <label>Employee</label>
-            <select value={name} onChange={e => { setName(e.target.value); setError(""); }} required>
+            <select value={name} onChange={e => setName(e.target.value)} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>

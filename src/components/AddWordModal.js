@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function AddWordModal({ isOpen, onClose }) {
   const { addWord, wordSeasons } = useApp();
+  const { alertDialog } = useDialog();
 
   // A new word always belongs to the season that is current NOW — never an earlier season
   // and never a null season, whichever season the page happens to be browsing. Anything else
@@ -43,7 +45,7 @@ export default function AddWordModal({ isOpen, onClose }) {
       setTranslation("");
       onClose();
     } catch (err) {
-      alert("Failed to add word.");
+      await alertDialog("Failed to add word.", { tone: "error" });
     } finally {
       setSubmitting(false);
     }

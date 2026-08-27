@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function EventsPage({ onAddEvent, onEditEvent }) {
   const { companyEvents, deleteCompanyEvent, isAdmin } = useApp();
+  const { confirmDialog } = useDialog();
 
   return (
     <section className="dashboard glass-panel fade-in">
@@ -45,8 +47,8 @@ export default function EventsPage({ onAddEvent, onEditEvent }) {
                   </button>
                   <button
                     className="btn-delete-holiday"
-                    onClick={() => {
-                      if (confirm(`Delete event "${event.title}"?`)) {
+                    onClick={async () => {
+                      if (await confirmDialog(`Delete event "${event.title}"?`, { danger: true })) {
                         deleteCompanyEvent(event.id);
                       }
                     }}

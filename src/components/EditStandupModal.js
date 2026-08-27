@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function EditStandupModal({ isOpen, onClose, record }) {
   const { updateStandupFine } = useApp();
+  const { alertDialog } = useDialog();
   const [date, setDate] = useState("");
   const [status, setStatus] = useState("late");
   const [submitting, setSubmitting] = useState(false);
@@ -27,10 +29,10 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
         status
       });
       if (!error) onClose();
-      else alert("Failed to update record.");
+      else await alertDialog("Failed to update record.", { tone: 'error' });
     } catch (err) {
       console.error("Update error:", err);
-      alert("Error updating record.");
+      await alertDialog("Error updating record.", { tone: 'error' });
     } finally {
       setSubmitting(false);
     }

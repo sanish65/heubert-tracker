@@ -23,6 +23,10 @@ import { useApp } from "@/context/AppContext";
  *     cursor by at most `drift` px, on softer springs so they trail the leader.
  *     They carry the ambient wash; the tracker carries the reaction.
  */
+// How far the tracking blob actually travels toward the cursor, as a fraction of the
+// full offset — kept well under 1 so it reads as a hint of reactivity, not a full follow.
+const TRACK_REACH = 0.4;
+
 const BLOBS = [
   {
     color: "rgba(129, 140, 248, 0.22)", // follows the cursor
@@ -35,7 +39,7 @@ const BLOBS = [
     size: 760,
     x: "6%",
     y: "20%",
-    drift: 170,
+    drift: 85,
     spring: { stiffness: 26, damping: 18, mass: 1.2 },
   },
   {
@@ -43,7 +47,7 @@ const BLOBS = [
     size: 660,
     x: "94%",
     y: "44%",
-    drift: 230,
+    drift: 115,
     spring: { stiffness: 44, damping: 20, mass: 0.9 },
   },
   {
@@ -51,7 +55,7 @@ const BLOBS = [
     size: 560,
     x: "10%",
     y: "88%",
-    drift: 120,
+    drift: 60,
     spring: { stiffness: 18, damping: 16, mass: 1.4 },
   },
 ];
@@ -110,10 +114,12 @@ export default function AmbientAurora() {
       // that even with a mouse attached. Filter per event instead, so a hybrid
       // device animates for the mouse and stays still for a finger.
       if (e.pointerType === "touch") return;
-      nx.set(e.clientX / window.innerWidth - 0.5);
-      ny.set(e.clientY / window.innerHeight - 0.5);
-      px.set(e.clientX);
-      py.set(e.clientY);
+      const nxVal = e.clientX / window.innerWidth - 0.5;
+      const nyVal = e.clientY / window.innerHeight - 0.5;
+      nx.set(nxVal);
+      ny.set(nyVal);
+      px.set(window.innerWidth / 2 + nxVal * window.innerWidth * TRACK_REACH);
+      py.set(window.innerHeight / 2 + nyVal * window.innerHeight * TRACK_REACH);
       revealed.set(1);
     };
 

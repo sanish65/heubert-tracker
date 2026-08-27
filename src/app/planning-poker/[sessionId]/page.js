@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
 
 export default function PokerSessionPage() {
   const { sessionId } = useParams();
   const { user, currentEmployee } = useApp();
+  const { confirmDialog } = useDialog();
   const [session, setSession] = useState(null);
   const [votes, setVotes] = useState([]);
   const [myVote, setMyVote] = useState(null);
@@ -174,7 +176,7 @@ export default function PokerSessionPage() {
             <h2 className="poker-standalone-story">{session.title}</h2>
             {isHost && !session.is_ended && (
               <button className="retro-end-session-btn" onClick={async () => {
-                if (!confirm("End this session for everyone?")) return;
+                if (!(await confirmDialog("End this session for everyone?", { danger: true, confirmText: "End Session" }))) return;
                 await fetch("/api/poker", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end", sessionId: session.id }) });
                 fetchSession();
               }}>

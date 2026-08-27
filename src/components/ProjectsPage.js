@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import Modal from "@/components/Modal";
+import { useDialog } from "@/context/DialogContext";
 
 const STATUSES = [
   { value: "planning", label: "Planning" },
@@ -66,7 +67,7 @@ const newRowKey = () => `row-${++rowKeySeed}`;
 const emptyLinkRow = () => ({ _key: newRowKey(), label: "", url: "", category: "repo" });
 const emptyEnvRow = (name = "") => ({ _key: newRowKey(), name, url: "", branch: "", notes: "" });
 
-function initialFormFor(editing, links, environments) {
+function initialFormFor(editing, links, environments, memberEmployeeIds) {
   if (!editing) {
     return {
       name: "",
@@ -79,6 +80,7 @@ function initialFormFor(editing, links, environments) {
       // A new project starts with the three environments every project here has.
       environments: [emptyEnvRow("Development"), emptyEnvRow("Staging"), emptyEnvRow("Production")],
       links: [emptyLinkRow()],
+      members: [],
     };
   }
   return {
@@ -104,16 +106,30 @@ function initialFormFor(editing, links, environments) {
       url: link.url || "",
       category: link.category || "other",
     })),
+    members: memberEmployeeIds || [],
   };
 }
 
-function ProjectFormModal({ isOpen, onClose, editing, links, environments }) {
-  const { addProject, updateProject, projects } = useApp();
-  const [form, setForm] = useState(() => initialFormFor(editing, links, environments));
+function ProjectFormModal({ isOpen, onClose, editing, links, environments, memberEmployeeIds }) {
+  const { addProject, updateProject, projects, employees } = useApp();
+  const [form, setForm] = useState(() => initialFormFor(editing, links, environments, memberEmployeeIds));
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  const staffableEmployees = useMemo(
+    () => employees.filter((e) => e.status !== "resigned"),
+    [employees]
+  );
+
   const setField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+
+  const toggleMember = (employeeId) =>
+    setForm((prev) => ({
+      ...prev,
+      members: prev.members.includes(employeeId)
+        ? prev.members.filter((id) => id !== employeeId)
+        : [...prev.members, employeeId],
+    }));
 
   const setRow = (collection, key, field, value) =>
     setForm((prev) => ({
@@ -262,6 +278,33 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments }) {
           />
         </div>
 
+        {/* Team Members */}
+        <div className="project-form-section">
+          <div className="project-form-section-head">
+            <h3>Team Members</h3>
+            <span className="project-form-hint">{form.members.length} selected</span>
+          </div>
+          {staffableEmployees.length === 0 ? (
+            <p className="empty-msg">No employees to add yet.</p>
+          ) : (
+            <div className="project-member-picker">
+              {staffableEmployees.map((emp) => (
+                <label
+                  key={emp.id}
+                  className={`project-member-chip ${form.members.includes(emp.id) ? "active" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.members.includes(emp.id)}
+                    onChange={() => toggleMember(emp.id)}
+                  />
+                  <span>{emp.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Environments */}
         <div className="project-form-section">
           <div className="project-form-section-head">
@@ -397,7 +440,7 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments }) {
   );
 }
 
-function ProjectCard({ project, links, environments, isAdmin, onEdit, onDelete }) {
+function ProjectCard({ project, links, environments, members, isAdmin, onEdit, onDelete }) {
   const start = formatDate(project.start_date);
   const end = formatDate(project.end_date);
   const techs = (project.tech_stack || "")
@@ -452,6 +495,19 @@ function ProjectCard({ project, links, environments, isAdmin, onEdit, onDelete }
           ))}
         </div>
       )}
+
+      <div className="project-card-block">
+        <span className="project-block-label">Team</span>
+        {members.length === 0 ? (
+          <p className="project-block-empty">No one staffed yet.</p>
+        ) : (
+          <div className="project-tech-row">
+            {members.map((emp) => (
+              <span key={emp.id} className="project-member-badge">{emp.name}</span>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="project-card-block">
         <span className="project-block-label">Environments</span>
@@ -513,9 +569,12 @@ export default function ProjectsPage() {
     projects,
     projectLinks,
     projectEnvironments,
+    projectMembers,
+    employees,
     deleteProject,
     isAdmin,
   } = useApp();
+  const { confirmDialog, alertDialog } = useDialog();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [formKey, setFormKey] = useState(0);
@@ -539,6 +598,22 @@ export default function ProjectsPage() {
     return map;
   }, [projectEnvironments]);
 
+  const employeesById = useMemo(() => {
+    const map = new Map();
+    for (const emp of employees) map.set(emp.id, emp);
+    return map;
+  }, [employees]);
+
+  const membersByProject = useMemo(() => {
+    const map = new Map();
+    for (const row of projectMembers) {
+      if (!map.has(row.project_id)) map.set(row.project_id, []);
+      const emp = employeesById.get(row.employee_id);
+      if (emp) map.get(row.project_id).push(emp);
+    }
+    return map;
+  }, [projectMembers, employeesById]);
+
   const visibleProjects = useMemo(
     () =>
       statusFilter === "all"
@@ -561,18 +636,25 @@ export default function ProjectsPage() {
 
   const handleDelete = async (project) => {
     if (
-      !confirm(
-        `Delete project "${project.name}"? Its links and environments are deleted with it.`
-      )
+      !(await confirmDialog(
+        `Delete project "${project.name}"? Its links and environments are deleted with it.`,
+        { danger: true }
+      ))
     ) {
       return;
     }
     const { error } = await deleteProject(project.id);
-    if (error) alert(`Error deleting project: ${error.message || "Check connection"}`);
+    if (error)
+      await alertDialog(`Error deleting project: ${error.message || "Check connection"}`, {
+        tone: "error",
+      });
   };
 
   const editingLinks = editing ? linksByProject.get(editing.id) || [] : [];
   const editingEnvs = editing ? envsByProject.get(editing.id) || [] : [];
+  const editingMemberIds = editing
+    ? projectMembers.filter((m) => m.project_id === editing.id).map((m) => m.employee_id)
+    : [];
 
   return (
     <section className="projects-page fade-in">
@@ -628,6 +710,7 @@ export default function ProjectsPage() {
               project={project}
               links={linksByProject.get(project.id) || []}
               environments={envsByProject.get(project.id) || []}
+              members={membersByProject.get(project.id) || []}
               isAdmin={isAdmin}
               onEdit={openEdit}
               onDelete={handleDelete}
@@ -644,6 +727,7 @@ export default function ProjectsPage() {
           editing={editing}
           links={editingLinks}
           environments={editingEnvs}
+          memberEmployeeIds={editingMemberIds}
         />
       )}
     </section>

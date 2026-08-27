@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function EditFineSeasonModal({ isOpen, onClose, season }) {
   const { updateFineSeason, deleteFineSeason } = useApp();
+  const { confirmDialog, alertDialog } = useDialog();
   const [title, setTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,20 +27,20 @@ export default function EditFineSeasonModal({ isOpen, onClose, season }) {
       await updateFineSeason(season.id, title.trim());
       onClose();
     } catch (err) {
-      alert("Failed to update season.");
+      await alertDialog("Failed to update season.", { tone: 'error' });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete "${season.title}"? Fines already recorded in this season are kept (they just become unassigned) — nothing is deleted from your totals.`)) return;
+    if (!(await confirmDialog(`Delete "${season.title}"? Fines already recorded in this season are kept (they just become unassigned) — nothing is deleted from your totals.`, { danger: true }))) return;
     setSubmitting(true);
     try {
       await deleteFineSeason(season.id);
       onClose();
     } catch (err) {
-      alert("Failed to delete season.");
+      await alertDialog("Failed to delete season.", { tone: 'error' });
     } finally {
       setSubmitting(false);
     }

@@ -4078,6 +4078,39 @@ body {
   backdrop-filter: blur(4px);
 }
 
+.meeting-project-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0.75rem;
+}
+
+.meeting-project-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.meeting-project-pill:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.meeting-project-pill.active {
+  background: var(--accent-indigo-soft);
+  border-color: var(--accent-indigo);
+  color: #ffffff;
+}
+
 .submissions-card.enlarged .submissions-list {
   flex: 1;
   max-height: none;
@@ -7562,10 +7595,120 @@ a.jira-tag-key:hover {
   color: var(--accent-red);
 }
 
+.project-member-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.project-member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-glass);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.project-member-chip input {
+  display: none;
+}
+
+.project-member-chip span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.project-member-chip:hover {
+  border-color: var(--border-hover);
+}
+
+.project-member-chip.active {
+  background: var(--accent-indigo-soft);
+  border-color: var(--accent-indigo);
+}
+
+.project-member-chip.active span {
+  color: var(--accent-indigo);
+}
+
+.project-member-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-indigo-soft);
+  border: 1px solid transparent;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-indigo);
+}
+
 [data-theme="light"] .project-card {
   background: #ffffff;
 }
 
 [data-theme="light"] .project-card:hover {
   background: #ffffff;
+}
+
+/* ===== CONFIRM / ALERT / PROMPT DIALOG ===== */
+.confirm-dialog {
+  width: 90%;
+  max-width: 380px;
+  padding: 28px 28px 24px;
+  text-align: center;
+}
+
+.confirm-dialog-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  border-radius: 50%;
+  background: var(--accent-indigo-soft);
+}
+
+.confirm-dialog-icon.is-danger {
+  background: var(--accent-red-soft);
+}
+
+.confirm-dialog-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.confirm-dialog-message {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+.confirm-dialog-input {
+  width: 100%;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.confirm-dialog-actions .btn {
+  flex: 1;
+  justify-content: center;
 }

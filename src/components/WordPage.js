@@ -2,9 +2,11 @@
 
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function WordPage({ onAddSeason, onAddWord, onEditWord, onEditSeason }) {
   const { wordSeasons, words, deleteWord, deleteWordSeason, seedWordsTable, isAdmin } = useApp();
+  const { confirmDialog } = useDialog();
   const [activeSeasonId, setActiveSeasonId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -152,10 +154,10 @@ export default function WordPage({ onAddSeason, onAddWord, onEditWord, onEditSea
                       >
                         📝
                       </button>
-                      <button 
-                        className="btn-delete-card" 
-                        onClick={() => {
-                          if (confirm("Delete this word?")) deleteWord(w.id);
+                      <button
+                        className="btn-delete-card"
+                        onClick={async () => {
+                          if (await confirmDialog("Delete this word?", { danger: true })) deleteWord(w.id);
                         }}
                         title="Delete word"
                       >

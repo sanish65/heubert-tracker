@@ -1,9 +1,11 @@
 import { useApp } from "@/context/AppContext";
 import { useEffect, useState } from "react";
 import { transformGoogleDriveLink, getGoogleDriveEmbedUrl, getGoogleDriveThumbnailUrl } from "@/lib/utils";
+import { useDialog } from "@/context/DialogContext";
 
 export default function MemoriesPage({ onAddMemory, onBack }) {
   const { memories, animationsEnabled, deleteMemory, updateMemory, user } = useApp();
+  const { confirmDialog, alertDialog } = useDialog();
   const [visibleItems, setVisibleItems] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [editing, setEditing] = useState(null); // {id, type, content, caption}
@@ -42,7 +44,7 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
 
   const handleDelete = async (e, memory) => {
     e.stopPropagation();
-    if (!confirm(`Delete this memory?`)) return;
+    if (!(await confirmDialog(`Delete this memory?`, { danger: true }))) return;
     await deleteMemory(memory.id);
   };
 
@@ -56,7 +58,7 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
       });
       setEditing(null);
     } catch (err) {
-      alert(`Failed to update: ${err.message}`);
+      await alertDialog(`Failed to update: ${err.message}`, { tone: 'error' });
     } finally {
       setIsSaving(false);
     }

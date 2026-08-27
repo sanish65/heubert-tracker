@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 import ShareQRModal from "@/components/ShareQRModal";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
@@ -32,6 +33,7 @@ export default function PlanningPokerPage() {
   const prevRevealedRef = useRef(false);
 
   const { isAdmin } = useApp();
+  const { confirmDialog } = useDialog();
 
   const playChime = () => {
     try {
@@ -297,7 +299,7 @@ export default function PlanningPokerPage() {
 
   const handleEndSession = async () => {
     if (!session || (!isHost && !isAdmin)) return;
-    if (!confirm("Are you sure you want to end this session? This will lock the board for everyone.")) return;
+    if (!(await confirmDialog("Are you sure you want to end this session? This will lock the board for everyone.", { danger: true, confirmText: "End Session" }))) return;
     try {
       await fetch("/api/poker", {
         method: "PATCH",

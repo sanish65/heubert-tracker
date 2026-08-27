@@ -1,9 +1,11 @@
 "use client";
 
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function WithdrawalLog({ onWithdraw }) {
   const { withdrawals, isAdmin, deleteWithdrawal } = useApp();
+  const { confirmDialog } = useDialog();
 
   const totalWithdrawn = withdrawals.reduce((s, w) => s + w.amount, 0);
 
@@ -47,10 +49,10 @@ export default function WithdrawalLog({ onWithdraw }) {
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span className="withdrawal-date">{formatDate(w.created_at)}</span>
                   {isAdmin && (
-                    <button 
-                      className="btn-icon-delete" 
-                      onClick={() => {
-                        if (confirm("Delete this withdrawal record?")) {
+                    <button
+                      className="btn-icon-delete"
+                      onClick={async () => {
+                        if (await confirmDialog("Delete this withdrawal record?", { danger: true })) {
                           deleteWithdrawal(w.id);
                         }
                       }}

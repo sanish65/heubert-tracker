@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function EditFineModal({ isOpen, onClose, fine }) {
   const { updateFine } = useApp();
+  const { alertDialog } = useDialog();
   const [amount, setAmount] = useState(25);
   const [status, setStatus] = useState("unpaid");
   const [submitting, setSubmitting] = useState(false);
@@ -27,10 +29,10 @@ export default function EditFineModal({ isOpen, onClose, fine }) {
         status
       });
       if (!error) onClose();
-      else alert("Failed to update fine.");
+      else await alertDialog("Failed to update fine.", { tone: 'error' });
     } catch (err) {
       console.error("Update error:", err);
-      alert("Error updating fine.");
+      await alertDialog("Error updating fine.", { tone: 'error' });
     } finally {
       setSubmitting(false);
     }

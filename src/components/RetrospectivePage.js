@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 import RetroTimer from "./RetroTimer";
 import ShareQRModal from "@/components/ShareQRModal";
 import SailboatScene from "@/components/SailboatScene";
@@ -138,6 +139,7 @@ export default function RetrospectivePage() {
   const [timerState, setTimerState] = useState(null);
 
   const { employees, currentEmployee, user, isAdmin } = useApp();
+  const { confirmDialog, promptDialog } = useDialog();
   const employeeNames = employees.map(e => e.name);
   const loggedInName = currentEmployee?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
   const canEndSession = isHost || !!isAdmin;
@@ -435,7 +437,7 @@ export default function RetrospectivePage() {
 
   const handleEndSession = async () => {
     if (!session || !canEndSession) return;
-    if (!confirm("Are you sure you want to end this session? This will lock the board for everyone.")) return;
+    if (!(await confirmDialog("Are you sure you want to end this session? This will lock the board for everyone.", { danger: true, confirmText: "End Session" }))) return;
     try {
       await fetch("/api/retro", {
         method: "POST",
@@ -644,8 +646,8 @@ export default function RetrospectivePage() {
             const ended  = recentSessions.filter(s => s.is_ended);
             
             const renderCard = (s) => (
-              <button key={s.id} className={`retro-recent-card ${s.is_ended ? 'retro-recent-card-ended' : ''}`} onClick={() => {
-                const nameToUse = participantName || joinName || creatorName || loggedInName || window.prompt("Enter your name to join this board:");
+              <button key={s.id} className={`retro-recent-card ${s.is_ended ? 'retro-recent-card-ended' : ''}`} onClick={async () => {
+                const nameToUse = participantName || joinName || creatorName || loggedInName || await promptDialog("Enter your name to join this board:");
                 if (!nameToUse?.trim()) return;
                 setJoinSessionId(s.id);
                 setJoinName(nameToUse.trim());

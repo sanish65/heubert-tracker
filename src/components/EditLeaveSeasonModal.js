@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function EditLeaveSeasonModal({ isOpen, onClose, season }) {
   const { updateLeaveSeason, deleteLeaveSeason } = useApp();
+  const { confirmDialog, alertDialog } = useDialog();
   const [title, setTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,20 +27,20 @@ export default function EditLeaveSeasonModal({ isOpen, onClose, season }) {
       await updateLeaveSeason(season.id, title.trim());
       onClose();
     } catch (err) {
-      alert("Failed to update season.");
+      await alertDialog("Failed to update season.", { tone: "error" });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete "${season.title}"? Leave records already in this season are kept (they just become unassigned) — nothing is deleted from history.`)) return;
+    if (!(await confirmDialog(`Delete "${season.title}"? Leave records already in this season are kept (they just become unassigned) — nothing is deleted from history.`, { danger: true }))) return;
     setSubmitting(true);
     try {
       await deleteLeaveSeason(season.id);
       onClose();
     } catch (err) {
-      alert("Failed to delete season.");
+      await alertDialog("Failed to delete season.", { tone: "error" });
     } finally {
       setSubmitting(false);
     }

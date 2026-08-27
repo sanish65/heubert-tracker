@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function AddMemoryModal({ isOpen, onClose }) {
   const { addMemory, user } = useApp();
+  const { alertDialog } = useDialog();
   const [type, setType] = useState("image");
   const [content, setContent] = useState("");
   const [caption, setCaption] = useState("");
@@ -22,9 +24,9 @@ export default function AddMemoryModal({ isOpen, onClose }) {
     } catch (err) {
       console.error("Error adding memory:", err);
       if (err.code === "PGRST116" || err.message?.includes("not found")) {
-        alert("Memory wall table not found! Please make sure to run the SQL provided in the implementation plan in your Supabase SQL Editor.");
+        await alertDialog("Memory wall table not found! Please make sure to run the SQL provided in the implementation plan in your Supabase SQL Editor.");
       } else {
-        alert(`Failed to share memory: ${err.message || 'Unknown error'}`);
+        await alertDialog(`Failed to share memory: ${err.message || 'Unknown error'}`);
       }
     } finally {
       setIsSubmitting(false);

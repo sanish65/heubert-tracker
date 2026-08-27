@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function EditWordSeasonModal({ isOpen, onClose, season }) {
   const { updateWordSeason } = useApp();
+  const { alertDialog } = useDialog();
   const [title, setTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,7 +27,7 @@ export default function EditWordSeasonModal({ isOpen, onClose, season }) {
       await updateWordSeason(season.id, title.trim());
       onClose();
     } catch (err) {
-      alert("Failed to update season.");
+      await alertDialog("Failed to update season.", { tone: "error" });
     } finally {
       setSubmitting(false);
     }

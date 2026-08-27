@@ -1,8 +1,10 @@
 import { AppProvider } from "@/context/AppContext";
+import { DialogProvider } from "@/context/DialogContext";
 import "./globals.css";
 import GoogleOneTap from "@/components/GoogleOneTap";
 import MotionProvider from "@/components/MotionProvider";
 import AmbientAurora from "@/components/AmbientAurora";
+import DialogHost from "@/components/DialogHost";
 
 export const metadata = {
   title: "Heubert Tracker — Office Penalty System",
@@ -21,13 +23,16 @@ export default function RootLayout({ children }) {
         <script src="https://accounts.google.com/gsi/client" async defer></script>
       </head>
       <body suppressHydrationWarning>
-        <AppProvider>
-          <MotionProvider>
-            <AmbientAurora />
-            <GoogleOneTap />
-            {children}
-          </MotionProvider>
-        </AppProvider>
+        <DialogProvider>
+          <AppProvider>
+            <MotionProvider>
+              <AmbientAurora />
+              <GoogleOneTap />
+              <DialogHost />
+              {children}
+            </MotionProvider>
+          </AppProvider>
+        </DialogProvider>
       </body>
     </html>
   );

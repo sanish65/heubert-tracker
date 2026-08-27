@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 import EmployeeDetailModal from "./EmployeeDetailModal";
 
 export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
   const { employees, removeEmployee, getEmployeeStats, isAdmin } = useApp();
+  const { confirmDialog, alertDialog } = useDialog();
   const [viewingEmployee, setViewingEmployee] = useState(null);
 
   const formatDate = (dateStr) => {
@@ -90,10 +92,10 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
                           <button
                             className="btn btn-sm btn-danger-ghost"
                             onClick={async () => {
-                              if (confirm(`Are you sure you want to delete ${emp.name}?`)) {
+                              if (await confirmDialog(`Are you sure you want to delete ${emp.name}?`, { danger: true })) {
                                 const { error } = await removeEmployee(emp.id);
                                 if (error) {
-                                  alert(`Error deleting employee: ${error.message || 'Check connection'}`);
+                                  await alertDialog(`Error deleting employee: ${error.message || 'Check connection'}`, { tone: 'error' });
                                 }
                               }
                             }}

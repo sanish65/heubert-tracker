@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function EditWordModal({ isOpen, onClose, word }) {
   const { updateWord } = useApp();
+  const { alertDialog } = useDialog();
   const [wordText, setWordText] = useState("");
   const [phonetic, setPhonetic] = useState("");
   const [definition, setDefinition] = useState("");
@@ -42,11 +44,11 @@ export default function EditWordModal({ isOpen, onClose, word }) {
       if (!error) {
         onClose();
       } else {
-        alert("Failed to update word.");
+        await alertDialog("Failed to update word.", { tone: "error" });
       }
     } catch (err) {
       console.error("Update error:", err);
-      alert("Error updating word.");
+      await alertDialog("Error updating word.", { tone: "error" });
     } finally {
       setSubmitting(false);
     }

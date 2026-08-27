@@ -3,9 +3,11 @@ import { useApp } from "@/context/AppContext";
 import StatsCard from "./StatsCard";
 import EventBanner from "@/components/EventBanner";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
+import { useDialog } from "@/context/DialogContext";
 
 export default function Dashboard() {
   const { fines, fineSeasons, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled } = useApp();
+  const { alertDialog } = useDialog();
   const [sendingWish, setSendingWish] = useState(null); // empId
   const [selectedFineSeasonId, setSelectedFineSeasonId] = useState(null); // null = follow latest season
 
@@ -101,12 +103,12 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`✨ ${celebration.type === 'birthday' ? 'Birthday' : 'Anniversary'} wish sent to ${celebration.empName}!`);
+        await alertDialog(`✨ ${celebration.type === 'birthday' ? 'Birthday' : 'Anniversary'} wish sent to ${celebration.empName}!`, { tone: 'success' });
       } else {
-        alert(`❌ Error: ${data.error || 'Failed to send wish'}`);
+        await alertDialog(`❌ Error: ${data.error || 'Failed to send wish'}`, { tone: 'error' });
       }
     } catch (err) {
-      alert("💥 System error while sending email.");
+      await alertDialog("💥 System error while sending email.", { tone: 'error' });
     } finally {
       setSendingWish(null);
     }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 const emptyForm = { name: "", annualDays: "", isUnpaid: false, isActive: true };
 
@@ -110,6 +111,7 @@ function LeaveTypeFormModal({ isOpen, onClose, editing }) {
 
 export default function LeaveSettingsPage() {
   const { leaveTypes, deleteLeaveType, isAdmin } = useApp();
+  const { confirmDialog, alertDialog } = useDialog();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [formKey, setFormKey] = useState(0);
@@ -174,9 +176,9 @@ export default function LeaveSettingsPage() {
                       <button
                         className="btn btn-sm btn-danger-ghost"
                         onClick={async () => {
-                          if (confirm(`Delete leave type "${t.name}"? Existing leave records will keep their history but no longer count against this balance.`)) {
+                          if (await confirmDialog(`Delete leave type "${t.name}"? Existing leave records will keep their history but no longer count against this balance.`, { danger: true })) {
                             const { error } = await deleteLeaveType(t.id);
-                            if (error) alert(`Error deleting leave type: ${error.message || "Check connection"}`);
+                            if (error) await alertDialog(`Error deleting leave type: ${error.message || "Check connection"}`, { tone: "error" });
                           }
                         }}
                       >

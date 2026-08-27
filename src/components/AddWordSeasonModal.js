@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 
 export default function AddWordSeasonModal({ isOpen, onClose }) {
   const { addWordSeason } = useApp();
+  const { alertDialog } = useDialog();
   const [title, setTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -20,7 +22,7 @@ export default function AddWordSeasonModal({ isOpen, onClose }) {
       setTitle("");
       onClose();
     } catch (err) {
-      alert("Failed to add season.");
+      await alertDialog("Failed to add season.", { tone: "error" });
     } finally {
       setSubmitting(false);
     }

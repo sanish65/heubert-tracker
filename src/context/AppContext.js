@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase, supabaseStandup } from "@/lib/supabase";
+import { useDialog } from "@/context/DialogContext";
 import { wordSeedSeasons, wordSeedWords } from "@/data/wordSeedData";
 import {
   findExistingLateFine,
@@ -50,6 +51,7 @@ function parseLocalDate(str) {
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
+  const { confirmDialog, alertDialog } = useDialog();
   const [fines, setFines] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [leaves, setLeaves] = useState([]);
@@ -79,6 +81,7 @@ export function AppProvider({ children }) {
   const [projects, setProjects] = useState([]);
   const [projectLinks, setProjectLinks] = useState([]);
   const [projectEnvironments, setProjectEnvironments] = useState([]);
+  const [projectMembers, setProjectMembers] = useState([]);
 
   const adminEmails = [
     "sanish@heubert.com",
@@ -121,6 +124,7 @@ export function AppProvider({ children }) {
         supabase.from("projects").select("*").order("name"),
         supabase.from("project_links").select("*").order("sort_order", { ascending: true }),
         supabase.from("project_environments").select("*").order("sort_order", { ascending: true }),
+        supabase.from("project_members").select("*"),
       ]);
 
       const [
@@ -145,6 +149,7 @@ export function AppProvider({ children }) {
         { data: projectsData },
         { data: projectLinksData },
         { data: projectEnvironmentsData },
+        { data: projectMembersData },
       ] = results;
 
       if (empData) setEmployees(empData);
@@ -172,6 +177,7 @@ export function AppProvider({ children }) {
       if (projectsData) setProjects(projectsData);
       if (projectLinksData) setProjectLinks(projectLinksData);
       if (projectEnvironmentsData) setProjectEnvironments(projectEnvironmentsData);
+      if (projectMembersData) setProjectMembers(projectMembersData);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -341,11 +347,11 @@ export function AppProvider({ children }) {
       }));
       if (standupToUpload.length) await supabase.from("standup_records").insert(standupToUpload);
 
-      alert("Sync complete! Please refresh the page.");
+      await alertDialog("Sync complete! Please refresh the page.", { tone: "success" });
       fetchData();
     } catch (err) {
       console.error("Sync error:", err);
-      alert("Error during sync. See console.");
+      await alertDialog("Error during sync. See console.", { tone: "error" });
     } finally {
       setIsSyncing(false);
     }
@@ -689,6 +695,31 @@ export function AppProvider({ children }) {
 
   const sortProjectsByName = (a, b) => a.name.localeCompare(b.name);
 
+  // Membership rows carry no editable fields of their own — an employee is either
+  // staffed on the project or not — so this diffs the selected employee ids against
+  // what's already stored instead of reusing the label/url row-editor sync above.
+  const syncProjectMembers = async (projectId, employeeIds, existingRows) => {
+    const existingEmployeeIds = existingRows.map(r => r.employee_id);
+    const toAdd = employeeIds.filter(id => !existingEmployeeIds.includes(id));
+    const toRemove = existingRows.filter(r => !employeeIds.includes(r.employee_id));
+    if (toRemove.length > 0) {
+      const { error } = await supabase.from("project_members").delete().in("id", toRemove.map(r => r.id));
+      if (error) return { error };
+    }
+    if (toAdd.length > 0) {
+      const { error } = await supabase
+        .from("project_members")
+        .insert(toAdd.map(employee_id => ({ project_id: projectId, employee_id })));
+      if (error) return { error };
+    }
+    return { error: null };
+  };
+
+  const reloadProjectMembers = async (projectId) => {
+    const { data } = await supabase.from("project_members").select("*").eq("project_id", projectId);
+    setProjectMembers(prev => [...prev.filter(r => r.project_id !== projectId), ...(data || [])]);
+  };
+
   const addProject = async (project) => {
     const payload = { ...projectPayload(project), created_by: user?.email || null };
     const { data, error } = await supabase.from("projects").insert([payload]).select();
@@ -702,9 +733,11 @@ export function AppProvider({ children }) {
     const { error: envError } = await syncProjectChildren(
       "project_environments", created.id, project.environments || [], projectEnvPayload, []
     );
+    const { error: memberError } = await syncProjectMembers(created.id, project.members || [], []);
     await reloadProjectChildren("project_links", setProjectLinks, created.id);
     await reloadProjectChildren("project_environments", setProjectEnvironments, created.id);
-    return { data: created, error: linkError || envError || null };
+    await reloadProjectMembers(created.id);
+    return { data: created, error: linkError || envError || memberError || null };
   };
 
   const updateProject = async (id, project) => {
@@ -721,18 +754,24 @@ export function AppProvider({ children }) {
       "project_environments", id, project.environments || [], projectEnvPayload,
       projectEnvironments.filter(e => e.project_id === id)
     );
+    const { error: memberError } = await syncProjectMembers(
+      id, project.members || [], projectMembers.filter(m => m.project_id === id)
+    );
     await reloadProjectChildren("project_links", setProjectLinks, id);
     await reloadProjectChildren("project_environments", setProjectEnvironments, id);
-    return { data: data?.[0], error: linkError || envError || null };
+    await reloadProjectMembers(id);
+    return { data: data?.[0], error: linkError || envError || memberError || null };
   };
 
   const deleteProject = async (id) => {
-    // project_links / project_environments are removed by the DB's ON DELETE CASCADE.
+    // project_links / project_environments / project_members are removed by the DB's
+    // ON DELETE CASCADE.
     const { error } = await supabase.from("projects").delete().eq("id", id);
     if (!error) {
       setProjects(prev => prev.filter(p => p.id !== id));
       setProjectLinks(prev => prev.filter(l => l.project_id !== id));
       setProjectEnvironments(prev => prev.filter(e => e.project_id !== id));
+      setProjectMembers(prev => prev.filter(m => m.project_id !== id));
     }
     return { error };
   };
@@ -985,10 +1024,10 @@ export function AppProvider({ children }) {
       if (wError) throw wError;
       setWords(createdWords);
       
-      alert("Word of the Day records seeded successfully! 🎉");
+      await alertDialog("Word of the Day records seeded successfully! 🎉", { tone: "success" });
     } catch (err) {
       console.error("Seed error:", err);
-      alert("Failed to seed data. Check console.");
+      await alertDialog("Failed to seed data. Check console.", { tone: "error" });
     } finally {
       setIsSyncing(false);
     }
@@ -1067,7 +1106,7 @@ export function AppProvider({ children }) {
   };
 
   const resetData = async () => {
-    if (confirm("This will CLEAR CLOUD DATA and reset to seeds. Proceed?")) {
+    if (await confirmDialog("This will CLEAR CLOUD DATA and reset to seeds. Proceed?", { danger: true, confirmText: "Clear Data" })) {
         // Warning: This is a heavy operation
         await Promise.all([
             supabase.from("fines").delete().neq("id", 0),
@@ -1162,6 +1201,7 @@ export function AppProvider({ children }) {
         projects,
         projectLinks,
         projectEnvironments,
+        projectMembers,
         addProject,
         updateProject,
         deleteProject,

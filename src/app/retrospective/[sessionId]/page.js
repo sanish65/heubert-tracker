@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 import RetroTimer from "@/components/RetroTimer";
 import SailboatScene from "@/components/SailboatScene";
 import SpaceScene    from "@/components/SpaceScene";
@@ -31,6 +32,7 @@ const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "🎉", "💡"];
 export default function RetroSessionPage() {
   const { sessionId } = useParams();
   const { user, currentEmployee } = useApp();
+  const { confirmDialog } = useDialog();
 
   // ── Core state ──────────────────────────────────────────
   const [session, setSession]       = useState(null);
@@ -204,7 +206,7 @@ export default function RetroSessionPage() {
   };
   const handleEndSession = async () => {
     if (!session || !isHost) return;
-    if (!confirm("Are you sure you want to end this session? This will lock the board for everyone.")) return;
+    if (!(await confirmDialog("Are you sure you want to end this session? This will lock the board for everyone.", { danger: true, confirmText: "End Session" }))) return;
     try {
       await fetch("/api/retro", {
         method: "POST",

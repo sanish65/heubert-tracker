@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 import WithdrawalLog from "./WithdrawalLog";
 import EditFineModal from "./EditFineModal";
 
@@ -9,6 +10,7 @@ const UNASSIGNED = "unassigned";
 
 export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onAddSeason, onEditSeason }) {
   const { fines: allFines, fineSeasons, employees, toggleFineStatus, deleteFine, isAdmin, isFineAdmin } = useApp();
+  const { confirmDialog } = useDialog();
   const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
   const canManageSeasons = isAdmin || isFineAdmin;
 
@@ -319,7 +321,10 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
                         <td>
                           <span
                             className={`status-badge ${f.status} ${!(isAdmin || isFineAdmin) ? "status-static" : ""}`}
-                            onClick={() => (isAdmin || isFineAdmin) && window.confirm(`Mark as ${f.status === "paid" ? "unpaid" : "paid"}? ${f.employee_name} · Rs. ${f.amount}`) && toggleFineStatus(f.id)}
+                            onClick={async () => {
+                              if (!(isAdmin || isFineAdmin)) return;
+                              if (await confirmDialog(`Mark as ${f.status === "paid" ? "unpaid" : "paid"}? ${f.employee_name} · Rs. ${f.amount}`)) toggleFineStatus(f.id);
+                            }}
                             title={(isAdmin || isFineAdmin) ? "Click to toggle status" : ""}
                           >
                             {f.status}
@@ -337,7 +342,9 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
                               </button>
                               <button
                                 className="btn btn-sm btn-danger"
-                                onClick={() => window.confirm(`Delete fine? ${f.employee_name} · Rs. ${f.amount}`) && deleteFine(f.id)}
+                                onClick={async () => {
+                                  if (await confirmDialog(`Delete fine? ${f.employee_name} · Rs. ${f.amount}`, { danger: true })) deleteFine(f.id);
+                                }}
                                 title="Delete"
                               >
                                 🗑

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 import Modal from "@/components/Modal";
 
 export default function AddFineSeasonModal({ isOpen, onClose }) {
@@ -17,6 +18,7 @@ export default function AddFineSeasonModal({ isOpen, onClose }) {
 
 function AddFineSeasonForm({ onClose }) {
   const { addFineSeason } = useApp();
+  const { alertDialog } = useDialog();
   const [title, setTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,7 +32,7 @@ function AddFineSeasonForm({ onClose }) {
       setTitle("");
       onClose();
     } catch (err) {
-      alert("Failed to add season.");
+      await alertDialog("Failed to add season.", { tone: 'error' });
     } finally {
       setSubmitting(false);
     }

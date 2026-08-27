@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 import LeaveCalendar from "./LeaveCalendar";
 import EditLeaveModal from "./EditLeaveModal";
 import { computeLeaveBalances, parseHalfDaySegment, stripHalfDaySegmentPrefix } from "@/lib/utils";
@@ -14,6 +15,7 @@ const PRE_SEASON = "pre-season";
 
 export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEditSeason }) {
   const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
+  const { confirmDialog } = useDialog();
   const leaves = useMemo(() => allLeaves.filter(l => l.employee_name !== "Developers"), [allLeaves]);
   const [filterEmployee, setFilterEmployee] = useState("");
   const [editingLeave, setEditingLeave] = useState(null);
@@ -291,7 +293,7 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
                             </button>
                             <button
                               className="btn btn-sm btn-danger"
-                              onClick={() => window.confirm(`Delete leave? ${leave.employee_name}`) && deleteLeave(leave.id)}
+                              onClick={async () => { if (await confirmDialog(`Delete leave? ${leave.employee_name}`, { danger: true })) deleteLeave(leave.id); }}
                               title="Delete"
                             >
                               🗑
@@ -353,8 +355,8 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
                 {isAdmin && (
                   <button
                     className="btn-delete-holiday"
-                    onClick={() => {
-                        if (confirm(`Delete holiday "${holiday.title}"?`)) {
+                    onClick={async () => {
+                        if (await confirmDialog(`Delete holiday "${holiday.title}"?`, { danger: true })) {
                             deletePublicHoliday(holiday.id);
                         }
                     }}
