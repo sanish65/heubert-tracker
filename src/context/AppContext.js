@@ -13,6 +13,46 @@ import {
   parseHalfDaySegment,
 } from "@/lib/utils";
 
+// The startup fetch pulls ~22 tables. Firing them all at once opens ~22 TLS connections
+// to the same host in one burst, and a subset of those reliably stall for minutes before
+// completing. Six in flight keeps the load fast without triggering it.
+const STARTUP_CONCURRENCY = 6;
+// No query here should ever take this long. A stalled one used to hang Promise.all
+// forever, which left isLoaded false and the app on its loading screen indefinitely.
+const QUERY_TIMEOUT_MS = 12000;
+
+// Resolves to a supabase-shaped { data, error } no matter what, so one bad table can
+// never take the whole load down with it.
+function settleQuery(label, run) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(
+      () => resolve({ data: null, error: { message: `Timed out after ${QUERY_TIMEOUT_MS}ms` }, label, timedOut: true }),
+      QUERY_TIMEOUT_MS
+    );
+    Promise.resolve()
+      .then(run)
+      .then(
+        (res) => resolve({ ...res, label }),
+        (err) => resolve({ data: null, error: { message: err?.message || String(err) }, label })
+      )
+      .finally(() => clearTimeout(timer));
+  });
+}
+
+// Runs the thunks at most `limit` at a time, preserving result order.
+async function runPooled(tasks, limit) {
+  const results = new Array(tasks.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < tasks.length) {
+      const i = next++;
+      results[i] = await tasks[i]();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+  return results;
+}
+
 // The season a new record belongs to: the most recently CREATED one. Callers may omit a
 // season (e.g. the attendance auto-fine) and must still land on the current season rather
 // than null, which would file the record in the pre-season bucket and hide it from the
@@ -101,83 +141,59 @@ export function AppProvider({ children }) {
 
   // Initial load from Supabase
   const fetchData = useCallback(async () => {
-    try {
-      const results = await Promise.all([
-        supabase.from("employees").select("*").order("name"),
-        supabase.from("fines").select("*").order("date", { ascending: false }),
-        supabase.from("fine_seasons").select("*").order("created_at", { ascending: true }),
-        supabase.from("leaves").select("*").order("start_date", { ascending: false }),
-        supabase.from("leave_seasons").select("*").order("created_at", { ascending: true }),
-        supabase.from("standup_records").select("*").order("date", { ascending: false }),
-        supabase.from("withdrawals").select("*").order("created_at", { ascending: false }),
-        supabase.from("word_seasons").select("*").order("created_at", { ascending: true }),
-        supabase.from("words").select("*").order("created_at", { ascending: false }),
-        supabase.from("public_holidays").select("*").order("date", { ascending: true }),
-        supabase.from("company_events").select("*").order("date", { ascending: true }),
-        supabase.from("sprints").select("*").order("created_at", { ascending: false }),
-        supabaseStandup.from("standup_responses").select("*").order("date", { ascending: false }),
-        supabaseStandup.from("questions").select("*").order("sort_order", { ascending: true }),
-        supabase.from("memories").select("*").order("created_at", { ascending: false }),
-        supabase.from("attendance").select("*").order("date", { ascending: false }),
-        supabase.from("office_settings").select("*").eq("id", 1).single(),
-        supabase.from("leave_types").select("*").order("sort_order", { ascending: true }),
-        supabase.from("projects").select("*").order("name"),
-        supabase.from("project_links").select("*").order("sort_order", { ascending: true }),
-        supabase.from("project_environments").select("*").order("sort_order", { ascending: true }),
-        supabase.from("project_members").select("*"),
-      ]);
-
-      const [
-        { data: empData },
-        { data: fineData },
-        { data: fineSeasonData },
-        { data: leaveData },
-        { data: leaveSeasonData },
-        { data: standupData },
-        { data: withdrawalData },
-        { data: seasonData },
-        { data: wordData },
-        { data: holidayData },
-        { data: eventsData },
-        { data: sprintsData },
-        { data: standupSubData },
-        { data: standupQuestData },
-        { data: memoryData },
-        { data: attendanceData },
-        { data: officeSettingsData },
-        { data: leaveTypesData },
-        { data: projectsData },
-        { data: projectLinksData },
-        { data: projectEnvironmentsData },
-        { data: projectMembersData },
-      ] = results;
-
-      if (empData) setEmployees(empData);
-      if (fineData) setFines(fineData);
-      if (fineSeasonData) setFineSeasons(fineSeasonData);
-      if (leaveData) setLeaves(leaveData);
-      if (leaveSeasonData) setLeaveSeasons(leaveSeasonData);
-      if (standupData) setStandupFines(standupData);
-      if (withdrawalData) setWithdrawals(withdrawalData);
-      if (seasonData) setWordSeasons(seasonData);
-      if (wordData) setWords(wordData);
-      if (holidayData) setPublicHolidays(holidayData);
-      if (eventsData) setCompanyEvents(eventsData);
-      if (sprintsData) {
-        setSprints(sprintsData);
-        const active = sprintsData.find(s => s.is_active);
+    // One entry per table — how to fetch it, and where its rows land. Held as data so the
+    // load can be pooled and a straggler retried without disturbing everything else.
+    const queries = [
+      ["employees", () => supabase.from("employees").select("*").order("name"), setEmployees],
+      ["fines", () => supabase.from("fines").select("*").order("date", { ascending: false }), setFines],
+      ["fine_seasons", () => supabase.from("fine_seasons").select("*").order("created_at", { ascending: true }), setFineSeasons],
+      ["leaves", () => supabase.from("leaves").select("*").order("start_date", { ascending: false }), setLeaves],
+      ["leave_seasons", () => supabase.from("leave_seasons").select("*").order("created_at", { ascending: true }), setLeaveSeasons],
+      ["standup_records", () => supabase.from("standup_records").select("*").order("date", { ascending: false }), setStandupFines],
+      ["withdrawals", () => supabase.from("withdrawals").select("*").order("created_at", { ascending: false }), setWithdrawals],
+      ["word_seasons", () => supabase.from("word_seasons").select("*").order("created_at", { ascending: true }), setWordSeasons],
+      ["words", () => supabase.from("words").select("*").order("created_at", { ascending: false }), setWords],
+      ["public_holidays", () => supabase.from("public_holidays").select("*").order("date", { ascending: true }), setPublicHolidays],
+      ["company_events", () => supabase.from("company_events").select("*").order("date", { ascending: true }), setCompanyEvents],
+      ["sprints", () => supabase.from("sprints").select("*").order("created_at", { ascending: false }), (rows) => {
+        setSprints(rows);
+        const active = rows.find(s => s.is_active);
         if (active) setActiveSprint(active);
+      }],
+      ["standup_responses", () => supabaseStandup.from("standup_responses").select("*").order("date", { ascending: false }), setStandupSubmissions],
+      ["questions", () => supabaseStandup.from("questions").select("*").order("sort_order", { ascending: true }), setStandupQuestions],
+      ["memories", () => supabase.from("memories").select("*").order("created_at", { ascending: false }), setMemories],
+      ["attendance", () => supabase.from("attendance").select("*").order("date", { ascending: false }), setAttendance],
+      ["office_settings", () => supabase.from("office_settings").select("*").eq("id", 1).single(), setOfficeSettings],
+      ["leave_types", () => supabase.from("leave_types").select("*").order("sort_order", { ascending: true }), setLeaveTypes],
+      ["projects", () => supabase.from("projects").select("*").order("name"), setProjects],
+      ["project_links", () => supabase.from("project_links").select("*").order("sort_order", { ascending: true }), setProjectLinks],
+      ["project_environments", () => supabase.from("project_environments").select("*").order("sort_order", { ascending: true }), setProjectEnvironments],
+      ["project_members", () => supabase.from("project_members").select("*"), setProjectMembers],
+    ];
+
+    const apply = ([label, , store], result) => {
+      if (result.error) console.warn(`Startup load for ${label} failed: ${result.error.message}`);
+      if (result.data) store(result.data);
+    };
+
+    try {
+      const results = await runPooled(
+        queries.map(([label, run]) => () => settleQuery(label, run)),
+        STARTUP_CONCURRENCY
+      );
+      results.forEach((res, i) => apply(queries[i], res));
+
+      // Only stalls get a second chance — a table that answered with a real error will
+      // just answer with it again. The app is already past its loading screen by now, so
+      // a slow table fills itself in instead of holding the whole UI hostage.
+      const stalled = queries.filter((_, i) => results[i].timedOut);
+      if (stalled.length) {
+        runPooled(
+          stalled.map(([label, run]) => () => settleQuery(label, run)),
+          STARTUP_CONCURRENCY
+        ).then((retried) => retried.forEach((res, i) => apply(stalled[i], res)));
       }
-      if (standupSubData) setStandupSubmissions(standupSubData);
-      if (standupQuestData) setStandupQuestions(standupQuestData);
-      if (memoryData) setMemories(memoryData);
-      if (attendanceData) setAttendance(attendanceData);
-      if (officeSettingsData) setOfficeSettings(officeSettingsData);
-      if (leaveTypesData) setLeaveTypes(leaveTypesData);
-      if (projectsData) setProjects(projectsData);
-      if (projectLinksData) setProjectLinks(projectLinksData);
-      if (projectEnvironmentsData) setProjectEnvironments(projectEnvironmentsData);
-      if (projectMembersData) setProjectMembers(projectMembersData);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
