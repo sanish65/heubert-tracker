@@ -10,18 +10,47 @@ const supabase = createClient(
 // POST /api/retro               → create session | add card | react_card | unreact_card
 // DELETE /api/retro             → delete a card
 
+// `template` and `project_id` were both added to retro_sessions after boards already
+// existed (see scripts/retro-projects-schema.sql). Until that migration is applied the
+// insert is rejected outright rather than ignored, so a create must be able to retry
+// without the column the database is missing — losing the association is bad, losing
+// the whole board is worse.
+function missingColumn(message = '') {
+  const match =
+    message.match(/column "?([a-z_]+)"? .*does not exist/i) ||
+    message.match(/Could not find the '([a-z_]+)' column/i);
+  return match ? match[1] : null;
+}
+
+// Boards created before the project picker have no project_id; the UI shows them as
+// unassigned. Resolving the name here keeps the public share page — which has no app
+// context to look projects up in — able to show which project a board belongs to.
+async function attachProjects(sessions) {
+  const ids = [...new Set(sessions.map((s) => s.project_id).filter(Boolean))];
+  if (!ids.length) return sessions.map((s) => ({ ...s, project_id: s.project_id ?? null, project: null }));
+
+  const { data: projects } = await supabase.from('projects').select('id,name').in('id', ids);
+  const byId = new Map((projects || []).map((p) => [p.id, p]));
+  return sessions.map((s) => ({
+    ...s,
+    project_id: s.project_id ?? null,
+    project: byId.get(s.project_id) || null,
+  }));
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const sessionId = searchParams.get('sessionId');
   
   if (!sessionId) {
-    // List recent sessions
+    // List recent sessions. The limit covers every project's history at once, since the
+    // home screen groups these by project — 10 would only ever show the busiest team.
     const { data: sessions, error: listErr } = await supabase
       .from('retro_sessions')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(10);
-    
+      .limit(60);
+
     if (listErr) return NextResponse.json({ error: listErr.message }, { status: 500 });
     
     // Check which of these are ended
@@ -50,7 +79,7 @@ export async function GET(request) {
       return { ...s, template: templ, title, is_ended: endedSids.has(s.id) };
     });
 
-    return NextResponse.json({ sessions: cleaned });
+    return NextResponse.json({ sessions: await attachProjects(cleaned) });
   }
 
   const { data: session, error: sErr } = await supabase
@@ -112,8 +141,10 @@ export async function GET(request) {
     }
   });
 
-  return NextResponse.json({ 
-    session: { ...session, is_ended: isEnded },
+  const [sessionWithProject] = await attachProjects([session]);
+
+  return NextResponse.json({
+    session: { ...sessionWithProject, is_ended: isEnded },
     cards: actualCards,
     cardReactions: cardReactions || [],
     activity,
@@ -125,25 +156,42 @@ export async function POST(request) {
   const body = await request.json();
 
   if (body.action === 'create') {
-    const { title, createdBy, template = 'standard' } = body;
-    const { data, error } = await supabase
-      .from('retro_sessions').insert({ title, created_by: createdBy, template }).select().single();
-    if (error) {
-      // Fallback if template column doesn't exist or is not in schema cache
-      if (error.message.includes('column "template" does not exist') || error.message.includes('Could not find the \'template\' column')) {
-        const encodedTitle = `${title} [${template}]`;
-        const { data: retryData, error: retryError } = await supabase
-          .from('retro_sessions').insert({ title: encodedTitle, created_by: createdBy }).select().single();
-        if (retryError) return NextResponse.json({ error: retryError.message }, { status: 500 });
-        
-        // Clean the title for the response
-        retryData.title = title;
-        retryData.template = template;
-        return NextResponse.json({ session: retryData });
+    const { title, createdBy, template = 'standard', projectId = null } = body;
+
+    // Retry without whichever optional column the database is missing, rather than
+    // failing the create. `template` has a title-encoded fallback; `project_id` has
+    // none, so a board created before the migration lands stays unassigned and shows
+    // up under "No project" for someone to file.
+    const payload = {
+      title,
+      created_by: createdBy,
+      template,
+      project_id: projectId ? Number(projectId) : null,
+    };
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase.from('retro_sessions').insert(payload).select().single();
+
+      if (!error) {
+        const [session] = await attachProjects([{ ...data, title, template }]);
+        return NextResponse.json({ session });
+      }
+
+      const missing = missingColumn(error.message);
+      if (missing === 'template') {
+        payload.title = `${title} [${template}]`;
+        delete payload.template;
+        continue;
+      }
+      if (missing === 'project_id') {
+        console.warn('retro_sessions.project_id is missing — apply scripts/retro-projects-schema.sql. Board created unassigned.');
+        delete payload.project_id;
+        continue;
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ session: data });
+
+    return NextResponse.json({ error: 'Could not create the board.' }, { status: 500 });
   }
 
   if (body.action === 'add_card') {

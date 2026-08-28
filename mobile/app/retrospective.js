@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, Pressable, Alert } from "react-native";
 import { Stack } from "expo-router";
 import { useApp } from "../context/AppContext";
-import { API_BASE_URL } from "../lib/supabase";
+import { supabase, API_BASE_URL } from "../lib/supabase";
 import { useThemeColors } from "../lib/theme";
 import { Screen, Card, SectionTitle, EmptyState, Button, TextField, Select } from "../components/ui";
 import { DetailCardSkeleton } from "../components/Skeleton";
@@ -38,6 +38,8 @@ export default function RetrospectiveScreen() {
   const [joinName, setJoinName] = useState(loggedInName);
   const [joinSessionId, setJoinSessionId] = useState("");
   const [template, setTemplate] = useState("standard");
+  const [projects, setProjects] = useState([]);
+  const [projectId, setProjectId] = useState(null);
   const [session, setSession] = useState(null);
   const [cards, setCards] = useState([]);
   const [cardReactions, setCardReactions] = useState([]);
@@ -76,15 +78,31 @@ export default function RetrospectiveScreen() {
 
   useEffect(() => () => pollRef.current && clearInterval(pollRef.current), []);
 
+  // A retro belongs to the project its team ran it for. Projects are not in the mobile
+  // app context (no screen needs them yet), so the picker reads them here.
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("projects")
+      .select("id,name,status")
+      .order("name")
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setProjects(data.filter((p) => p.status !== "archived"));
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   const handleCreate = async () => {
     if (!sessionTitle.trim() || !creatorName.trim()) return setError("Please enter your name and a session title.");
+    if (!projectId) return setError("Please choose the project this retro is for.");
     setLoading(true);
     setError("");
     try {
       const res = await fetch(`${API_BASE_URL}/api/retro`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", title: sessionTitle.trim(), createdBy: creatorName.trim(), template }),
+        body: JSON.stringify({ action: "create", title: sessionTitle.trim(), createdBy: creatorName.trim(), template, projectId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -206,6 +224,12 @@ export default function RetrospectiveScreen() {
           <TextField label="Your Name" value={creatorName} onChangeText={setCreatorName} />
           <TextField label="Session Title" value={sessionTitle} onChangeText={setSessionTitle} placeholder="e.g. Sprint 24 Retro" />
           <Select
+            label="Project"
+            value={projectId}
+            onSelect={setProjectId}
+            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          />
+          <Select
             label="Template"
             value={template}
             onSelect={setTemplate}
@@ -238,6 +262,9 @@ export default function RetrospectiveScreen() {
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <View>
           <Text style={{ color: t.textPrimary, fontSize: 18, fontWeight: "800" }}>{session.title}</Text>
+          {session.project?.name ? (
+            <Text style={{ color: t.textSecondary, fontSize: 12 }}>📁 {session.project.name}</Text>
+          ) : null}
           <Text style={{ color: t.textMuted, fontSize: 12 }}>ID: {session.id}</Text>
         </View>
         {canEndSession && !session.is_ended && <Button title="🏁 End" small variant="danger" onPress={handleEndSession} />}

@@ -5306,6 +5306,12 @@ a.jira-tag-key:hover {
 .poker-input { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; padding: 10px 14px; transition: border-color 0.2s, box-shadow 0.2s; outline: none; width: 100%; }
 .poker-input:focus { border-color: var(--accent-indigo); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
+/* The native dropdown popup does not inherit the control's colours: an unstyled
+   <option> paints --text-primary on the browser's white list, which is unreadable in
+   the dark theme. Same var pairing the other selects in this file use. */
+select.poker-input { cursor: pointer; }
+select.poker-input option { background: var(--bg-secondary); color: var(--text-primary); }
+
 .poker-template-selector { display: flex; gap: 8px; margin-top: 8px; }
 .poker-template-btn { flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-secondary); padding: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .poker-template-btn:hover { border-color: var(--accent-indigo); color: var(--text-primary); }
@@ -6126,6 +6132,101 @@ a.jira-tag-key:hover {
   border-radius: 10px;
   color: var(--text-secondary);
   margin-top: 10px;
+}
+
+/* Project + template badges share the card's bottom row; the project reads first
+   because that is what the board is now filed under. */
+.retro-recent-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.retro-recent-badges .retro-recent-badge {
+  margin-top: 0;
+}
+
+.retro-recent-project {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 65%;
+}
+
+.retro-recent-project-none {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+/* ── Project filter tabs on the retro home ── */
+.retro-project-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 26px;
+}
+
+.retro-project-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retro-project-tab:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-light);
+}
+
+.retro-project-tab.active {
+  background: var(--accent-indigo);
+  border-color: var(--accent-indigo);
+  color: #fff;
+}
+
+.retro-project-tab-count {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0 6px;
+  border-radius: 999px;
+}
+
+.retro-project-empty {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.retro-project-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.retro-standalone-project {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
 }
 
 .retro-recent-card-ended {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import RetroTimer from "./RetroTimer";
@@ -127,6 +127,8 @@ export default function RetrospectivePage() {
   const [copied, setCopied]   = useState(false);
   const [showQR, setShowQR]   = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("standard");
+  const [selectedProjectId, setSelectedProjectId] = useState("");   // project the new board belongs to
+  const [projectFilter, setProjectFilter] = useState("all");        // "all" | project id | "none"
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
   const [recentSessions, setRecentSessions] = useState([]);
@@ -138,8 +140,14 @@ export default function RetrospectivePage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [timerState, setTimerState] = useState(null);
 
-  const { employees, currentEmployee, user, isAdmin } = useApp();
+  const { employees, currentEmployee, user, isAdmin, projects } = useApp();
   const { confirmDialog, promptDialog } = useDialog();
+  // A retro belongs to the project the team ran it for. Archived projects drop out of
+  // the create picker but keep their tab below for as long as they own boards.
+  const activeProjects = useMemo(
+    () => (projects || []).filter(p => p.status !== "archived"),
+    [projects]
+  );
   const employeeNames = employees.map(e => e.name);
   const loggedInName = currentEmployee?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
   const canEndSession = isHost || !!isAdmin;
@@ -278,6 +286,16 @@ export default function RetrospectivePage() {
     }
   }, [view, fetchRecentSessions]);
 
+  // Facilitators run retros for the same project sprint after sprint, so preselect the
+  // one they used last — but only while it still exists and is not archived.
+  useEffect(() => {
+    if (selectedProjectId || !activeProjects.length) return;
+    const remembered = localStorage.getItem("heubert_retro_project_id");
+    if (remembered && activeProjects.some(p => String(p.id) === remembered)) {
+      setSelectedProjectId(remembered);
+    }
+  }, [activeProjects, selectedProjectId]);
+
   useEffect(() => { document.body.style.overflow = isEnlarged ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [isEnlarged]);
   useEffect(() => { if (activeCompose && composeRef.current) composeRef.current.focus(); }, [activeCompose]);
   useEffect(() => { if (dropCol && dropComposeRef.current) dropComposeRef.current.focus(); }, [dropCol]);
@@ -360,17 +378,19 @@ export default function RetrospectivePage() {
   // ── Create / Join ────────────────────────────────────────
   const handleCreate = async () => {
     if (!sessionTitle.trim() || !creatorName.trim()) { setError("Please enter your name and a session title."); return; }
+    if (!selectedProjectId) { setError("Please choose the project this retro is for."); return; }
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/retro", { 
-        method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ 
-          action: "create", 
-          title: sessionTitle.trim(), 
+      const res = await fetch("/api/retro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          title: sessionTitle.trim(),
           createdBy: creatorName.trim(),
-          template: selectedTemplate
-        }) 
+          template: selectedTemplate,
+          projectId: selectedProjectId
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -379,6 +399,7 @@ export default function RetrospectivePage() {
       setParticipantName(creatorName.trim());
       localStorage.setItem("heubert_retro_session_id", data.session.id);
       localStorage.setItem("heubert_collab_name", creatorName.trim());
+      localStorage.setItem("heubert_retro_project_id", String(selectedProjectId));
       setShareUrl(`${window.location.origin}/retrospective/${data.session.id}`);
       startPolling(data.session.id);
     } catch (e) { setError(e.message); }
@@ -602,7 +623,24 @@ export default function RetrospectivePage() {
               <div className="poker-form">
                 <div className="poker-form-group"><label>Your Name</label><input className="poker-input" placeholder="e.g. Alice" value={creatorName} onChange={e => setCreatorName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleCreate()} /></div>
                 <div className="poker-form-group"><label>Sprint</label><input className="poker-input" placeholder="e.g. Sprint 42" value={sessionTitle} onChange={e => setSessionTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && handleCreate()} /></div>
-                
+
+                <div className="poker-form-group">
+                  <label>Project</label>
+                  <select
+                    className="poker-input"
+                    value={selectedProjectId}
+                    onChange={e => setSelectedProjectId(e.target.value)}
+                  >
+                    <option value="">Select a project…</option>
+                    {activeProjects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  {!activeProjects.length && (
+                    <span className="retro-project-hint">No projects yet — add one on the Projects page first.</span>
+                  )}
+                </div>
+
                 <div className="poker-form-group">
                   <label>Board Flavour</label>
                   <div className="poker-template-selector">
@@ -642,9 +680,29 @@ export default function RetrospectivePage() {
           {error && <div className="poker-error">{error}</div>}
 
           {recentSessions.length > 0 && (() => {
-            const active = recentSessions.filter(s => !s.is_ended);
-            const ended  = recentSessions.filter(s => s.is_ended);
-            
+            // Boards are grouped by the project their team ran them for. A project only
+            // earns a tab once it has boards, and "No project" only appears while a board
+            // still predates the project migration.
+            const countFor = (id) => recentSessions.filter(s => (s.project_id ?? null) === id).length;
+            const projectTabs = (projects || [])
+              .map(p => ({ id: String(p.id), label: p.name, count: countFor(p.id) }))
+              .filter(t => t.count > 0);
+            const unassignedCount = countFor(null);
+            const tabs = [
+              { id: "all", label: "All", count: recentSessions.length },
+              ...projectTabs,
+              ...(unassignedCount ? [{ id: "none", label: "No project", count: unassignedCount }] : []),
+            ];
+
+            const visible = recentSessions.filter(s => {
+              if (projectFilter === "all")  return true;
+              if (projectFilter === "none") return !s.project_id;
+              return String(s.project_id) === projectFilter;
+            });
+            const active = visible.filter(s => !s.is_ended);
+            const ended  = visible.filter(s => s.is_ended);
+
+
             const renderCard = (s) => (
               <button key={s.id} className={`retro-recent-card ${s.is_ended ? 'retro-recent-card-ended' : ''}`} onClick={async () => {
                 const nameToUse = participantName || joinName || creatorName || loggedInName || await promptDialog("Enter your name to join this board:");
@@ -675,12 +733,28 @@ export default function RetrospectivePage() {
                     <span>By {s.created_by} · {new Date(s.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <div className="retro-recent-badge">{s.template}</div>
+                <div className="retro-recent-badges">
+                  <span className={`retro-recent-project ${s.project ? "" : "retro-recent-project-none"}`}>
+                    📁 {s.project?.name || "No project"}
+                  </span>
+                  <span className="retro-recent-badge">{s.template}</span>
+                </div>
               </button>
             );
 
             return (
               <div className="retro-recent-sessions">
+                <div className="retro-project-tabs">
+                  {tabs.map(t => (
+                    <button
+                      key={t.id}
+                      className={`retro-project-tab ${projectFilter === t.id ? "active" : ""}`}
+                      onClick={() => setProjectFilter(t.id)}
+                    >
+                      {t.label} <span className="retro-project-tab-count">{t.count}</span>
+                    </button>
+                  ))}
+                </div>
                 {active.length > 0 && (
                   <div className="retro-recent-section">
                     <h3 className="retro-recent-title">🌐 Active Boards</h3>
@@ -692,6 +766,9 @@ export default function RetrospectivePage() {
                     <h3 className="retro-recent-title">🏁 Completed Boards</h3>
                     <div className="retro-recent-grid">{ended.map(renderCard)}</div>
                   </div>
+                )}
+                {visible.length === 0 && (
+                  <p className="retro-project-empty">No retro boards for this project yet — create the first one above.</p>
                 )}
               </div>
             );
@@ -736,7 +813,10 @@ export default function RetrospectivePage() {
                 <button className="poker-back-btn" onClick={resetToHome}>← Exit</button>
                 <div>
                   <h2 className="retro-board-title">{session.title}</h2>
-                  <span className="retro-board-badge">{isHost ? "🎯 Facilitator" : "👤 Participant"} · {cards.length} card{cards.length !== 1 ? "s" : ""}</span>
+                  <span className="retro-board-badge">
+                    {session.project?.name && <>📁 {session.project.name} · </>}
+                    {isHost ? "🎯 Facilitator" : "👤 Participant"} · {cards.length} card{cards.length !== 1 ? "s" : ""}
+                  </span>
                 </div>
               </div>
               <div className="poker-session-actions">

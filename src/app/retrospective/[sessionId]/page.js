@@ -387,7 +387,12 @@ export default function RetroSessionPage() {
       <main className="retro-standalone-main">
         <div className="retro-standalone-header-row">
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <h2 className="retro-standalone-title">{session.title}</h2>
+            <div>
+              <h2 className="retro-standalone-title">{session.title}</h2>
+              {session.project?.name && (
+                <span className="retro-standalone-project">📁 {session.project.name}</span>
+              )}
+            </div>
             {isHost && (
               <RetroTimer
                 session={session}
