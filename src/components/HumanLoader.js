@@ -6,8 +6,8 @@ import { useApp } from "@/context/AppContext";
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
 
 // Known categorizations
-const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "sairose"];
-const knownGirls = ["isha", "pratisha", "merisha", "prativa"];
+const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay"];
+const knownGirls = ["pratisha", "merisha", "prativa"];
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
@@ -77,19 +77,18 @@ export default function HumanLoader() {
   const baseColorParam = "ffffff";
 
   let displayGreeting = greetings[greetingIndex];
-  if (nameKey === "dinesh") displayGreeting = "Mero ghar ma dell ko monitor cha!";
-  else if (nameKey === "jenish") displayGreeting = "so guys, how's the prediction going?!";
+  if (nameKey === "dinesh") displayGreeting = "A Deal breaker , not Heart!";
+  else if (nameKey === "jenish") displayGreeting = "Jerry is my game code";
   else if (nameKey === "nitesh") displayGreeting = "Hi, Its me Nitesh!";
   else if (nameKey === "bikesh") displayGreeting = "They call me Don! Biiku Don!";
   else if (nameKey === "pranay") displayGreeting = "Pranam from Pranay!";
-  else if (nameKey === "sanish") displayGreeting = "Hey, are we the birds of same feather ?";
-  else if (nameKey === "aashish") displayGreeting = "Netherland Firiri......";
-  else if (nameKey === "nikhil") displayGreeting = "श्वानः मित्रं नित्यं विश्वस्तम्।";
+  else if (nameKey === "sanish") displayGreeting = "Ate that bird in the weekend!!";
+  else if (nameKey === "aashish") displayGreeting = "I miss my vacation!!!!";
+  else if (nameKey === "nikhil") displayGreeting = "Present mili ek ghadi _ Pyaari thi muje badi";
   else if (nameKey === "prativa") displayGreeting = "Data is my game";
-  else if (nameKey === "pratisha") displayGreeting = "काआ तरुवर पंच बिडाल,चंचल चित्त पइठो काल।";
-  else if (nameKey === "isha") displayGreeting = "वक्रतुण्ड महाकाय सूर्यकोटि समप्रभ । निर्विघ्नं कुरु मे देव सर्वकार्येषु सर्वदा ॥";
-  else if (nameKey === "merisha") displayGreeting = "Jindagi sarara scooter ma!";
-  else if (nameKey === "amogh") displayGreeting = "sabailai namastey!";
+  else if (nameKey === "pratisha") displayGreeting = "🌿 Veg mode: ON. Meat mode: 404 Not Found.";
+  else if (nameKey === "merisha") displayGreeting = "Merisha_breezy ForEver!!";
+  else if (nameKey === "amogh") displayGreeting = "Am I audible!";
 
 
   if (!isMounted || animationsEnabled === false) {
