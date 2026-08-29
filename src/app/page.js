@@ -40,9 +40,12 @@ import AttendancePage from "@/components/AttendancePage";
 import ReleaseUpdatesModal from "@/components/ReleaseUpdatesModal";
 import LeaveSettingsPage from "@/components/LeaveSettingsPage";
 import ProjectsPage from "@/components/ProjectsPage";
+import StandupFormPage from "@/components/StandupFormPage";
+import StandupFloatingButton from "@/components/StandupFloatingButton";
+import AdminFloatingButtons from "@/components/AdminFloatingButtons";
 
 export default function Home() {
-  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin } = useApp();
+  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady } = useApp();
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef(null);
@@ -100,7 +103,7 @@ export default function Home() {
   // Load active tab from localStorage on mount
   useEffect(() => {
     const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "leaves", "leave-settings", "attendance", "words", "capacity", "events", "projects", "poker", "retro", "memories"].includes(savedTab)) {
+    if (savedTab && ["dashboard", "employees", "records", "standup", "standup-form", "leaves", "leave-settings", "attendance", "words", "capacity", "events", "projects", "poker", "retro", "memories"].includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
@@ -167,6 +170,12 @@ export default function Home() {
 
   return (
     <div className="app-shell">
+      <StandupFloatingButton onOpen={() => setActiveTab("standup-form")} />
+      <AdminFloatingButtons
+        activeTab={activeTab}
+        onOpenProjects={() => setActiveTab("projects")}
+        onOpenLeaveSettings={() => setActiveTab("leave-settings")}
+      />
       {/* Header */}
       <header className="app-header">
         <div className="header-left">
@@ -200,21 +209,6 @@ export default function Home() {
                     <div className="settings-dropdown-title">Preferences</div>
                     <ThemeToggle />
                     <AnimationToggle />
-                    {isAdmin && (
-                      <>
-                        <div className="settings-dropdown-divider" />
-                        <button
-                          className="settings-dropdown-link"
-                          onClick={() => {
-                            setActiveTab("leave-settings");
-                            setShowSettings(false);
-                          }}
-                        >
-                          <span>⚙️</span>
-                          <span>Leave Settings</span>
-                        </button>
-                      </>
-                    )}
                   </div>
                 )}
               </div>
@@ -338,12 +332,6 @@ export default function Home() {
           📅 Events
         </button>
         <button
-          className={`nav-tab ${activeTab === "projects" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("projects")}
-        >
-          🚀 Projects
-        </button>
-        <button
           className={`nav-tab ${activeTab === "poker" ? "nav-tab-active" : ""}`}
           onClick={() => setActiveTab("poker")}
         >
@@ -392,6 +380,7 @@ export default function Home() {
             onAddStandup={() => setShowAddStandup(true)}
           />
         )}
+        {activeTab === "standup-form" && <StandupFormPage />}
         {activeTab === "leaves" && (
           <LeavePage
             onAddLeave={() => setShowAddLeave(true)}

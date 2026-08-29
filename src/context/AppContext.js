@@ -832,6 +832,18 @@ export function AppProvider({ children }) {
     return { data, error };
   };
 
+  const submitStandupResponse = async (payload) => {
+    const { data, error } = await supabaseStandup.from("standup_responses").insert([payload]).select();
+    if (data) setStandupSubmissions(prev => [data[0], ...prev]);
+    return { data, error };
+  };
+
+  const updateStandupResponse = async (id, payload) => {
+    const { data, error } = await supabaseStandup.from("standup_responses").update(payload).eq("id", id).select();
+    if (data) setStandupSubmissions(prev => prev.map(s => s.id === id ? data[0] : s));
+    return { data, error };
+  };
+
   const addWithdrawal = async (amount, reason) => {
     const withdrawnBy = user?.user_metadata?.full_name || user?.email || "Admin";
     const payload = { amount, reason, withdrawn_by: withdrawnBy };
@@ -1173,6 +1185,8 @@ export function AppProvider({ children }) {
         toggleStandupFineStatus,
         deleteStandupFine,
         updateStandupFine,
+        submitStandupResponse,
+        updateStandupResponse,
         addWithdrawal,
         deleteWithdrawal,
         addWordSeason,

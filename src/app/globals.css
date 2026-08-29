@@ -7813,3 +7813,236 @@ select.poker-input option { background: var(--bg-secondary); color: var(--text-p
   flex: 1;
   justify-content: center;
 }
+
+/* ===== DAILY STANDUP FORM =====
+   Fully self-contained: every rule here is scoped under .standup-page so this tab
+   can be restyled without touching any class other tabs rely on. */
+.standup-page {
+  max-width: 560px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.standup-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.standup-page-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.standup-page-clock {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.standup-window-banner {
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.45;
+  margin-bottom: 18px;
+  overflow-wrap: break-word;
+}
+
+.standup-window-open {
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+}
+
+.standup-window-before,
+.standup-window-after {
+  background: var(--accent-amber-soft);
+  color: var(--accent-amber);
+}
+
+.standup-window-done {
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+}
+
+.standup-page-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.standup-page-question {
+  margin-bottom: 16px;
+}
+
+.standup-page-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  overflow-wrap: break-word;
+}
+
+.standup-page-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.standup-page-textarea:focus {
+  outline: none;
+  border-color: var(--accent-indigo);
+}
+
+.standup-page-error {
+  display: block;
+  color: var(--accent-red);
+  font-size: 0.82rem;
+  margin-bottom: 12px;
+}
+
+.standup-page-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.standup-page-empty {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.standup-page-muted {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.standup-page-review-item {
+  margin-bottom: 16px;
+}
+
+.standup-page-review-answer {
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* ===== DAILY STANDUP — FLOATING BUTTON =====
+   .app-shell is centered with max-width: 1200px, so on any screen wider than that there's
+   an empty gutter to its left — this floats in the middle of that gutter. On narrower
+   screens it just sits over the left edge of the content instead. */
+.standup-fab {
+  position: fixed;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--accent-indigo), var(--accent-green));
+  color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  box-shadow: var(--shadow-lg);
+  animation: standup-fab-pulse 2.4s ease-in-out infinite;
+}
+
+.standup-fab:hover {
+  transform: translateY(-50%) scale(1.05);
+}
+
+.standup-fab-icon {
+  font-size: 1.1rem;
+}
+
+@keyframes standup-fab-pulse {
+  0%, 100% { box-shadow: var(--shadow-lg), 0 0 0 rgba(34, 197, 94, 0.35); }
+  50% { box-shadow: var(--shadow-lg), 0 0 22px rgba(34, 197, 94, 0.5); }
+}
+
+@media (max-width: 900px) {
+  .standup-fab {
+    left: 12px;
+    padding: 10px 16px;
+    font-size: 0.82rem;
+  }
+}
+
+/* ===== ADMIN FLOATING BUTTONS (Projects / Leave Settings) =====
+   Mirrors .standup-fab on the opposite (right) edge of the empty gutter outside
+   .app-shell's centered 1200px width. Always visible to admins — no time gating —
+   so it's styled as a calm persistent shortcut rather than the standup button's
+   pulsing urgent-action look. */
+.admin-fab-group {
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-fab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  cursor: pointer;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.admin-fab:hover {
+  transform: scale(1.05);
+  border-color: var(--accent-indigo);
+}
+
+.admin-fab-active {
+  border-color: var(--accent-indigo);
+  color: var(--accent-indigo);
+}
+
+.admin-fab-icon {
+  font-size: 1.1rem;
+}
+
+@media (max-width: 900px) {
+  .admin-fab-group {
+    right: 12px;
+    gap: 8px;
+  }
+  .admin-fab {
+    padding: 10px 16px;
+    font-size: 0.82rem;
+  }
+}
