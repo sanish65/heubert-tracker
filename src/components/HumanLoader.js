@@ -83,7 +83,7 @@ export default function HumanLoader() {
   else if (nameKey === "bikesh") displayGreeting = "They call me Don! Biiku Don!";
   else if (nameKey === "pranay") displayGreeting = "Pranam from Pranay!";
   else if (nameKey === "sanish") displayGreeting = "Ate that bird in the weekend!!";
-  else if (nameKey === "aashish") displayGreeting = "I miss my vacation!!!!";
+  else if (nameKey === "aashish") displayGreeting = "I miss my vacation!!!!!";
   else if (nameKey === "nikhil") displayGreeting = "Present mili ek ghadi _ Pyaari thi muje badi";
   else if (nameKey === "prativa") displayGreeting = "Data is my game";
   else if (nameKey === "pratisha") displayGreeting = "🌿 Veg mode: ON. Meat mode: 404 Not Found.";
