@@ -15,6 +15,7 @@ export default function AddCompanyEventModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !date) {
+      console.log('date: ', date);
       setError("Please fill all required fields");
       return;
     }
