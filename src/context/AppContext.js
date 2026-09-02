@@ -12,6 +12,7 @@ import {
   buildWorkingDates,
   parseHalfDaySegment,
 } from "@/lib/utils";
+import { getNepalDateStr, computeLateness, isWorkingDay, haversineMeters } from "@/lib/attendanceTime";
 
 // The startup fetch pulls ~22 tables. Firing them all at once opens ~22 TLS connections
 // to the same host in one burst, and a subset of those reliably stall for minutes before
@@ -138,6 +139,7 @@ export function AppProvider({ children }) {
 
   const isAdmin = user ? adminEmails.includes(user.email.toLowerCase()) : false;
   const isFineAdmin = user ? fineAdminEmails.includes(user.email.toLowerCase()) : false;
+  const canPunchAttendance = currentEmployee?.can_punch_web === true;
 
   // Initial load from Supabase
   const fetchData = useCallback(async () => {
@@ -405,6 +407,28 @@ export function AppProvider({ children }) {
         address: updatedData.address,
         status: updatedData.status
     };
+    const { data, error } = await supabase.from("employees").update(payload).eq("id", id).select();
+    if (data) setEmployees(prev => prev.map(e => e.id === id ? data[0] : e));
+    return { data, error };
+  };
+
+  // Freelance/WFH web punch access — unrestricted, no office geofence. Turning it on
+  // always clears web_punch_office_bound, so an employee is only ever in one category.
+  const setEmployeePunchAccess = async (id, canPunchWeb) => {
+    const payload = canPunchWeb
+      ? { can_punch_web: true, web_punch_office_bound: false }
+      : { can_punch_web: false };
+    const { data, error } = await supabase.from("employees").update(payload).eq("id", id).select();
+    if (data) setEmployees(prev => prev.map(e => e.id === id ? data[0] : e));
+    return { data, error };
+  };
+
+  // On-site employees who still want to punch from the tracker website instead of the
+  // mobile app — same web punch flow, but bound to the office geofence like mobile is.
+  const setEmployeeOfficeBoundPunch = async (id, enabled) => {
+    const payload = enabled
+      ? { can_punch_web: true, web_punch_office_bound: true }
+      : { can_punch_web: false, web_punch_office_bound: false };
     const { data, error } = await supabase.from("employees").update(payload).eq("id", id).select();
     if (data) setEmployees(prev => prev.map(e => e.id === id ? data[0] : e));
     return { data, error };
@@ -952,6 +976,136 @@ export function AppProvider({ children }) {
     return { data, error };
   };
 
+  // ── Web punch in/out ────────────────────────────────────
+  // Same attendance table as the mobile app's geofenced/biometric checkIn/checkOut, but
+  // without the biometric check — gated by employees.can_punch_web (admin-editable from
+  // the Attendance tab) instead, and skips the auto-fine mobile applies on a late
+  // check-in. Employees with web_punch_office_bound set (on-site staff punching from the
+  // website instead of the app) still go through the same browser-geolocation geofence
+  // check mobile does; freelance/WFH employees skip it entirely.
+  const verifyWebOfficeGeofence = () => {
+    if (!officeSettings) throw new Error("Office location isn't configured yet. Contact an admin.");
+    if (!navigator.geolocation) {
+      throw new Error("Your browser doesn't support location — can't verify you're at the office.");
+    }
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const distance = haversineMeters(
+            position.coords.latitude,
+            position.coords.longitude,
+            officeSettings.latitude,
+            officeSettings.longitude
+          );
+          if (distance > officeSettings.radius_meters) {
+            reject(
+              new Error(
+                `You're ${Math.round(distance)}m from the office — you must be within ${officeSettings.radius_meters}m.`
+              )
+            );
+            return;
+          }
+          resolve(position);
+        },
+        () => reject(new Error("Location permission is required to punch in/out from the office.")),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  };
+
+  const punchIn = async () => {
+    if (!currentEmployee) throw new Error("No employee profile is linked to your account.");
+
+    const todayStr = getNepalDateStr(new Date());
+    const existing = attendance.find((a) => a.employee_name === currentEmployee.name && a.date === todayStr);
+    if (existing?.check_in_at) throw new Error("You've already punched in today.");
+
+    const position = currentEmployee.web_punch_office_bound ? await verifyWebOfficeGeofence() : null;
+
+    const now = new Date();
+    const { isLate, lateMinutes } = isWorkingDay(todayStr, publicHolidays)
+      ? computeLateness(now, officeSettings?.sync_time)
+      : { isLate: false, lateMinutes: 0 };
+
+    const payload = {
+      employee_name: currentEmployee.name,
+      date: todayStr,
+      check_in_at: now.toISOString(),
+      check_in_lat: position?.coords.latitude ?? null,
+      check_in_lng: position?.coords.longitude ?? null,
+      is_late: isLate,
+      late_minutes: lateMinutes,
+    };
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .upsert(payload, { onConflict: "employee_name,date" })
+      .select()
+      .single();
+    if (error) throw error;
+
+    setAttendance((prev) => [data, ...prev.filter((a) => a.id !== data.id)]);
+    return data;
+  };
+
+  const punchOut = async () => {
+    if (!currentEmployee) throw new Error("No employee profile is linked to your account.");
+
+    const todayStr = getNepalDateStr(new Date());
+    const existing = attendance.find((a) => a.employee_name === currentEmployee.name && a.date === todayStr);
+    if (!existing?.check_in_at) throw new Error("You need to punch in before punching out.");
+    if (existing.check_out_at) throw new Error("You've already punched out today.");
+
+    const position = currentEmployee.web_punch_office_bound ? await verifyWebOfficeGeofence() : null;
+
+    const now = new Date();
+    const { data, error } = await supabase
+      .from("attendance")
+      .update({
+        check_out_at: now.toISOString(),
+        check_out_lat: position?.coords.latitude ?? null,
+        check_out_lng: position?.coords.longitude ?? null,
+      })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+
+    setAttendance((prev) => prev.map((a) => (a.id === existing.id ? data : a)));
+    return data;
+  };
+
+  // Admin correction of an existing attendance record — check_in_at/check_out_at are
+  // already-resolved ISO strings (or null to clear), computed by the caller via
+  // nepalLocalToUtcIso. Lateness is recomputed from the new check-in time, same rule as
+  // punchIn, so an edited time keeps is_late/late_minutes consistent.
+  const updateAttendanceRecord = async (id, { check_in_at, check_out_at }) => {
+    const record = attendance.find((a) => a.id === id);
+    if (!record) throw new Error("Attendance record not found.");
+
+    const { isLate, lateMinutes } =
+      check_in_at && isWorkingDay(record.date, publicHolidays)
+        ? computeLateness(new Date(check_in_at), officeSettings?.sync_time)
+        : { isLate: false, lateMinutes: 0 };
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .update({ check_in_at, check_out_at, is_late: isLate, late_minutes: lateMinutes })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+
+    setAttendance((prev) => prev.map((a) => (a.id === id ? data : a)));
+    return data;
+  };
+
+  const deleteAttendanceRecord = async (id) => {
+    const { error } = await supabase.from("attendance").delete().eq("id", id);
+    if (!error) setAttendance((prev) => prev.filter((a) => a.id !== id));
+    return { error };
+  };
+
   const addCompanyEvent = async (date, title) => {
     const { data, error } = await supabase.from("company_events").insert([{ date, title }]).select();
     if (data) {
@@ -1165,6 +1319,8 @@ export function AppProvider({ children }) {
         addEmployee,
         updateEmployee,
         removeEmployee,
+        setEmployeePunchAccess,
+        setEmployeeOfficeBoundPunch,
         addFine,
         toggleFineStatus,
         deleteFine,
@@ -1224,6 +1380,11 @@ export function AppProvider({ children }) {
         attendance,
         officeSettings,
         updateOfficeSettings,
+        canPunchAttendance,
+        punchIn,
+        punchOut,
+        updateAttendanceRecord,
+        deleteAttendanceRecord,
         leaveTypes,
         addLeaveType,
         updateLeaveType,

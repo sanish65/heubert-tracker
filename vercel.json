@@ -3,6 +3,10 @@
     {
       "path": "/api/notify-celebrations",
       "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/api/notify-attendance-reminders",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

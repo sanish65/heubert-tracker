@@ -2,7 +2,10 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useDialog } from "@/context/DialogContext";
 import StatsCard from "./StatsCard";
+import AttendancePunchWidget from "./AttendancePunchWidget";
+import EditAttendanceModal from "./EditAttendanceModal";
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -61,10 +64,28 @@ export default function AttendancePage() {
     updateOfficeSettings,
     currentEmployee,
     isAdmin,
+    canPunchAttendance,
+    setEmployeePunchAccess,
+    setEmployeeOfficeBoundPunch,
+    deleteAttendanceRecord,
   } = useApp();
+  const { confirmDialog, alertDialog } = useDialog();
 
   const [selectedEmployee, setSelectedEmployee] = useState(currentEmployee?.name || "");
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [editingRecord, setEditingRecord] = useState(null);
+
+  const handleDeleteRecord = async (record) => {
+    if (
+      !(await confirmDialog(`Delete attendance for ${record.employee_name} on ${formatDate(record.date)}?`, {
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    const { error } = await deleteAttendanceRecord(record.id);
+    if (error) await alertDialog(`Error deleting attendance: ${error.message || "Check connection"}`, { tone: "error" });
+  };
 
   useEffect(() => {
     if (!selectedEmployee && currentEmployee?.name) setSelectedEmployee(currentEmployee.name);
@@ -154,12 +175,18 @@ export default function AttendancePage() {
       <div className="fine-header">
         <div>
           <h3 className="section-title">📍 Attendance</h3>
-          <span className="fine-count">Check-in and check-out happen from the mobile app — this view is read-only.</span>
+          <span className="fine-count">
+            {canPunchAttendance
+              ? "Punch in/out below, or check-in and check-out from the mobile app."
+              : "Check-in and check-out happen from the mobile app — this view is read-only."}
+          </span>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={handleExportCsv} disabled={!selectedEmployee}>
           ⬇ Export CSV
         </button>
       </div>
+
+      {canPunchAttendance && <AttendancePunchWidget />}
 
       <div className="attendance-filters">
         <select
@@ -203,12 +230,13 @@ export default function AttendancePage() {
                   <th>Check Out</th>
                   <th>Hours</th>
                   <th>Status</th>
+                  {isAdmin && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {sheet.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="empty-row">
+                    <td colSpan={isAdmin ? 6 : 5} className="empty-row">
                       No data for this month.
                     </td>
                   </tr>
@@ -222,6 +250,28 @@ export default function AttendancePage() {
                       <td>
                         <StatusPill status={d.status} />
                       </td>
+                      {isAdmin && (
+                        <td>
+                          {d.record && (
+                            <div className="action-btns">
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => setEditingRecord(d.record)}
+                                title="Edit"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={() => handleDeleteRecord(d.record)}
+                                title="Delete"
+                              >
+                                🗑
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -232,14 +282,120 @@ export default function AttendancePage() {
       )}
 
       {isAdmin && (
+        <WebPunchAccessPanel employees={activeEmployees} setEmployeePunchAccess={setEmployeePunchAccess} />
+      )}
+
+      {isAdmin && (
+        <OfficeBoundPunchPanel employees={activeEmployees} setEmployeeOfficeBoundPunch={setEmployeeOfficeBoundPunch} />
+      )}
+
+      {isAdmin && (
         <OfficeSettingsPanel officeSettings={officeSettings} updateOfficeSettings={updateOfficeSettings} />
       )}
+
+      <EditAttendanceModal
+        isOpen={!!editingRecord}
+        onClose={() => setEditingRecord(null)}
+        record={editingRecord}
+      />
     </section>
   );
 }
 
+function WebPunchAccessPanel({ employees, setEmployeePunchAccess }) {
+  const [pendingId, setPendingId] = useState(null);
+
+  const handleToggle = async (emp) => {
+    setPendingId(emp.id);
+    try {
+      await setEmployeePunchAccess(emp.id, !(emp.can_punch_web && !emp.web_punch_office_bound));
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  return (
+    <div className="attendance-card">
+      <h3 className="section-title">🏠 Freelance / WFH Employees</h3>
+      <span className="fine-count">
+        For employees without a fixed office desk to geofence against — freelancers, remote/WFH staff, etc.
+        Selected employees can punch in/out from this website (no location check), in addition to the mobile app.
+      </span>
+      {employees.length === 0 ? (
+        <p className="empty-msg">No employees yet.</p>
+      ) : (
+        <div className="project-member-picker">
+          {employees.map((emp) => {
+            const checked = emp.can_punch_web && !emp.web_punch_office_bound;
+            return (
+              <label
+                key={emp.id}
+                className={`project-member-chip ${checked ? "active" : ""}`}
+                style={pendingId === emp.id ? { opacity: 0.6, pointerEvents: "none" } : undefined}
+              >
+                <input type="checkbox" checked={checked} onChange={() => handleToggle(emp)} />
+                <span>{emp.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OfficeBoundPunchPanel({ employees, setEmployeeOfficeBoundPunch }) {
+  const [pendingId, setPendingId] = useState(null);
+
+  const handleToggle = async (emp) => {
+    setPendingId(emp.id);
+    try {
+      await setEmployeeOfficeBoundPunch(emp.id, !(emp.can_punch_web && emp.web_punch_office_bound));
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  return (
+    <div className="attendance-card">
+      <h3 className="section-title">🏢 Office Employees (Geofenced Web Punch)</h3>
+      <span className="fine-count">
+        For on-site employees who want to punch from the tracker website instead of the mobile app. Unlike
+        Freelance/WFH, these employees must be within the office radius (below) to punch in or out — same rule
+        as the mobile app, checked via browser location.
+      </span>
+      {employees.length === 0 ? (
+        <p className="empty-msg">No employees yet.</p>
+      ) : (
+        <div className="project-member-picker">
+          {employees.map((emp) => {
+            const checked = emp.can_punch_web && emp.web_punch_office_bound;
+            return (
+              <label
+                key={emp.id}
+                className={`project-member-chip ${checked ? "active" : ""}`}
+                style={pendingId === emp.id ? { opacity: 0.6, pointerEvents: "none" } : undefined}
+              >
+                <input type="checkbox" checked={checked} onChange={() => handleToggle(emp)} />
+                <span>{emp.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OfficeSettingsPanel({ officeSettings, updateOfficeSettings }) {
-  const [form, setForm] = useState({ latitude: "", longitude: "", radius_meters: "", late_fine_amount: "" });
+  const [form, setForm] = useState({
+    latitude: "",
+    longitude: "",
+    radius_meters: "",
+    late_fine_amount: "",
+    checkin_reminder_time: "",
+    checkout_reminder_time: "",
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -249,6 +405,8 @@ function OfficeSettingsPanel({ officeSettings, updateOfficeSettings }) {
         longitude: String(officeSettings.longitude),
         radius_meters: String(officeSettings.radius_meters),
         late_fine_amount: String(officeSettings.late_fine_amount),
+        checkin_reminder_time: officeSettings.checkin_reminder_time || "10:00",
+        checkout_reminder_time: officeSettings.checkout_reminder_time || "18:30",
       });
     }
   }, [officeSettings]);
@@ -263,6 +421,8 @@ function OfficeSettingsPanel({ officeSettings, updateOfficeSettings }) {
         longitude: Number(form.longitude),
         radius_meters: Number(form.radius_meters),
         late_fine_amount: Number(form.late_fine_amount),
+        checkin_reminder_time: form.checkin_reminder_time,
+        checkout_reminder_time: form.checkout_reminder_time,
       });
       if (error) throw error;
     } finally {
@@ -291,7 +451,28 @@ function OfficeSettingsPanel({ officeSettings, updateOfficeSettings }) {
           <label>Late fine amount (Rs.)</label>
           <input className="attendance-input" value={form.late_fine_amount} onChange={handleChange("late_fine_amount")} />
         </div>
+        <div className="attendance-field">
+          <label>Missed check-in reminder time</label>
+          <input
+            type="time"
+            className="attendance-input"
+            value={form.checkin_reminder_time}
+            onChange={handleChange("checkin_reminder_time")}
+          />
+        </div>
+        <div className="attendance-field">
+          <label>Missed check-out reminder time</label>
+          <input
+            type="time"
+            className="attendance-input"
+            value={form.checkout_reminder_time}
+            onChange={handleChange("checkout_reminder_time")}
+          />
+        </div>
       </div>
+      <span className="fine-count">
+        Employees who haven't checked in/out by these times (Asia/Kathmandu) get an email reminder.
+      </span>
       <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
         {saving ? "Saving…" : "Save"}
       </button>
