@@ -37,3 +37,5 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 # Heubert-tracker
 
 New link: https://tracker.heubert.com/
+
+Release flow for geofence punches
