@@ -30,7 +30,7 @@ export default function DateField({ label, value, onChange, minimumDate }) {
       <Pressable
         onPress={() => setShow(true)}
         style={{
-          backgroundColor: t.bgElevated,
+          backgroundColor: t.bgInput,
           borderWidth: 1,
           borderColor: t.border,
           borderRadius: radius.sm,

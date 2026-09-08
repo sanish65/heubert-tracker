@@ -29,7 +29,7 @@ export function Card({ children, style }) {
           marginBottom: 12,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
+          shadowOpacity: t.shadowOpacity,
           shadowRadius: 10,
           elevation: 3,
         },
@@ -108,7 +108,7 @@ export function TextField({ label, value, onChangeText, placeholder, keyboardTyp
         editable={editable}
         style={[
           {
-            backgroundColor: editable ? t.bgElevated : t.border,
+            backgroundColor: editable ? t.bgInput : t.border,
             color: editable ? t.textPrimary : t.textMuted,
             borderWidth: 1,
             borderColor: t.border,
@@ -152,7 +152,7 @@ export function FormModal({ visible, onClose, title, children }) {
   const t = useThemeColors();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" }}>
         <View
           style={{
             backgroundColor: t.bgElevated,
