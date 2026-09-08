@@ -7,27 +7,31 @@ const AVATAR_SIZE = 72;
 
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
 
-const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "sairose"];
-const knownGirls = ["isha", "pratisha", "merisha", "prativa"];
+const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "Ankit", "Bipin"];
+const knownGirls = ["pratisha", "merisha", "prativa"];
 const defaultNames = [...knownBoys, ...knownGirls];
 
+// Mirrors web's HumanLoader.js greeting cascade exactly (src/components/HumanLoader.js) —
+// isha/sairose have left the team and were dropped there too.
 const customGreetings = {
-  dinesh: "Mero ghar ma dell ko monitor cha!",
-  jenish: "so guys, how's the prediction going?!",
+  dinesh: "A Deal breaker , not Heart!",
+  jenish: "Jerry is my game code",
   nitesh: "Hi, Its me Nitesh!",
   bikesh: "They call me Don! Biiku Don!",
   pranay: "Pranam from Pranay!",
-  sanish: "Hey, are we the birds of same feather ?",
-  aashish: "Netherland Firiri......",
-  nikhil: "श्वानः मित्रं नित्यं विश्वस्तम्।",
+  sanish: "Ate that bird in the weekend!!",
+  aashish: "I miss my vacation!!!!!",
+  nikhil: "Present mili ek ghadi _ Pyaari thi muje badi",
   prativa: "Data is my game",
-  pratisha: "काआ तरुवर पंच बिडाल,चंचल चित्त पइठो काल।",
-  isha: "वक्रतुण्ड महाकाय सूर्यकोटि समप्रभ । निर्विघ्नं कुरु मे देव सर्वकार्येषु सर्वदा ॥",
-  merisha: "Jindagi sarara scooter ma!",
-  amogh: "sabailai namastey!",
+  pratisha: "Lets register the marathon guys, hurry up!!",
+  merisha: "Merisha_breezy ForEver!!",
+  amogh: "Am I audible!",
+  ankit: "Ankit, Naam toh Suna hi hoga!",
+  bipin: "Greetings!",
 };
 
-// Decorative emoji + bounce shape per person, standing in for the web version's bespoke CSS keyframes.
+// Decorative emoji + bounce shape per person, standing in for the web version's bespoke CSS
+// keyframes (sanish's flute is a custom rotating SVG there — approximated here with 🎶).
 const props = {
   aashish: { emoji: "🎸", duration: 300 },
   nikhil: { emoji: "🎤", duration: 500 },
@@ -38,6 +42,7 @@ const props = {
   pratisha: { emoji: "📋", duration: 1200 },
   bikesh: { emoji: "🚴", duration: 500 },
   pranay: { emoji: "🧘", duration: 2000 },
+  sanish: { emoji: "🎶", duration: 600 },
 };
 
 function shuffle(arr) {
@@ -141,10 +146,13 @@ export default function HumanLoader() {
       <Animated.View
         style={[
           styles.bubble,
-          { backgroundColor: t.card, borderColor: t.border, opacity: bubbleOpacity },
+          // Always white/teal regardless of theme, matching web's speech bubble — its
+          // --bg-layer-2/--accent CSS vars are never defined, so it always falls back
+          // to these literal colors rather than adapting to dark mode.
+          { backgroundColor: "#ffffff", borderColor: t.border, opacity: bubbleOpacity },
         ]}
       >
-        <Text style={[styles.bubbleText, { color: t.accentIndigo }]}>{displayGreeting}</Text>
+        <Text style={[styles.bubbleText, { color: "#00796b" }]}>{displayGreeting}</Text>
       </Animated.View>
 
       <View style={styles.avatarWrap}>
@@ -156,7 +164,8 @@ export default function HumanLoader() {
             {personProps.emoji}
           </Animated.Text>
         )}
-        <Text style={[styles.name, { color: t.textPrimary, backgroundColor: t.card }]}>{currentName}</Text>
+        {/* Same fixed light tag as the bubble above — web's --text-main var is also undefined. */}
+        <Text style={[styles.name, { color: "#333", backgroundColor: "rgba(255,255,255,0.7)" }]}>{currentName}</Text>
       </View>
 
       <Text style={[styles.title, { color: t.textPrimary }]}>Heubert Tracker</Text>
