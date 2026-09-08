@@ -9,6 +9,7 @@ const ITEMS = [
   { icon: "📅", label: "Events", href: "/events" },
   { icon: "🃏", label: "Planning Poker", href: "/planning-poker" },
   { icon: "🗂️", label: "Retrospective", href: "/retrospective" },
+  { icon: "🚀", label: "Projects", href: "/projects" },
   { icon: "✨", label: "Team Memories", href: "/memories" },
   { icon: "🚀", label: "Meeting Mode", href: "/meeting" },
   { icon: "💸", label: "Withdrawals", href: "/withdrawals" },

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, Pressable, Alert } from "react-native";
 import { Stack } from "expo-router";
 import { useApp } from "../context/AppContext";
-import { supabase, API_BASE_URL } from "../lib/supabase";
+import { API_BASE_URL } from "../lib/supabase";
 import { useThemeColors } from "../lib/theme";
 import { Screen, Card, SectionTitle, EmptyState, Button, TextField, Select } from "../components/ui";
 import { DetailCardSkeleton } from "../components/Skeleton";
@@ -28,9 +28,10 @@ const RETRO_TEMPLATES = {
 };
 
 export default function RetrospectiveScreen() {
-  const { currentEmployee, user, isAdmin } = useApp();
+  const { currentEmployee, user, isAdmin, projects: allProjects } = useApp();
   const t = useThemeColors();
   const loggedInName = currentEmployee?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
+  const projects = allProjects.filter((p) => p.status !== "archived");
 
   const [view, setView] = useState("home");
   const [sessionTitle, setSessionTitle] = useState("");
@@ -38,7 +39,6 @@ export default function RetrospectiveScreen() {
   const [joinName, setJoinName] = useState(loggedInName);
   const [joinSessionId, setJoinSessionId] = useState("");
   const [template, setTemplate] = useState("standard");
-  const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState(null);
   const [session, setSession] = useState(null);
   const [cards, setCards] = useState([]);
@@ -77,21 +77,6 @@ export default function RetrospectiveScreen() {
   );
 
   useEffect(() => () => pollRef.current && clearInterval(pollRef.current), []);
-
-  // A retro belongs to the project its team ran it for. Projects are not in the mobile
-  // app context (no screen needs them yet), so the picker reads them here.
-  useEffect(() => {
-    let cancelled = false;
-    supabase
-      .from("projects")
-      .select("id,name,status")
-      .order("name")
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setProjects(data.filter((p) => p.status !== "archived"));
-      });
-    return () => { cancelled = true; };
-  }, []);
 
   const handleCreate = async () => {
     if (!sessionTitle.trim() || !creatorName.trim()) return setError("Please enter your name and a session title.");
