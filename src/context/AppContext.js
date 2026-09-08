@@ -124,21 +124,8 @@ export function AppProvider({ children }) {
   const [projectEnvironments, setProjectEnvironments] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
 
-  const adminEmails = [
-    "sanish@heubert.com",
-    "nikhil@heubert.com",
-    "pranay@heubert.com",
-    "pratisha@heubert.com",
-    "developers@heubert.com"
-  ];
-
-  const fineAdminEmails = [
-    "sanish@heubert.com",
-    "developers@heubert.com"
-  ];
-
-  const isAdmin = user ? adminEmails.includes(user.email.toLowerCase()) : false;
-  const isFineAdmin = user ? fineAdminEmails.includes(user.email.toLowerCase()) : false;
+  const isAdmin = currentEmployee?.is_admin === true;
+  const isFineAdmin = currentEmployee?.is_fine_admin === true;
   const canPunchAttendance = currentEmployee?.can_punch_web === true;
 
   // Initial load from Supabase
@@ -430,6 +417,24 @@ export function AppProvider({ children }) {
       ? { can_punch_web: true, web_punch_office_bound: true }
       : { can_punch_web: false, web_punch_office_bound: false };
     const { data, error } = await supabase.from("employees").update(payload).eq("id", id).select();
+    if (data) setEmployees(prev => prev.map(e => e.id === id ? data[0] : e));
+    return { data, error };
+  };
+
+  // Per-employee opt-outs from Standup, Leaves, Late Fines and Standup Fines lists, plus
+  // the Admin / Fine Admin roles — replaces the old hardcoded name/email allowlists with
+  // admin-editable flags.
+  const EMPLOYEE_FLAG_FIELDS = new Set([
+    "standup_excluded",
+    "leave_excluded",
+    "late_fine_excluded",
+    "standup_fine_excluded",
+    "is_admin",
+    "is_fine_admin",
+  ]);
+  const setEmployeeFlag = async (id, field, value) => {
+    if (!EMPLOYEE_FLAG_FIELDS.has(field)) return { data: null, error: new Error("Unknown employee flag") };
+    const { data, error } = await supabase.from("employees").update({ [field]: value }).eq("id", id).select();
     if (data) setEmployees(prev => prev.map(e => e.id === id ? data[0] : e));
     return { data, error };
   };
@@ -1321,6 +1326,7 @@ export function AppProvider({ children }) {
         removeEmployee,
         setEmployeePunchAccess,
         setEmployeeOfficeBoundPunch,
+        setEmployeeFlag,
         addFine,
         toggleFineStatus,
         deleteFine,

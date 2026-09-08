@@ -16,7 +16,14 @@ const PRE_SEASON = "pre-season";
 export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEditSeason }) {
   const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
   const { confirmDialog } = useDialog();
-  const leaves = useMemo(() => allLeaves.filter(l => l.employee_name !== "Developers"), [allLeaves]);
+  const leaveExcludedNames = useMemo(
+    () => new Set(employees.filter((e) => e.leave_excluded).map((e) => e.name)),
+    [employees]
+  );
+  const leaves = useMemo(
+    () => allLeaves.filter((l) => !leaveExcludedNames.has(l.employee_name)),
+    [allLeaves, leaveExcludedNames]
+  );
   const [filterEmployee, setFilterEmployee] = useState("");
   const [editingLeave, setEditingLeave] = useState(null);
   const [activeSeasonId, setActiveSeasonId] = useState(null);
@@ -101,7 +108,7 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
 
   // Employee leave summary — scoped to the active season, so a new season starts at zero
   const empSummary = useMemo(() => {
-    return employees.map((emp) => {
+    return employees.filter((emp) => !emp.leave_excluded).map((emp) => {
       const empLeaves = seasonLeaves.filter((l) => l.employee_name === emp.name);
       const totalDays = empLeaves.reduce((sum, l) => {
         const days = l.dates ? l.dates.length : calculateDays(l.start_date, l.end_date, l.type);

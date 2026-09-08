@@ -11,7 +11,14 @@ const UNASSIGNED = "unassigned";
 export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onAddSeason, onEditSeason }) {
   const { fines: allFines, fineSeasons, employees, toggleFineStatus, deleteFine, isAdmin, isFineAdmin } = useApp();
   const { confirmDialog } = useDialog();
-  const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
+  const lateFineExcludedNames = useMemo(
+    () => new Set(employees.filter((e) => e.late_fine_excluded).map((e) => e.name)),
+    [employees]
+  );
+  const fines = useMemo(
+    () => allFines.filter((f) => !lateFineExcludedNames.has(f.employee_name)),
+    [allFines, lateFineExcludedNames]
+  );
   const canManageSeasons = isAdmin || isFineAdmin;
 
   const [activeSeasonId, setActiveSeasonId] = useState(null);
@@ -117,7 +124,7 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
   // Per-employee breakdown for the active season's bar chart
   const empData = useMemo(() => {
     return employees
-      .filter(emp => emp.status !== "resigned" && emp.name !== "Sameer")
+      .filter(emp => emp.status !== "resigned" && !emp.late_fine_excluded)
       .map((emp) => {
         const empFines = seasonFines.filter((f) => f.employee_name === emp.name);
         return {
@@ -297,13 +304,13 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
                     <th onClick={() => handleSort("status")}>
                       Status {sortIcon("status")}
                     </th>
-                    <th>Actions</th>
+                    {(isAdmin || isFineAdmin) && <th>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="empty-row">
+                      <td colSpan={(isAdmin || isFineAdmin) ? 5 : 4} className="empty-row">
                         No records found
                       </td>
                     </tr>
@@ -330,8 +337,8 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
                             {f.status}
                           </span>
                         </td>
-                        <td>
-                          {(isAdmin || isFineAdmin) && (
+                        {(isAdmin || isFineAdmin) && (
+                          <td>
                             <div className="action-btns">
                               <button
                                 className="btn btn-sm btn-secondary"
@@ -350,8 +357,8 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
                                 🗑
                               </button>
                             </div>
-                          )}
-                        </td>
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}

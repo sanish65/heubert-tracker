@@ -23,7 +23,7 @@ function parseLocalDate(str) {
 
 export default function AddLeaveModal({ isOpen, onClose }) {
   const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes, leaveSeasons } = useApp();
-  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && emp.name !== "Developers");
+  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && !emp.leave_excluded);
   const today = toDateStr(new Date());
 
   // A new leave always belongs to the season that is current NOW — never to an earlier

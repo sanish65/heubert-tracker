@@ -5,7 +5,7 @@ import { useApp } from "@/context/AppContext";
 
 export default function AddStandupFineModal({ isOpen, onClose }) {
   const { addStandupFine, employees, currentEmployee, standupFines } = useApp();
-  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && emp.name !== "Developers");
+  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && !emp.standup_fine_excluded);
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
     name: "",

@@ -2,7 +2,7 @@
 
 import { useApp } from "@/context/AppContext";
 
-export default function AdminFloatingButtons({ activeTab, onOpenProjects, onOpenLeaveSettings }) {
+export default function AdminFloatingButtons({ activeTab, onOpenProjects, onOpenLeaveSettings, onOpenPrivilegeSettings }) {
   const { isAdmin } = useApp();
   if (!isAdmin) return null;
 
@@ -25,6 +25,15 @@ export default function AdminFloatingButtons({ activeTab, onOpenProjects, onOpen
       >
         <span className="admin-fab-icon">⚙️</span>
         <span>Leave Settings</span>
+      </button>
+      <button
+        type="button"
+        className={`admin-fab ${activeTab === "privilege-settings" ? "admin-fab-active" : ""}`}
+        onClick={onOpenPrivilegeSettings}
+        title="Privilege Settings"
+      >
+        <span className="admin-fab-icon">🔐</span>
+        <span>Privilege Settings</span>
       </button>
     </div>
   );

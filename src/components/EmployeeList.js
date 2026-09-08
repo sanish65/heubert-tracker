@@ -27,9 +27,11 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
           <h2 className="section-title">Employee Directory</h2>
           <span className="directory-count">{employees.length} Members</span>
         </div>
-        <button className="btn btn-primary btn-add-employee" onClick={onAddEmployee}>
-          <span>+</span> Add Employee
-        </button>
+        {isAdmin && (
+          <button className="btn btn-primary btn-add-employee" onClick={onAddEmployee}>
+            <span>+</span> Add Employee
+          </button>
+        )}
       </div>
 
       <div className="table-wrapper">

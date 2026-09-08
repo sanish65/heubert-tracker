@@ -31,6 +31,7 @@ export default function Dashboard() {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split('T')[0];
   const upcomingLeaves = leaves
     .filter((l) => l.end_date >= todayStr)
@@ -135,7 +136,7 @@ export default function Dashboard() {
 
   // Per-employee breakdown for bar chart
   const empData = employees
-    .filter(emp => emp.status !== 'resigned')
+    .filter(emp => emp.status !== 'resigned' && !emp.late_fine_excluded)
     .map((emp) => {
       const empFines = seasonFines.filter((f) => f.employee_name === emp.name);
       return {
@@ -143,8 +144,7 @@ export default function Dashboard() {
         paid: empFines.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0),
         unpaid: empFines.filter((f) => f.status === "unpaid").reduce((s, f) => s + f.amount, 0),
       };
-    }).sort((a, b) => (b.paid + b.unpaid) - (a.paid + a.unpaid))
-    .filter(e => e.name !== 'Developers' && e.name !== 'Sameer');
+    }).sort((a, b) => (b.paid + b.unpaid) - (a.paid + a.unpaid));
 
   const leastFined = empData.length > 0 ? empData[empData.length - 1] : null;
 
@@ -232,6 +232,7 @@ export default function Dashboard() {
                       <span className="item-meta">{new Date(h.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                     </div>
                   </div>
+                  {h.date === todayStr && <span className="status-badge holiday">Today</span>}
                   {h.date === tomorrowStr && <span className="status-badge holiday">Tomorrow</span>}
                 </div>
               ))

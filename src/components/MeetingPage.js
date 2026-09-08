@@ -56,9 +56,19 @@ export default function MeetingPage() {
     projectMembers,
   } = useApp();
   const { confirmDialog } = useDialog();
-  const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
-  const standupFines = useMemo(() => allStandupFines.filter(f => f.employee_name !== "Developers"), [allStandupFines]);
-  const selectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && e.name !== "Developers"), [employees]);
+  const lateFineExcludedNames = useMemo(
+    () => new Set(employees.filter((e) => e.late_fine_excluded).map((e) => e.name)),
+    [employees]
+  );
+  const standupFineExcludedNames = useMemo(
+    () => new Set(employees.filter((e) => e.standup_fine_excluded).map((e) => e.name)),
+    [employees]
+  );
+  const fines = useMemo(() => allFines.filter(f => !lateFineExcludedNames.has(f.employee_name)), [allFines, lateFineExcludedNames]);
+  const standupFines = useMemo(() => allStandupFines.filter(f => !standupFineExcludedNames.has(f.employee_name)), [allStandupFines, standupFineExcludedNames]);
+  const lateFineSelectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && !e.late_fine_excluded), [employees]);
+  const standupFineSelectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && !e.standup_fine_excluded), [employees]);
+  const leaveSelectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && !e.leave_excluded), [employees]);
   const router = useRouter();
   const [viewDate, setViewDate] = useState("");
   const [isEnlarged, setIsEnlarged] = useState(false);
@@ -287,16 +297,6 @@ export default function MeetingPage() {
     (leaveTypes || []).forEach((t) => map.set(t.id, t));
     return map;
   }, [leaveTypes]);
-  // Shared/system emails — never expected to submit standups
-  const nonStandupEmails = new Set([
-    "developers@heubert.com",
-  ]);
-
-  // Employees (by first name, lowercase) who don't fill standups
-  const nonStandupFirstNames = new Set([
-    "sameer",
-  ]);
-
   const allSubmissions = useMemo(() => {
     // 1. Get actual submissions for the date
     const actualSubmissions = standupSubmissions.filter(s => s.date === viewDate);
@@ -327,12 +327,8 @@ export default function MeetingPage() {
         const personalEmail = emp.personal_email?.trim().toLowerCase();
         const empFirstName = emp.name?.trim().split(/\s+/)[0].toLowerCase();
 
-        // Skip shared accounts (e.g. developers@heubert.com)
-        if (workEmail && nonStandupEmails.has(workEmail)) return false;
-        if (personalEmail && nonStandupEmails.has(personalEmail)) return false;
-
-        // Skip employees excluded by first name (e.g. Sameer)
-        if (empFirstName && nonStandupFirstNames.has(empFirstName)) return false;
+        // Skip employees opted out of the standup list (e.g. HR, shared accounts)
+        if (emp.standup_excluded) return false;
 
         // Primary match: by email
         if (submittedEmails.has(workEmail) || submittedEmails.has(personalEmail)) return false;
@@ -786,7 +782,7 @@ export default function MeetingPage() {
           isOpen={showAddFine}
           onClose={() => setShowAddFine(false)}
           addFine={addFine}
-          employees={selectableEmployees}
+          employees={lateFineSelectableEmployees}
           today={today}
           fines={fines}
           fineSeasons={fineSeasons}
@@ -797,7 +793,7 @@ export default function MeetingPage() {
           isOpen={showAddStandup}
           onClose={() => setShowAddStandup(false)}
           addStandupFine={addStandupFine}
-          employees={selectableEmployees}
+          employees={standupFineSelectableEmployees}
           today={today}
           standupFines={standupFines}
         />
@@ -841,7 +837,7 @@ export default function MeetingPage() {
           isOpen={showAddLeave}
           onClose={() => setShowAddLeave(false)}
           addLeave={addLeave}
-          employees={employees}
+          employees={leaveSelectableEmployees}
           today={today}
           leaves={leaves}
           leaveSeasons={leaveSeasons}

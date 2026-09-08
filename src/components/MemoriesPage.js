@@ -2,6 +2,7 @@ import { useApp } from "@/context/AppContext";
 import { useEffect, useState } from "react";
 import { transformGoogleDriveLink, getGoogleDriveEmbedUrl, getGoogleDriveThumbnailUrl } from "@/lib/utils";
 import { useDialog } from "@/context/DialogContext";
+import HeubertAnime from "@/components/HeubertAnime";
 
 export default function MemoriesPage({ onAddMemory, onBack }) {
   const { memories, animationsEnabled, deleteMemory, updateMemory, user } = useApp();
@@ -173,6 +174,8 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
           })}
         </div>
       </div>
+
+      <HeubertAnime />
 
       {/* =========  LIGHTBOX  ========= */}
       {expanded && (

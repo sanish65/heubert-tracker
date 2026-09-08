@@ -6,7 +6,7 @@ import { findExistingLateFine } from "@/lib/utils";
 
 export default function AddFineModal({ isOpen, onClose }) {
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
-  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && emp.name !== "Developers");
+  const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && !emp.late_fine_excluded);
   const today = new Date().toISOString().split("T")[0];
 
   // A new fine always belongs to the season that is current NOW — never an earlier season

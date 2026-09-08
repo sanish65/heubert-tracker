@@ -6,7 +6,7 @@ import { useApp } from "@/context/AppContext";
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
 
 // Known categorizations
-const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay"];
+const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "Ankit", "Bipin"];
 const knownGirls = ["pratisha", "merisha", "prativa"];
 
 function shuffle(arr) {
@@ -86,10 +86,11 @@ export default function HumanLoader() {
   else if (nameKey === "aashish") displayGreeting = "I miss my vacation!!!!!";
   else if (nameKey === "nikhil") displayGreeting = "Present mili ek ghadi _ Pyaari thi muje badi";
   else if (nameKey === "prativa") displayGreeting = "Data is my game";
-  else if (nameKey === "pratisha") displayGreeting = "🌿 Veg mode: ON. Meat mode: 404 Not Found.";
+  else if (nameKey === "pratisha") displayGreeting = "Lets register the marathon guys, hurry up!!";
   else if (nameKey === "merisha") displayGreeting = "Merisha_breezy ForEver!!";
   else if (nameKey === "amogh") displayGreeting = "Am I audible!";
-
+  else if (nameKey === "ankit") displayGreeting = "Ankit, Naam toh Suna hi hoga!";
+  else if (nameKey === "bipin") displayGreeting = "Greetings!";
 
   if (!isMounted || animationsEnabled === false) {
     return (

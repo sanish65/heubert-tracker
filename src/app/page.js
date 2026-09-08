@@ -39,13 +39,14 @@ import AddMemoryModal from "@/components/AddMemoryModal";
 import AttendancePage from "@/components/AttendancePage";
 import ReleaseUpdatesModal from "@/components/ReleaseUpdatesModal";
 import LeaveSettingsPage from "@/components/LeaveSettingsPage";
+import PrivilegeSettingsPage from "@/components/PrivilegeSettingsPage";
 import ProjectsPage from "@/components/ProjectsPage";
 import StandupFormPage from "@/components/StandupFormPage";
 import StandupFloatingButton from "@/components/StandupFloatingButton";
 import AdminFloatingButtons from "@/components/AdminFloatingButtons";
 
 export default function Home() {
-  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady } = useApp();
+  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin } = useApp();
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef(null);
@@ -103,7 +104,7 @@ export default function Home() {
   // Load active tab from localStorage on mount
   useEffect(() => {
     const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "standup-form", "leaves", "leave-settings", "attendance", "words", "capacity", "events", "projects", "poker", "retro", "memories"].includes(savedTab)) {
+    if (savedTab && ["dashboard", "employees", "records", "standup", "standup-form", "leaves", "leave-settings", "privilege-settings", "attendance", "words", "capacity", "events", "projects", "poker", "retro", "memories"].includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
@@ -175,6 +176,7 @@ export default function Home() {
         activeTab={activeTab}
         onOpenProjects={() => setActiveTab("projects")}
         onOpenLeaveSettings={() => setActiveTab("leave-settings")}
+        onOpenPrivilegeSettings={() => setActiveTab("privilege-settings")}
       />
       {/* Header */}
       <header className="app-header">
@@ -221,7 +223,7 @@ export default function Home() {
             🚀 Start Meeting
           </Link>
           <div className="header-actions">
-          {activeTab === "employees" && (
+          {activeTab === "employees" && isAdmin && (
             <button
               className="btn btn-secondary"
               onClick={() => setShowAddEmployee(true)}
@@ -256,12 +258,14 @@ export default function Home() {
           )}
           {activeTab === "dashboard" && (
             <div className="dashboard-quick-actions">
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowAddEmployee(true)}
-              >
-                Add Employee
-              </button>
+              {isAdmin && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowAddEmployee(true)}
+                >
+                  Add Employee
+                </button>
+              )}
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => setShowAddFine(true)}
@@ -409,21 +413,38 @@ export default function Home() {
         {activeTab === "poker" && <PlanningPokerPage />}
         {activeTab === "retro" && <RetrospectivePage />}
         {activeTab === "leave-settings" && <LeaveSettingsPage />}
+        {activeTab === "privilege-settings" && <PrivilegeSettingsPage />}
       </main>
 
       {/* Footer */}
       <footer className="app-footer">
         <div className="footer-left">
-          <span 
+          <span
             className={`footer-memories-link ${activeTab === 'memories' ? 'active' : ''}`}
             onClick={() => setActiveTab('memories')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveTab('memories');
+              }
+            }}
           >
             ✨ Team Memories
           </span>
-          <span 
+          <span
             className="footer-updates-link"
             onClick={() => setShowReleaseUpdates(true)}
             title="View Release Updates"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setShowReleaseUpdates(true);
+              }
+            }}
           >
             🎁 Updates
           </span>
