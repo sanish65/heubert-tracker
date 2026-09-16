@@ -40,4 +40,4 @@ New link: https://tracker.heubert.com/
 
 Release flow for geofence punches
 
-check for new admin privileges
+check for new admin privileges and settings
