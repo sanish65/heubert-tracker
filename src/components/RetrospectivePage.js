@@ -128,7 +128,9 @@ export default function RetrospectivePage() {
   const [showQR, setShowQR]   = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("standard");
   const [selectedProjectId, setSelectedProjectId] = useState("");   // project the new board belongs to
-  const [projectFilter, setProjectFilter] = useState("all");        // "all" | project id | "none"
+  // null until a project tab is picked — boards stay hidden rather than dumping every
+  // board of every project on arrival. "all" | project id | "none" once chosen.
+  const [projectFilter, setProjectFilter] = useState(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
   const [recentSessions, setRecentSessions] = useState([]);
@@ -694,7 +696,7 @@ export default function RetrospectivePage() {
               ...(unassignedCount ? [{ id: "none", label: "No project", count: unassignedCount }] : []),
             ];
 
-            const visible = recentSessions.filter(s => {
+            const visible = projectFilter === null ? [] : recentSessions.filter(s => {
               if (projectFilter === "all")  return true;
               if (projectFilter === "none") return !s.project_id;
               return String(s.project_id) === projectFilter;
@@ -755,20 +757,28 @@ export default function RetrospectivePage() {
                     </button>
                   ))}
                 </div>
-                {active.length > 0 && (
-                  <div className="retro-recent-section">
-                    <h3 className="retro-recent-title">🌐 Active Boards</h3>
-                    <div className="retro-recent-grid">{active.map(renderCard)}</div>
-                  </div>
-                )}
-                {ended.length > 0 && (
-                  <div className="retro-recent-section" style={{ marginTop: '40px' }}>
-                    <h3 className="retro-recent-title">🏁 Completed Boards</h3>
-                    <div className="retro-recent-grid">{ended.map(renderCard)}</div>
-                  </div>
-                )}
-                {visible.length === 0 && (
-                  <p className="retro-project-empty">No retro boards for this project yet — create the first one above.</p>
+                {projectFilter === null ? (
+                  <p className="retro-project-empty">
+                    Pick a project above to see its retro boards.
+                  </p>
+                ) : (
+                  <>
+                    {active.length > 0 && (
+                      <div className="retro-recent-section">
+                        <h3 className="retro-recent-title">🌐 Active Boards</h3>
+                        <div className="retro-recent-grid">{active.map(renderCard)}</div>
+                      </div>
+                    )}
+                    {ended.length > 0 && (
+                      <div className="retro-recent-section" style={{ marginTop: '40px' }}>
+                        <h3 className="retro-recent-title">🏁 Completed Boards</h3>
+                        <div className="retro-recent-grid">{ended.map(renderCard)}</div>
+                      </div>
+                    )}
+                    {visible.length === 0 && (
+                      <p className="retro-project-empty">No retro boards for this project yet — create the first one above.</p>
+                    )}
+                  </>
                 )}
               </div>
             );

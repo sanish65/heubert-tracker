@@ -740,6 +740,14 @@ body {
   white-space: nowrap;
 }
 
+/* The same day in the calendar the sheet is not currently organized by. */
+.date-cell-alt {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
 .empty-row {
   text-align: center;
   color: var(--text-muted);
@@ -1207,6 +1215,49 @@ body {
   box-shadow: 0 0 0 3px var(--accent-indigo-soft);
 }
 
+/* Name search in the standup header — narrower than the full-width .search-box it builds on. */
+.submission-search {
+  flex: 0 1 220px;
+  min-width: 150px;
+}
+
+.submission-search input {
+  padding-right: 34px;
+}
+
+.search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.search-clear:hover {
+  color: var(--text-primary);
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.search-match-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Ring the matches so they read as found, without disturbing the red "missing" left edge. */
+.submission-item.search-match {
+  box-shadow: 0 0 0 2px var(--accent-indigo);
+}
+
 .status-tabs {
   display: flex;
   gap: 2px;
@@ -1540,6 +1591,8 @@ body {
 
 .cal-stats-bar {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 16px;
   padding-bottom: 16px;
@@ -1612,6 +1665,38 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
   margin-bottom: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+/* The same day in the calendar the grid is not currently laid out by. */
+.cal-day-alt {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-title-alt {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.cal-calendar-toggle {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.cal-calendar-toggle .toggle-pill {
+  padding: 4px 12px;
+  font-size: 0.75rem;
 }
 
 .cal-dots {
@@ -2029,8 +2114,14 @@ body {
   display: none;
 }
 
+.attendance-calendar-toggle {
+  display: inline-flex;
+  gap: 6px;
+}
+
 .toggle-pill {
   display: inline-block;
+  font-family: inherit;
   padding: 7px 16px;
   border-radius: 20px;
   font-size: 0.82rem;
@@ -3315,9 +3406,12 @@ body {
 }
 
 /* ===== MEETING MODE ===== */
+/* No background of its own: this column is only 1400px wide, so painting an opaque
+   --bg-primary here would cut a hard edge through the body's viewport-wide glow at the
+   gutters and below the fold. Letting body paint it keeps the gradient continuous — same
+   as .app-shell elsewhere in the app. */
 .meeting-layout {
   min-height: 100vh;
-  background: var(--bg-primary);
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
@@ -7696,6 +7790,34 @@ select.poker-input option { background: var(--bg-secondary); color: var(--text-p
   max-width: 760px;
   max-height: 88vh;
   overflow-y: auto;
+}
+
+/* Enlarged attendance sheet — as much of the month on screen at once as fits. */
+.modal-content-full {
+  width: 95vw;
+  max-width: 1100px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-content-full .modal-header {
+  margin-bottom: 0;
+}
+
+.scrollable-table-tall {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Opaque, not the usual translucent thead — rows scroll underneath it here. */
+.scrollable-table-tall thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-secondary);
 }
 
 .project-form-grid {

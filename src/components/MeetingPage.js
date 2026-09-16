@@ -76,6 +76,7 @@ export default function MeetingPage() {
   const [isClient, setIsClient] = useState(false);
   // Must be declared before the allSubmissions useMemo that depends on it
   const [sortNewestFirst, setSortNewestFirst] = useState(false);
+  const [nameSearch, setNameSearch] = useState("");
   
   // Idle Animation State
   const [idleSubmissionId, setIdleSubmissionId] = useState(null);
@@ -395,6 +396,21 @@ export default function MeetingPage() {
     return allSubmissions.filter((s) => members.some((emp) => submissionMatchesEmployee(s, emp)));
   }, [allSubmissions, projectFilter, membersByProject]);
 
+  // Searching by name lifts matches to the top rather than hiding the rest, so the
+  // submitted/missing counts stay honest and you keep the context of the whole standup.
+  const nameQuery = nameSearch.trim().toLowerCase();
+
+  const { orderedSubmissions, matchCount } = useMemo(() => {
+    if (!nameQuery) return { orderedSubmissions: filteredSubmissions, matchCount: 0 };
+
+    const matches = [];
+    const rest = [];
+    for (const s of filteredSubmissions) {
+      (s.name?.toLowerCase().includes(nameQuery) ? matches : rest).push(s);
+    }
+    return { orderedSubmissions: [...matches, ...rest], matchCount: matches.length };
+  }, [filteredSubmissions, nameQuery]);
+
   const stats = useMemo(() => {
     const total = filteredSubmissions.length;
     const submitted = filteredSubmissions.filter(s => !s.isMissing).length;
@@ -565,6 +581,30 @@ export default function MeetingPage() {
           <div className="card-header-with-actions">
             <h2 className="card-title">✅ Daily Submissions</h2>
             <div className="card-header-tools">
+              <div className="search-box submission-search">
+                <span className="search-icon">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Search name…"
+                  value={nameSearch}
+                  onChange={(e) => setNameSearch(e.target.value)}
+                />
+                {nameQuery && (
+                  <button
+                    type="button"
+                    className="search-clear"
+                    onClick={() => setNameSearch("")}
+                    title="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              {nameQuery && (
+                <span className="search-match-count">
+                  {matchCount === 0 ? "no match" : `${matchCount} matched`}
+                </span>
+              )}
               <span className="standup-stats">
                 {stats.submitted}/{stats.total} Submitted
               </span>
@@ -612,8 +652,8 @@ export default function MeetingPage() {
             </div>
           )}
           <div className="submissions-list" onScroll={() => window.dispatchEvent(new Event('mousemove'))}>
-            {filteredSubmissions.length > 0 ? (
-              filteredSubmissions.map((s, index) => {
+            {orderedSubmissions.length > 0 ? (
+              orderedSubmissions.map((s, index) => {
                 const subId = s.id || `sub-${index}`;
                 const isIdleTarget = idleSubmissionId === subId;
                 const HIDDEN_STATUSES = ['on hold', 'rejected', 'backlog'];
@@ -623,7 +663,13 @@ export default function MeetingPage() {
                 });
 
                 return (
-                  <div key={`submission-row-${index}`} data-submission-id={subId} className={`submission-item ${s.isMissing ? 'missing' : ''}`}>
+                  <div
+                    key={subId}
+                    data-submission-id={subId}
+                    className={`submission-item ${s.isMissing ? 'missing' : ''} ${
+                      nameQuery && s.name?.toLowerCase().includes(nameQuery) ? 'search-match' : ''
+                    }`}
+                  >
                     {isIdleTarget && <IdleNudge phrases={nudgePhrases} />}
                     <div className="submission-header">
                       <span className="submission-user">

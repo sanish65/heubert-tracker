@@ -1080,28 +1080,35 @@ export function AppProvider({ children }) {
     return data;
   };
 
-  // Admin correction of an existing attendance record — check_in_at/check_out_at are
-  // already-resolved ISO strings (or null to clear), computed by the caller via
-  // nepalLocalToUtcIso. Lateness is recomputed from the new check-in time, same rule as
-  // punchIn, so an edited time keeps is_late/late_minutes consistent.
-  const updateAttendanceRecord = async (id, { check_in_at, check_out_at }) => {
-    const record = attendance.find((a) => a.id === id);
-    if (!record) throw new Error("Attendance record not found.");
-
+  // Admin entry or correction for any day — check_in_at/check_out_at are already-resolved
+  // ISO strings (or null to clear), computed by the caller via nepalLocalToUtcIso. Upserts
+  // rather than updates so a missed punch can be filled in for a day that has no record at
+  // all. Lateness is recomputed from the check-in time, same rule as punchIn, so a manually
+  // entered time keeps is_late/late_minutes consistent.
+  const upsertAttendanceRecord = async (employeeName, date, { check_in_at, check_out_at }) => {
     const { isLate, lateMinutes } =
-      check_in_at && isWorkingDay(record.date, publicHolidays)
+      check_in_at && isWorkingDay(date, publicHolidays)
         ? computeLateness(new Date(check_in_at), officeSettings?.sync_time)
         : { isLate: false, lateMinutes: 0 };
 
     const { data, error } = await supabase
       .from("attendance")
-      .update({ check_in_at, check_out_at, is_late: isLate, late_minutes: lateMinutes })
-      .eq("id", id)
+      .upsert(
+        {
+          employee_name: employeeName,
+          date,
+          check_in_at,
+          check_out_at,
+          is_late: isLate,
+          late_minutes: lateMinutes,
+        },
+        { onConflict: "employee_name,date" }
+      )
       .select()
       .single();
     if (error) throw error;
 
-    setAttendance((prev) => prev.map((a) => (a.id === id ? data : a)));
+    setAttendance((prev) => [data, ...prev.filter((a) => a.id !== data.id)]);
     return data;
   };
 
@@ -1389,7 +1396,7 @@ export function AppProvider({ children }) {
         canPunchAttendance,
         punchIn,
         punchOut,
-        updateAttendanceRecord,
+        upsertAttendanceRecord,
         deleteAttendanceRecord,
         leaveTypes,
         addLeaveType,

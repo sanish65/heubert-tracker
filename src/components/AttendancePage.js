@@ -6,6 +6,19 @@ import { useDialog } from "@/context/DialogContext";
 import StatsCard from "./StatsCard";
 import AttendancePunchWidget from "./AttendancePunchWidget";
 import EditAttendanceModal from "./EditAttendanceModal";
+import Modal from "./Modal";
+import {
+  formatBs,
+  formatBsDevanagari,
+  formatBsNumeric,
+  bsMonthRange,
+  adToBs,
+  bsToAd,
+  bsMonthLength,
+  bsMonthSpan,
+  BS_MONTH_NAMES,
+  BS_YEAR_BOUNDS,
+} from "@/lib/nepaliDate";
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -28,6 +41,17 @@ function formatDate(dateStr) {
   });
 }
 
+function formatWeekday(dateStr) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
+}
+
+function formatMonthDay(dateStr) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 const STATUS_STYLES = {
   present: { bg: "var(--accent-green-soft)", color: "var(--accent-green)", label: "Present" },
   late: { bg: "var(--accent-amber-soft)", color: "var(--accent-amber)", label: "Late" },
@@ -38,6 +62,13 @@ const STATUS_STYLES = {
   pending: { bg: "rgba(148, 163, 184, 0.15)", color: "var(--text-muted)", label: "Pending" },
   upcoming: { bg: "rgba(148, 163, 184, 0.1)", color: "var(--text-muted)", label: "Upcoming" },
 };
+
+// First and last Gregorian day of a period, as ["YYYY-MM-DD", "YYYY-MM-DD"].
+function adMonthSpan(month) {
+  const [y, m] = month.split("-").map(Number);
+  if (!y || !m) return null;
+  return [`${month}-01`, `${month}-${pad(new Date(y, m, 0).getDate())}`];
+}
 
 function formatHours(hours) {
   if (hours == null) return "—";
@@ -73,7 +104,13 @@ export default function AttendancePage() {
 
   const [selectedEmployee, setSelectedEmployee] = useState(currentEmployee?.name || "");
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
-  const [editingRecord, setEditingRecord] = useState(null);
+  const [calendar, setCalendar] = useState("AD"); // "AD" = Gregorian month, "BS" = Nepali month
+  const [bsPeriod, setBsPeriod] = useState(() => {
+    const bs = adToBs(new Date().toISOString().slice(0, 10));
+    return bs ? { year: bs.year, month: bs.month } : { year: BS_YEAR_BOUNDS.max, month: 1 };
+  });
+  const [editingDay, setEditingDay] = useState(null);
+  const [expanded, setExpanded] = useState(false);
 
   const handleDeleteRecord = async (record) => {
     if (
@@ -98,21 +135,66 @@ export default function AttendancePage() {
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  // The days the sheet covers, as Gregorian date strings. A BS month maps onto a
+  // contiguous run of Gregorian days that straddles two Gregorian months.
+  const range = useMemo(() => {
+    if (calendar === "BS") {
+      const length = bsMonthLength(bsPeriod.year, bsPeriod.month);
+      const days = [];
+      for (let d = 1; d <= length; d++) {
+        const dateStr = bsToAd(bsPeriod.year, bsPeriod.month, d);
+        if (dateStr) days.push(dateStr);
+      }
+      return days;
+    }
+
+    const [year, month] = selectedMonth.split("-").map(Number);
+    if (!year || !month) return [];
+    const lastDay = new Date(year, month, 0).getDate();
+    const days = [];
+    for (let d = 1; d <= lastDay; d++) days.push(`${selectedMonth}-${pad(d)}`);
+    return days;
+  }, [calendar, selectedMonth, bsPeriod]);
+
+  // Switching calendars keeps you on the same stretch of time. The target calendar's stored
+  // period is kept when it still overlaps what's on screen, so toggling back and forth
+  // returns you exactly where you started; otherwise it re-anchors on the midpoint of the
+  // current view. The two calendars' months are offset by roughly half a month, so the
+  // midpoint alone would drift a month on about one switch in six.
+  const handleCalendarChange = (next) => {
+    if (next === calendar) return;
+
+    const first = range[0];
+    const last = range[range.length - 1];
+    const stored =
+      next === "BS" ? bsMonthSpan(bsPeriod.year, bsPeriod.month) : adMonthSpan(selectedMonth);
+    const stillOverlaps = stored && first && stored[0] <= last && stored[1] >= first;
+
+    if (first && !stillOverlaps) {
+      const anchor = range[Math.floor(range.length / 2)];
+      if (next === "BS") {
+        const bs = adToBs(anchor);
+        if (bs) setBsPeriod({ year: bs.year, month: bs.month });
+      } else {
+        setSelectedMonth(anchor.slice(0, 7));
+      }
+    }
+    setCalendar(next);
+  };
+
   const sheet = useMemo(() => {
     if (!selectedEmployee) return [];
 
     const holidaySet = new Set(publicHolidays.map((h) => h.date));
-    const [year, month] = selectedMonth.split("-").map(Number);
-    const lastDay = new Date(year, month, 0).getDate();
     const empLeaves = leaves.filter((l) => l.employee_name === selectedEmployee);
     const empAttendance = new Map(
       attendance.filter((a) => a.employee_name === selectedEmployee).map((a) => [a.date, a])
     );
 
     const days = [];
-    for (let d = 1; d <= lastDay; d++) {
-      const dateStr = `${selectedMonth}-${pad(d)}`;
-      const dow = new Date(year, month - 1, d).getDay();
+    for (const dateStr of range) {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const dow = new Date(y, m - 1, d).getDay();
       const isWeekend = dow === 0 || dow === 6;
       const isHoliday = holidaySet.has(dateStr);
       const onLeave = empLeaves.some((l) => dateStr >= l.start_date && dateStr <= l.end_date);
@@ -135,7 +217,41 @@ export default function AttendancePage() {
       days.push({ dateStr, record, status, hours });
     }
     return days;
-  }, [selectedEmployee, attendance, leaves, publicHolidays, selectedMonth, todayStr]);
+  }, [selectedEmployee, attendance, leaves, publicHolidays, range, todayStr]);
+
+  // Headline for the period on screen, plus the same span expressed in the other calendar.
+  const periodLabel =
+    calendar === "BS"
+      ? `${BS_MONTH_NAMES[bsPeriod.month - 1]} ${bsPeriod.year} BS`
+      : new Date(`${selectedMonth}-01T00:00:00`).toLocaleDateString("en-US", {
+          month: "long",
+          year: "numeric",
+        });
+
+  const bsYearOptions = useMemo(() => {
+    const current = adToBs(todayStr)?.year ?? BS_YEAR_BOUNDS.max;
+    const years = new Set([bsPeriod.year]);
+    for (let y = current - 10; y <= current + 1; y++) {
+      if (y >= BS_YEAR_BOUNDS.min && y <= BS_YEAR_BOUNDS.max) years.add(y);
+    }
+    return [...years].sort((a, b) => b - a);
+  }, [todayStr, bsPeriod.year]);
+
+  const periodSubLabel = useMemo(() => {
+    if (range.length === 0) return "";
+    const first = range[0];
+    const last = range[range.length - 1];
+    if (calendar === "BS") {
+      const fmt = (s) =>
+        new Date(s + "T00:00:00").toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      return `${fmt(first)} – ${fmt(last)}`;
+    }
+    return `${bsMonthRange(first, last)} BS`;
+  }, [range, calendar]);
 
   const summary = useMemo(() => {
     const counts = { present: 0, late: 0, absent: 0, leave: 0 };
@@ -148,10 +264,11 @@ export default function AttendancePage() {
   }, [sheet]);
 
   const handleExportCsv = () => {
-    const rows = [["Date", "Check In", "Check Out", "Hours", "Status"]];
+    const rows = [["Date", "Nepali Date", "Check In", "Check Out", "Hours", "Status"]];
     sheet.forEach((d) => {
       rows.push([
         d.dateStr,
+        formatBsNumeric(d.dateStr),
         formatTime(d.record?.check_in_at),
         formatTime(d.record?.check_out_at),
         d.hours != null ? d.hours.toFixed(2) : "",
@@ -165,7 +282,9 @@ export default function AttendancePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `attendance-${selectedEmployee}-${selectedMonth}.csv`;
+    const periodSlug =
+      calendar === "BS" ? `BS${bsPeriod.year}-${pad(bsPeriod.month)}` : selectedMonth;
+    a.download = `attendance-${selectedEmployee}-${periodSlug}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -181,9 +300,19 @@ export default function AttendancePage() {
               : "Check-in and check-out happen from the mobile app — this view is read-only."}
           </span>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={handleExportCsv} disabled={!selectedEmployee}>
-          ⬇ Export CSV
-        </button>
+        <div className="action-btns">
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setExpanded(true)}
+            disabled={!selectedEmployee}
+            title="Open the full sheet"
+          >
+            ⛶ Enlarge
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={handleExportCsv} disabled={!selectedEmployee}>
+            ⬇ Export CSV
+          </button>
+        </div>
       </div>
 
       {canPunchAttendance && <AttendancePunchWidget />}
@@ -201,12 +330,58 @@ export default function AttendancePage() {
             </option>
           ))}
         </select>
-        <input
-          type="month"
-          className="attendance-select"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-        />
+        <div className="attendance-calendar-toggle">
+          <button
+            type="button"
+            className={`toggle-pill ${calendar === "AD" ? "active" : ""}`}
+            onClick={() => handleCalendarChange("AD")}
+          >
+            English
+          </button>
+          <button
+            type="button"
+            className={`toggle-pill ${calendar === "BS" ? "active" : ""}`}
+            onClick={() => handleCalendarChange("BS")}
+          >
+            नेपाली
+          </button>
+        </div>
+
+        {calendar === "AD" ? (
+          <input
+            type="month"
+            className="attendance-select"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          />
+        ) : (
+          <>
+            <select
+              className="attendance-select"
+              value={bsPeriod.month}
+              onChange={(e) => setBsPeriod((p) => ({ ...p, month: Number(e.target.value) }))}
+            >
+              {BS_MONTH_NAMES.map((name, i) => (
+                <option key={name} value={i + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="attendance-select"
+              value={bsPeriod.year}
+              onChange={(e) => setBsPeriod((p) => ({ ...p, year: Number(e.target.value) }))}
+            >
+              {bsYearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {periodSubLabel && <span className="fine-count">{periodSubLabel}</span>}
       </div>
 
       {!selectedEmployee ? (
@@ -221,63 +396,13 @@ export default function AttendancePage() {
             <StatsCard icon="🕒" label="Hours Worked" value={formatHours(summary.totalHours)} color="var(--accent-indigo)" />
           </div>
 
-          <div className="table-wrapper scrollable-table">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
-                  <th>Hours</th>
-                  <th>Status</th>
-                  {isAdmin && <th>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {sheet.length === 0 ? (
-                  <tr>
-                    <td colSpan={isAdmin ? 6 : 5} className="empty-row">
-                      No data for this month.
-                    </td>
-                  </tr>
-                ) : (
-                  sheet.map((d) => (
-                    <tr key={d.dateStr}>
-                      <td className="date-cell">{formatDate(d.dateStr)}</td>
-                      <td>{formatTime(d.record?.check_in_at)}</td>
-                      <td>{formatTime(d.record?.check_out_at)}</td>
-                      <td>{formatHours(d.hours)}</td>
-                      <td>
-                        <StatusPill status={d.status} />
-                      </td>
-                      {isAdmin && (
-                        <td>
-                          {d.record && (
-                            <div className="action-btns">
-                              <button
-                                className="btn btn-sm btn-secondary"
-                                onClick={() => setEditingRecord(d.record)}
-                                title="Edit"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                className="btn btn-sm btn-danger"
-                                onClick={() => handleDeleteRecord(d.record)}
-                                title="Delete"
-                              >
-                                🗑
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <AttendanceSheetTable
+            sheet={sheet}
+            isAdmin={isAdmin}
+            calendar={calendar}
+            onEdit={setEditingDay}
+            onDelete={handleDeleteRecord}
+          />
         </>
       )}
 
@@ -293,12 +418,112 @@ export default function AttendancePage() {
         <OfficeSettingsPanel officeSettings={officeSettings} updateOfficeSettings={updateOfficeSettings} />
       )}
 
+      <Modal isOpen={expanded} onClose={() => setExpanded(false)} size="modal-content-full">
+        <div className="modal-header">
+          <h2>📍 {selectedEmployee} — {periodLabel}</h2>
+          <button className="modal-close" onClick={() => setExpanded(false)}>
+            ×
+          </button>
+        </div>
+        <p className="fine-count">
+          {periodSubLabel} · {summary.present} present · {summary.late} late · {summary.absent} absent ·{" "}
+          {summary.leave} leave · {formatHours(summary.totalHours)}
+        </p>
+        <AttendanceSheetTable
+          sheet={sheet}
+          isAdmin={isAdmin}
+          calendar={calendar}
+          onEdit={setEditingDay}
+          onDelete={handleDeleteRecord}
+          tall
+        />
+      </Modal>
+
       <EditAttendanceModal
-        isOpen={!!editingRecord}
-        onClose={() => setEditingRecord(null)}
-        record={editingRecord}
+        isOpen={!!editingDay}
+        onClose={() => setEditingDay(null)}
+        employeeName={selectedEmployee}
+        day={editingDay}
       />
     </section>
+  );
+}
+
+function AttendanceSheetTable({ sheet, isAdmin, calendar, onEdit, onDelete, tall }) {
+  return (
+    <div className={`table-wrapper ${tall ? "scrollable-table-tall" : "scrollable-table"}`}>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+            <th>Hours</th>
+            <th>Status</th>
+            {isAdmin && <th>Actions</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {sheet.length === 0 ? (
+            <tr>
+              <td colSpan={isAdmin ? 6 : 5} className="empty-row">
+                No data for this month.
+              </td>
+            </tr>
+          ) : (
+            sheet.map((d) => (
+              <tr key={d.dateStr}>
+                <td className="date-cell">
+                  {calendar === "BS" ? (
+                    <>
+                      <span title={formatBsDevanagari(d.dateStr)}>
+                        {formatWeekday(d.dateStr)}, {formatBs(d.dateStr)}
+                      </span>
+                      <span className="date-cell-alt">{formatMonthDay(d.dateStr)}</span>
+                    </>
+                  ) : (
+                    <>
+                      {formatDate(d.dateStr)}
+                      <span className="date-cell-alt" title={formatBsDevanagari(d.dateStr)}>
+                        {formatBs(d.dateStr)}
+                      </span>
+                    </>
+                  )}
+                </td>
+                <td>{formatTime(d.record?.check_in_at)}</td>
+                <td>{formatTime(d.record?.check_out_at)}</td>
+                <td>{formatHours(d.hours)}</td>
+                <td>
+                  <StatusPill status={d.status} />
+                </td>
+                {isAdmin && (
+                  <td>
+                    <div className="action-btns">
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => onEdit(d)}
+                        title={d.record ? "Edit attendance" : "Add attendance"}
+                      >
+                        {d.record ? "✏️" : "＋"}
+                      </button>
+                      {d.record && (
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => onDelete(d.record)}
+                          title="Delete"
+                        >
+                          🗑
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

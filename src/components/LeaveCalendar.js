@@ -2,8 +2,26 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { describeLeave } from "@/lib/utils";
+import {
+  adToBs,
+  bsToAd,
+  bsMonthLength,
+  bsMonthSpan,
+  bsMonthRange,
+  BS_MONTH_NAMES,
+  BS_YEAR_BOUNDS,
+} from "@/lib/nepaliDate";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const SHORT_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
 
 // Dots are a type summary, capped so they stay on one row. The "N on leave" line
 // underneath is the authoritative count, so capping here never hides information.
@@ -15,8 +33,14 @@ const MONTHS = [
 
 export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays = [], outOfSeasonLeaves = [] }) {
   const now = new Date();
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [calendar, setCalendar] = useState("AD"); // "AD" = Gregorian month, "BS" = Nepali month
+  const [bsView, setBsView] = useState(() => {
+    const bs = adToBs(todayStr);
+    return bs ? { year: bs.year, month: bs.month } : { year: BS_YEAR_BOUNDS.max, month: 1 };
+  });
 
   // Normalized once: `date` may come back as "YYYY-MM-DD" or a full timestamp
   const holidaySet = useMemo(
@@ -64,8 +88,56 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
     return map;
   }, [leaves, selectedEmployee, getDatesInRange]);
 
-  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  // The month on screen, as a flat list of days plus the blanks padding the first week. A
+  // BS month maps onto a contiguous run of Gregorian days, so both calendars reduce to the
+  // same shape and everything downstream stays calendar-agnostic.
+  const grid = useMemo(() => {
+    const days = [];
+
+    if (calendar === "BS") {
+      const length = bsMonthLength(bsView.year, bsView.month);
+      for (let d = 1; d <= length; d++) {
+        const dateStr = bsToAd(bsView.year, bsView.month, d);
+        if (!dateStr) continue;
+        const [, m, dd] = dateStr.split("-").map(Number);
+        // Name the month on its 1st, so the small date still orients you mid-grid.
+        days.push({ dateStr, primary: d, secondary: dd === 1 ? `${dd} ${SHORT_MONTHS[m - 1]}` : dd });
+      }
+    } else {
+      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${viewYear}-${pad(viewMonth + 1)}-${pad(d)}`;
+        const bs = adToBs(dateStr);
+        days.push({
+          dateStr,
+          primary: d,
+          secondary: !bs ? "" : bs.day === 1 ? `${bs.day} ${BS_MONTH_NAMES[bs.month - 1]}` : bs.day,
+        });
+      }
+    }
+
+    const lead = days.length ? new Date(days[0].dateStr + "T00:00:00").getDay() : 0;
+    return { days, lead };
+  }, [calendar, viewYear, viewMonth, bsView]);
+
+  const monthDates = useMemo(() => new Set(grid.days.map((d) => d.dateStr)), [grid]);
+
+  // The same span expressed in the calendar you're not currently viewing by.
+  const titleAlt = useMemo(() => {
+    const { days } = grid;
+    if (days.length === 0) return "";
+    const first = days[0].dateStr;
+    const last = days[days.length - 1].dateStr;
+
+    if (calendar === "BS") {
+      const fmt = (s) => {
+        const [, m, d] = s.split("-").map(Number);
+        return `${SHORT_MONTHS[m - 1]} ${d}`;
+      };
+      return `${fmt(first)} – ${fmt(last)}, ${last.split("-")[0]}`;
+    }
+    return `${bsMonthRange(first, last)} BS`;
+  }, [grid, calendar]);
 
   // Monthly stats
   const { filteredLeavesCount, totalDays } = useMemo(() => {
@@ -78,10 +150,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
 
     filtered.forEach((l) => {
       const dates = l.dates || getDatesInRange(l.start_date, l.end_date);
-      const datesInThisMonth = dates.filter((d) => {
-        const dt = new Date(d + "T00:00:00");
-        return dt.getFullYear() === viewYear && dt.getMonth() === viewMonth;
-      });
+      const datesInThisMonth = dates.filter((d) => monthDates.has(d));
 
       if (datesInThisMonth.length > 0) {
         count++;
@@ -90,7 +159,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
     });
 
     return { filteredLeavesCount: count, totalDays: days };
-  }, [leaves, selectedEmployee, viewYear, viewMonth, getDatesInRange]);
+  }, [leaves, selectedEmployee, monthDates, getDatesInRange]);
 
   // Leaves that exist for this month but sit in a different season, so they are filtered
   // out of the grid above. Surfaced instead of silently dropped — a leave that shows up in
@@ -101,14 +170,21 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       : outOfSeasonLeaves || [];
     return candidates.filter((l) => {
       const dates = l.dates || getDatesInRange(l.start_date, l.end_date);
-      return dates.some((d) => {
-        const dt = new Date(d + "T00:00:00");
-        return dt.getFullYear() === viewYear && dt.getMonth() === viewMonth;
-      });
+      return dates.some((d) => monthDates.has(d));
     }).length;
-  }, [outOfSeasonLeaves, selectedEmployee, viewYear, viewMonth, getDatesInRange]);
+  }, [outOfSeasonLeaves, selectedEmployee, monthDates, getDatesInRange]);
+
+  const shiftBs = (delta) =>
+    setBsView((v) => {
+      let month = v.month + delta;
+      let year = v.year;
+      if (month < 1) { month = 12; year -= 1; }
+      if (month > 12) { month = 1; year += 1; }
+      return year < BS_YEAR_BOUNDS.min || year > BS_YEAR_BOUNDS.max ? v : { year, month };
+    });
 
   const prevMonth = () => {
+    if (calendar === "BS") return shiftBs(-1);
     if (viewMonth === 0) {
       setViewMonth(11);
       setViewYear((y) => y - 1);
@@ -118,6 +194,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
   };
 
   const nextMonth = () => {
+    if (calendar === "BS") return shiftBs(1);
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear((y) => y + 1);
@@ -129,21 +206,52 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
   const goToday = () => {
     setViewYear(now.getFullYear());
     setViewMonth(now.getMonth());
+    const bs = adToBs(todayStr);
+    if (bs) setBsView({ year: bs.year, month: bs.month });
+  };
+
+  // Switching calendars stays on the same stretch of time: the target calendar's stored
+  // month is kept when it still overlaps what's on screen, so toggling back and forth
+  // returns you where you started, and re-anchors on the midpoint otherwise.
+  const handleCalendarChange = (next) => {
+    if (next === calendar) return;
+    const { days } = grid;
+    const first = days[0]?.dateStr;
+    const last = days[days.length - 1]?.dateStr;
+
+    if (first) {
+      const stored =
+        next === "BS"
+          ? bsMonthSpan(bsView.year, bsView.month)
+          : [
+              `${viewYear}-${pad(viewMonth + 1)}-01`,
+              `${viewYear}-${pad(viewMonth + 1)}-${pad(new Date(viewYear, viewMonth + 1, 0).getDate())}`,
+            ];
+
+      if (!(stored && stored[0] <= last && stored[1] >= first)) {
+        const anchor = days[Math.floor(days.length / 2)].dateStr;
+        if (next === "BS") {
+          const bs = adToBs(anchor);
+          if (bs) setBsView({ year: bs.year, month: bs.month });
+        } else {
+          const [y, m] = anchor.split("-").map(Number);
+          setViewYear(y);
+          setViewMonth(m - 1);
+        }
+      }
+    }
+    setCalendar(next);
   };
 
   const cells = [];
   // Empty cells before first day
-  for (let i = 0; i < firstDay; i++) {
+  for (let i = 0; i < grid.lead; i++) {
     cells.push(<div key={`e-${i}`} className="cal-cell cal-empty" />);
   }
   // Day cells
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  for (const { dateStr, primary, secondary } of grid.days) {
     const dayLeaves = leaveDateMap[dateStr] || [];
-    const isToday =
-      day === now.getDate() &&
-      viewMonth === now.getMonth() &&
-      viewYear === now.getFullYear();
+    const isToday = dateStr === todayStr;
 
     const isHoliday = holidaySet.has(dateStr);
     const holidayTitle = publicHolidays.find((h) => h.date?.split("T")[0] === dateStr)?.title;
@@ -169,8 +277,11 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
     const tooltip = tooltipLines.join("\n");
 
     cells.push(
-      <div key={day} className={cellClass} {...(tooltip ? { title: tooltip } : {})}>
-        <span className="cal-day-num">{day}</span>
+      <div key={dateStr} className={cellClass} {...(tooltip ? { title: tooltip } : {})}>
+        <span className="cal-day-num">
+          {primary}
+          {secondary !== "" && <span className="cal-day-alt">{secondary}</span>}
+        </span>
         {dayLeaves.length > 0 && (
           <>
             <div className="cal-dots">
@@ -193,7 +304,10 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       <div className="cal-header">
         <button className="btn btn-ghost btn-sm" onClick={prevMonth}>‹</button>
         <h3 className="cal-title">
-          {MONTHS[viewMonth]} {viewYear}
+          {calendar === "BS"
+            ? `${BS_MONTH_NAMES[bsView.month - 1]} ${bsView.year}`
+            : `${MONTHS[viewMonth]} ${viewYear}`}
+          <span className="cal-title-alt">{titleAlt}</span>
         </h3>
         <button className="btn btn-ghost btn-sm" onClick={goToday}>Today</button>
         <button className="btn btn-ghost btn-sm" onClick={nextMonth}>›</button>
@@ -211,6 +325,22 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
             ⚠️ <span className="cal-stat-num">{hiddenThisMonth}</span> in another season
           </span>
         )}
+        <div className="cal-calendar-toggle">
+          <button
+            type="button"
+            className={`toggle-pill ${calendar === "AD" ? "active" : ""}`}
+            onClick={() => handleCalendarChange("AD")}
+          >
+            English
+          </button>
+          <button
+            type="button"
+            className={`toggle-pill ${calendar === "BS" ? "active" : ""}`}
+            onClick={() => handleCalendarChange("BS")}
+          >
+            नेपाली
+          </button>
+        </div>
       </div>
 
       <div className="cal-grid">

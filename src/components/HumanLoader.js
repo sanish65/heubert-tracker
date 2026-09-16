@@ -6,8 +6,8 @@ import { useApp } from "@/context/AppContext";
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
 
 // Known categorizations
-const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "Ankit", "Bipin"];
-const knownGirls = ["pratisha", "merisha", "prativa"];
+const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "ankit", "bipin" , "nikesh"];
+const knownGirls = ["pratisha", "merisha", "prativa" , "nebula"];
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
@@ -67,30 +67,34 @@ export default function HumanLoader() {
 
   const hairParam = isGirl ? girlHair : boyHair;
 
-  const wearsGlasses = ["sanish", "bikesh", "merisha", "jenish", "nikhil", "pratisha", "prativa", "amogh"].includes(nameKey);
+  const wearsGlasses = ["sanish", "bikesh", "merisha", "jenish", "nikhil", "pratisha", "prativa", "amogh" , "bipin" , "nikesh", "nebula"].includes(nameKey);
   const glassesParam = wearsGlasses ? "&glassesProbability=100" : "&glassesProbability=0";
   
-  const hasBeard = ["sanish"].includes(nameKey);
+  const hasBeard = ["sanish" , "dinesh"].includes(nameKey);
   const facialHairParamString = hasBeard ? "&facialHair=beard,scruff&facialHairProbability=100" : "&facialHairProbability=0";
 
   const mouthParam = "smile,laughing";
   const baseColorParam = "ffffff";
 
   let displayGreeting = greetings[greetingIndex];
-  if (nameKey === "dinesh") displayGreeting = "A Deal breaker , not Heart!";
+  if (nameKey === "dinesh") displayGreeting = "Hello!";
+  else if (nameKey === "pratisha") displayGreeting = "Lets register the marathon guys, hurry up!!";
   else if (nameKey === "jenish") displayGreeting = "Jerry is my game code";
   else if (nameKey === "nitesh") displayGreeting = "Hi, Its me Nitesh!";
-  else if (nameKey === "bikesh") displayGreeting = "They call me Don! Biiku Don!";
-  else if (nameKey === "pranay") displayGreeting = "Pranam from Pranay!";
-  else if (nameKey === "sanish") displayGreeting = "Ate that bird in the weekend!!";
-  else if (nameKey === "aashish") displayGreeting = "I miss my vacation!!!!!";
-  else if (nameKey === "nikhil") displayGreeting = "Present mili ek ghadi _ Pyaari thi muje badi";
+  else if (nameKey === "bikesh") displayGreeting = "केही मीठो बात गर, रात त्यसै ढल्किँदै छ!";
+  else if (nameKey === "pranay") displayGreeting = "प्रणाम from प्रणय!!!";
+  else if (nameKey === "sanish") displayGreeting = "when it rains, its rainy!!";
+  else if (nameKey === "aashish") displayGreeting = "Hi, Nice to meet you!!!!";
+  else if (nameKey === "nikhil") displayGreeting = "सपनीमा मुसुक्क हाँसी, कहाँ गयौ तिमी ट्याक्सीमा?!";
   else if (nameKey === "prativa") displayGreeting = "Data is my game";
-  else if (nameKey === "pratisha") displayGreeting = "Lets register the marathon guys, hurry up!!";
   else if (nameKey === "merisha") displayGreeting = "Merisha_breezy ForEver!!";
   else if (nameKey === "amogh") displayGreeting = "Am I audible!";
-  else if (nameKey === "ankit") displayGreeting = "Ankit, Naam toh Suna hi hoga!";
+  else if (nameKey === "ankit") displayGreeting = "Bikesh dai is my favourite!";
   else if (nameKey === "bipin") displayGreeting = "Greetings!";
+  else if (nameKey === "nebula") displayGreeting = "Hi!";
+  else if (nameKey === "nikesh") displayGreeting = "Namastey!";
+
+
 
   if (!isMounted || animationsEnabled === false) {
     return (

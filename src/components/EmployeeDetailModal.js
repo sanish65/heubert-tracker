@@ -94,10 +94,12 @@ export default function EmployeeDetailModal({ isOpen, onClose, employee }) {
               <span className="emp-detail-label">Joined Date</span>
               <span className="emp-detail-value">{formatDate(employee.joined_date)}</span>
             </div>
-            <div className="emp-detail-item">
-              <span className="emp-detail-label">Left Date</span>
-              <span className="emp-detail-value">{formatDate(employee.left_date)}</span>
-            </div>
+            {(employee.status || "active") !== "active" && (
+              <div className="emp-detail-item">
+                <span className="emp-detail-label">Left Date</span>
+                <span className="emp-detail-value">{formatDate(employee.left_date)}</span>
+              </div>
+            )}
           </div>
         </div>
 
