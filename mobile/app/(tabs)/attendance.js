@@ -40,7 +40,7 @@ function HistoryRow({ record }) {
 }
 
 export default function AttendanceScreen() {
-  const { attendance, currentEmployee, checkIn, checkOut, isLoaded } = useApp();
+  const { attendance, currentEmployee, checkIn, checkOut, isLoaded, isAttendanceGeofenceExempt } = useApp();
   const t = useThemeColors();
   const [busy, setBusy] = useState(false);
 
@@ -102,7 +102,9 @@ export default function AttendanceScreen() {
         )}
 
         <Text style={{ color: t.textMuted, fontSize: 11, marginTop: 12 }}>
-          Requires you to be at the office and to verify with your device's fingerprint, face unlock, PIN, or pattern.
+          {isAttendanceGeofenceExempt
+            ? "Requires you to verify with your device's fingerprint, face unlock, PIN, or pattern. You can check in from anywhere."
+            : "Requires you to be at the office and to verify with your device's fingerprint, face unlock, PIN, or pattern."}
         </Text>
       </Card>
 

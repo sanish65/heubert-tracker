@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Text } from "react-native";
 import { useApp } from "../context/AppContext";
 import { toDateStr } from "../lib/utils";
-import { FormModal, TextField, Select, Button } from "./ui";
+import { FormModal, Select, Button } from "./ui";
+import DateField from "./DateField";
 import { useThemeColors } from "../lib/theme";
 
 export default function AddStandupFineModal({ isOpen, onClose }) {
@@ -49,7 +50,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
   return (
     <FormModal visible={isOpen} onClose={onClose} title="Missing Standup Report">
       <Select label="Employee" value={name} onSelect={(v) => { setName(v); setError(""); setDuplicateWarning(false); }} options={selectableEmployees.map((e) => ({ value: e.name, label: e.name }))} />
-      <TextField label="Date of Incident (YYYY-MM-DD)" value={date} onChangeText={(v) => { setDate(v); setDuplicateWarning(false); }} />
+      <DateField label="Date of Incident" value={date} onChange={(v) => { setDate(v); setDuplicateWarning(false); }} />
       <Select label="Payment Status" value={status} onSelect={setStatus} options={[{ value: "unpaid", label: "Pending" }, { value: "paid", label: "Complete" }]} />
 
       {error ? <Text style={{ color: t.accentRed, fontSize: 13, marginBottom: 12 }}>{error}</Text> : null}

@@ -3,6 +3,7 @@ import { Text } from "react-native";
 import { useApp } from "../context/AppContext";
 import { toDateStr } from "../lib/utils";
 import { FormModal, TextField, Button } from "./ui";
+import DateField from "./DateField";
 import { useThemeColors } from "../lib/theme";
 
 const emptyForm = () => ({
@@ -21,6 +22,7 @@ export default function AddEmployeeModal({ isOpen, onClose }) {
   const { addEmployee, employees } = useApp();
   const t = useThemeColors();
   const [form, setForm] = useState(emptyForm());
+  const today = toDateStr(new Date());
   const [error, setError] = useState("");
 
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -40,9 +42,9 @@ export default function AddEmployeeModal({ isOpen, onClose }) {
     <FormModal visible={isOpen} onClose={onClose} title="Add New Employee">
       <TextField label="Full Name *" value={form.name} onChangeText={set("name")} placeholder="e.g. John Doe" />
       <TextField label="Employee ID" value={form.empNo} onChangeText={set("empNo")} placeholder="e.g. EMP-001" />
-      <TextField label="Date of Birth (YYYY-MM-DD)" value={form.dob} onChangeText={set("dob")} />
-      <TextField label="Office Joined Date (YYYY-MM-DD)" value={form.joinedDate} onChangeText={set("joinedDate")} />
-      <TextField label="Office Left Date (YYYY-MM-DD)" value={form.leftDate} onChangeText={set("leftDate")} />
+      <DateField label="Date of Birth" value={form.dob} onChange={set("dob")} maximumDate={today} clearable />
+      <DateField label="Office Joined Date" value={form.joinedDate} onChange={set("joinedDate")} clearable />
+      <DateField label="Office Left Date" value={form.leftDate} onChange={set("leftDate")} clearable />
       <TextField label="Phone Number" value={form.phone} onChangeText={set("phone")} placeholder="+977-..." keyboardType="phone-pad" />
       <TextField label="Work Email" value={form.workEmail} onChangeText={set("workEmail")} placeholder="work@gmail.com" keyboardType="email-address" />
       <TextField label="Personal Email" value={form.personalEmail} onChangeText={set("personalEmail")} placeholder="personal@gmail.com" keyboardType="email-address" />

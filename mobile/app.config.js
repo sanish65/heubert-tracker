@@ -13,8 +13,13 @@ module.exports = {
     scheme: "heuberttracker",
     version: "1.0.0",
     orientation: "portrait",
+    // Derived from the native dependency set rather than the app version: adding a
+    // native module now changes the runtime automatically, so JS updates stop being
+    // delivered to binaries that cannot run them. Under the old "appVersion" policy the
+    // date picker was added without touching version 1.0.0, and every update since kept
+    // flowing to a build with no RNDateTimePicker compiled in.
     runtimeVersion: {
-      policy: "appVersion",
+      policy: "fingerprint",
     },
     updates: {
       url: "https://u.expo.dev/457aa50a-7fe6-4a33-a090-0230caf409b5",

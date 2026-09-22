@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Text } from "react-native";
 import { useApp } from "../context/AppContext";
 import { toDateStr, findExistingLateFine } from "../lib/utils";
-import { FormModal, TextField, Select, Button } from "./ui";
+import { FormModal, Select, Button } from "./ui";
+import DateField from "./DateField";
 import { useThemeColors } from "../lib/theme";
 
 export default function AddFineModal({ isOpen, onClose }) {
@@ -53,7 +54,7 @@ export default function AddFineModal({ isOpen, onClose }) {
   return (
     <FormModal visible={isOpen} onClose={onClose} title="Record a Fine">
       <Select label="Employee" value={name} onSelect={(v) => { setName(v); setError(""); }} options={selectableEmployees.map((e) => ({ value: e.name, label: e.name }))} />
-      <TextField label="Date (YYYY-MM-DD)" value={date} onChangeText={(v) => { setDate(v); setError(""); }} />
+      <DateField label="Date" value={date} onChange={(v) => { setDate(v); setError(""); }} />
       <Select label="Amount (Rs.)" value={amount} onSelect={(v) => { setAmount(v); setError(""); }} options={[{ value: 25, label: "Rs 25" }, { value: 50, label: "Rs 50" }]} />
       <Select label="Status" value={status} onSelect={setStatus} options={[{ value: "unpaid", label: "Unpaid" }, { value: "paid", label: "Paid" }]} />
 

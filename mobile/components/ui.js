@@ -1,14 +1,24 @@
-import { View, Text, TextInput, Pressable, ScrollView, Modal, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, ScrollView, Modal, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useThemeColors, radius } from "../lib/theme";
 
 export function Screen({ children, scroll = true, style }) {
   const t = useThemeColors();
   const Container = scroll ? ScrollView : View;
+  // Android resizes the window itself (adjustResize); iOS needs the scroll view to inset
+  // itself by the keyboard height, or the keyboard sits on top of whatever has focus.
+  const scrollProps = scroll
+    ? {
+        keyboardShouldPersistTaps: "handled",
+        keyboardDismissMode: Platform.OS === "ios" ? "interactive" : "on-drag",
+        automaticallyAdjustKeyboardInsets: true,
+      }
+    : {};
   return (
     <Container
       style={[{ flex: 1, backgroundColor: t.bg }, !scroll && style]}
       contentContainerStyle={scroll ? [{ padding: 16, paddingBottom: 40 }, style] : undefined}
+      {...scrollProps}
     >
       {children}
     </Container>
@@ -93,7 +103,7 @@ export function Button({ title, onPress, variant = "primary", disabled, small })
   );
 }
 
-export function TextField({ label, value, onChangeText, placeholder, keyboardType, multiline, editable = true, style }) {
+export function TextField({ label, value, onChangeText, placeholder, keyboardType, multiline, editable = true, style, autoFocus, returnKeyType, onSubmitEditing }) {
   const t = useThemeColors();
   return (
     <View style={{ marginBottom: 14 }}>
@@ -106,6 +116,9 @@ export function TextField({ label, value, onChangeText, placeholder, keyboardTyp
         keyboardType={keyboardType}
         multiline={multiline}
         editable={editable}
+        autoFocus={autoFocus}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
         style={[
           {
             backgroundColor: editable ? t.bgInput : t.border,
@@ -152,7 +165,10 @@ export function FormModal({ visible, onClose, title, children }) {
   const t = useThemeColors();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View
           style={{
             backgroundColor: t.bgElevated,
@@ -168,9 +184,15 @@ export function FormModal({ visible, onClose, title, children }) {
               <Text style={{ color: t.textMuted, fontSize: 22 }}>✕</Text>
             </Pressable>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            contentContainerStyle={{ paddingBottom: 12 }}
+          >
+            {children}
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

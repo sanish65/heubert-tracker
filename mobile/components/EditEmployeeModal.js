@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Text } from "react-native";
 import { useApp } from "../context/AppContext";
+import { toDateStr } from "../lib/utils";
 import { FormModal, TextField, Select, Button } from "./ui";
+import DateField from "./DateField";
 import { useThemeColors } from "../lib/theme";
 
 const STATUS_OPTIONS = [
@@ -14,6 +16,7 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
   const { updateEmployee } = useApp();
   const t = useThemeColors();
   const [form, setForm] = useState(null);
+  const today = toDateStr(new Date());
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -21,9 +24,9 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
       setForm({
         name: employee.name || "",
         empNo: employee.emp_no || "",
-        dob: employee.dob || "",
-        joinedDate: employee.joined_date || "",
-        leftDate: employee.left_date || "",
+        dob: String(employee.dob || "").split("T")[0],
+        joinedDate: String(employee.joined_date || "").split("T")[0],
+        leftDate: String(employee.left_date || "").split("T")[0],
         workEmail: employee.work_email || "",
         personalEmail: employee.personal_email || "",
         phone: employee.phone || "",
@@ -48,9 +51,9 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
     <FormModal visible={isOpen} onClose={onClose} title="Edit Employee Record">
       <TextField label="Full Name *" value={form.name} onChangeText={set("name")} />
       <TextField label="Employee ID" value={form.empNo} onChangeText={set("empNo")} />
-      <TextField label="Date of Birth (YYYY-MM-DD)" value={form.dob} onChangeText={set("dob")} />
-      <TextField label="Office Joined Date (YYYY-MM-DD)" value={form.joinedDate} onChangeText={set("joinedDate")} />
-      <TextField label="Office Left Date (YYYY-MM-DD)" value={form.leftDate} onChangeText={set("leftDate")} />
+      <DateField label="Date of Birth" value={form.dob} onChange={set("dob")} maximumDate={today} clearable />
+      <DateField label="Office Joined Date" value={form.joinedDate} onChange={set("joinedDate")} clearable />
+      <DateField label="Office Left Date" value={form.leftDate} onChange={set("leftDate")} clearable />
       <Select label="Status" value={form.status} onSelect={set("status")} options={STATUS_OPTIONS} />
       <TextField label="Work Email" value={form.workEmail} onChangeText={set("workEmail")} keyboardType="email-address" />
       <TextField label="Personal Email" value={form.personalEmail} onChangeText={set("personalEmail")} keyboardType="email-address" />
