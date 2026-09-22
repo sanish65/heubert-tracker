@@ -1,37 +1,55 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Text, Image, Animated, Easing, ActivityIndicator, StyleSheet } from "react-native";
+import Svg, { Rect, Line, Ellipse, Circle } from "react-native-svg";
 import { useApp } from "../context/AppContext";
 import { useThemeColors } from "../lib/theme";
 
 const AVATAR_SIZE = 72;
+// Web draws the avatar at 100px and positions every prop against that box; keep the
+// offsets proportional so the flute and the emoji land in the same spot relative to it.
+const WEB_AVATAR = 100;
+const SCALE = AVATAR_SIZE / WEB_AVATAR;
+
+const TRACK_WIDTH = 200;
+const TRACK_HEIGHT = 4;
 
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
 
-const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "Ankit", "Bipin"];
-const knownGirls = ["pratisha", "merisha", "prativa"];
+const knownBoys = [
+  "sanish", "jenish", "dinesh", "nikhil", "nitesh",
+  "aashish", "bikesh", "pranay", "ankit", "bipin", "nikesh",
+];
+const knownGirls = ["pratisha", "merisha", "prativa", "nebula"];
 const defaultNames = [...knownBoys, ...knownGirls];
 
-// Mirrors web's HumanLoader.js greeting cascade exactly (src/components/HumanLoader.js) —
-// isha/sairose have left the team and were dropped there too.
+// Mirrors the greeting cascade in the web app's src/components/HumanLoader.js.
 const customGreetings = {
-  dinesh: "A Deal breaker , not Heart!",
+  dinesh: "Hello!",
+  pratisha: "Lets register the marathon guys, hurry up!!",
   jenish: "Jerry is my game code",
   nitesh: "Hi, Its me Nitesh!",
-  bikesh: "They call me Don! Biiku Don!",
-  pranay: "Pranam from Pranay!",
-  sanish: "Ate that bird in the weekend!!",
-  aashish: "I miss my vacation!!!!!",
-  nikhil: "Present mili ek ghadi _ Pyaari thi muje badi",
+  bikesh: "केही मीठो बात गर, रात त्यसै ढल्किँदै छ!",
+  pranay: "प्रणाम from प्रणय!!!",
+  sanish: "when it rains, its rainy!!",
+  aashish: "Hi, Nice to meet you!!!!",
+  nikhil: "सपनीमा मुसुक्क हाँसी, कहाँ गयौ तिमी ट्याक्सीमा?!",
   prativa: "Data is my game",
-  pratisha: "Lets register the marathon guys, hurry up!!",
   merisha: "Merisha_breezy ForEver!!",
   amogh: "Am I audible!",
-  ankit: "Ankit, Naam toh Suna hi hoga!",
+  ankit: "Bikesh dai is my favourite!",
   bipin: "Greetings!",
+  nebula: "Hi!",
+  nikesh: "Namastey!",
 };
 
-// Decorative emoji + bounce shape per person, standing in for the web version's bespoke CSS
-// keyframes (sanish's flute is a custom rotating SVG there — approximated here with 🎶).
+const wearsGlasses = [
+  "sanish", "bikesh", "merisha", "jenish", "nikhil",
+  "pratisha", "prativa", "amogh", "bipin", "nikesh", "nebula",
+];
+const hasBeard = ["sanish", "dinesh"];
+
+// One decorative prop per person, matching the web app's per-name CSS keyframes. Durations
+// are that animation's cycle length in ms. Sanish's is a drawn flute rather than an emoji.
 const props = {
   aashish: { emoji: "🎸", duration: 300 },
   nikhil: { emoji: "🎤", duration: 500 },
@@ -42,7 +60,7 @@ const props = {
   pratisha: { emoji: "📋", duration: 1200 },
   bikesh: { emoji: "🚴", duration: 500 },
   pranay: { emoji: "🧘", duration: 2000 },
-  sanish: { emoji: "🎶", duration: 600 },
+  sanish: { flute: true, duration: 600 },
 };
 
 function shuffle(arr) {
@@ -58,7 +76,6 @@ export default function HumanLoader() {
 
   const bubbleOpacity = useRef(new Animated.Value(0)).current;
   const bounce = useRef(new Animated.Value(0)).current;
-  const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     setShuffledDefaults(shuffle(defaultNames));
@@ -106,38 +123,34 @@ export default function HumanLoader() {
     return () => loop.stop();
   }, [nameKey, animationsEnabled]);
 
-  useEffect(() => {
-    spin.setValue(0);
-    const loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true }));
-    loop.start();
-    return () => loop.stop();
-  }, []);
-
   const isGirl = knownGirls.includes(nameKey);
-  const girlHair = "full,pixie";
-  const boyHair = "fonze,mrT,dannyPhantom";
-  const hairParam = isGirl ? girlHair : boyHair;
-  const wearsGlasses = ["sanish", "bikesh", "merisha", "jenish", "nikhil", "pratisha", "prativa", "amogh"].includes(nameKey);
-  const glassesParam = wearsGlasses ? "&glassesProbability=100" : "&glassesProbability=0";
-  const hasBeard = nameKey === "sanish";
-  const facialHairParam = hasBeard ? "&facialHair=beard,scruff&facialHairProbability=100" : "&facialHairProbability=0";
+  const hairParam = isGirl ? "full,pixie" : "fonze,mrT,dannyPhantom";
+  const glassesParam = wearsGlasses.includes(nameKey) ? "&glassesProbability=100" : "&glassesProbability=0";
+  const facialHairParam = hasBeard.includes(nameKey)
+    ? "&facialHair=beard,scruff&facialHairProbability=100"
+    : "&facialHairProbability=0";
   const avatarUri = `https://api.dicebear.com/7.x/micah/png?seed=${nameKey}&hair=${hairParam}&hairProbability=100&mouth=smile,laughing${glassesParam}&baseColor=ffffff${facialHairParam}&size=${AVATAR_SIZE * 3}`;
 
   const displayGreeting = customGreetings[nameKey] || greetings[greetingIndex];
 
-  const spinDeg = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
-
   if (animationsEnabled === false) {
     return (
       <View style={[styles.container, { backgroundColor: t.bg }]}>
-        <Animated.View style={{ marginBottom: 24, transform: [{ rotate: spinDeg }] }}>
+        <View style={{ marginBottom: 24, opacity: 0.7 }}>
           <ActivityIndicator size="large" color={t.textPrimary} />
-        </Animated.View>
+        </View>
         <Text style={[styles.title, { color: t.textPrimary }]}>Heubert Tracker</Text>
+        <View style={[styles.loaderTrack, { backgroundColor: t.border }]}>
+          <LoaderBar color={t.accentIndigo} />
+        </View>
       </View>
     );
   }
 
+  // play-flute in the web app tilts 0deg -> 5deg and lifts 2px at a constant 1.1 scale;
+  // every other prop uses the shared bounce-and-rock.
+  const fluteRotate = bounce.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "5deg"] });
+  const fluteLift = bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
   const translateY = bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
   const rotate = bounce.interpolate({ inputRange: [0, 1], outputRange: ["-8deg", "8deg"] });
 
@@ -157,13 +170,22 @@ export default function HumanLoader() {
 
       <View style={styles.avatarWrap}>
         <Image source={{ uri: avatarUri }} style={styles.avatar} />
-        {personProps && (
-          <Animated.Text
-            style={[styles.decoration, { transform: [{ translateY }, { rotate }] }]}
+
+        {personProps?.flute ? (
+          <Animated.View
+            style={[
+              styles.flute,
+              { transform: [{ translateY: fluteLift }, { rotate: fluteRotate }, { scale: 1.1 }] },
+            ]}
           >
+            <Flute />
+          </Animated.View>
+        ) : personProps ? (
+          <Animated.Text style={[styles.decoration, { transform: [{ translateY }, { rotate }] }]}>
             {personProps.emoji}
           </Animated.Text>
-        )}
+        ) : null}
+
         {/* Same fixed light tag as the bubble above — web's --text-main var is also undefined. */}
         <Text style={[styles.name, { color: "#333", backgroundColor: "rgba(255,255,255,0.7)" }]}>{currentName}</Text>
       </View>
@@ -176,22 +198,51 @@ export default function HumanLoader() {
   );
 }
 
+// The bansuri the web app hand-draws in SVG, at the same proportions.
+function Flute() {
+  return (
+    <Svg viewBox="0 0 100 20" width={70 * SCALE} height={15 * SCALE} style={{ transform: [{ rotate: "-25deg" }] }}>
+      <Rect x="0" y="2" width="100" height="12" rx="3" fill="#e6c280" stroke="#8b5a2b" strokeWidth="1" />
+      <Line x1="20" y1="2" x2="20" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
+      <Line x1="45" y1="2" x2="45" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
+      <Line x1="85" y1="2" x2="85" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
+      <Ellipse cx="25" cy="8" rx="2.5" ry="3.5" fill="#3e2723" />
+      <Circle cx="50" cy="8" r="2" fill="#3e2723" />
+      <Circle cx="60" cy="8" r="2" fill="#3e2723" />
+      <Circle cx="70" cy="8" r="2" fill="#3e2723" />
+      <Circle cx="80" cy="8" r="2" fill="#3e2723" />
+    </Svg>
+  );
+}
+
+// web's slide-load: the bar enters full width from the left, pinches to a tenth as it
+// crosses, then leaves full width to the right.
 function LoaderBar({ color }) {
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(progress, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+      Animated.timing(progress, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
     );
     loop.start();
     return () => loop.stop();
   }, []);
 
-  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [-120, 120] });
+  const translateX = progress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [-TRACK_WIDTH, 0, TRACK_WIDTH],
+  });
+  const scaleX = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.1, 1] });
 
   return (
     <Animated.View
-      style={{ width: 60, height: "100%", borderRadius: 3, backgroundColor: color, transform: [{ translateX }] }}
+      style={{
+        width: TRACK_WIDTH,
+        height: "100%",
+        borderRadius: 10,
+        backgroundColor: color,
+        transform: [{ translateX }, { scaleX }],
+      }}
     />
   );
 }
@@ -205,13 +256,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
     minWidth: 100,
+    maxWidth: "100%",
     alignItems: "center",
   },
   bubbleText: { fontWeight: "700", fontSize: 16, textAlign: "center" },
   avatarWrap: { alignItems: "center", marginBottom: 16 },
   avatar: { width: AVATAR_SIZE, height: AVATAR_SIZE },
-  decoration: { position: "absolute", bottom: 22, right: -14, fontSize: 22 },
+  decoration: { position: "absolute", bottom: 35 * SCALE, right: 0, fontSize: 22 },
+  flute: { position: "absolute", bottom: 30 * SCALE, right: -20 * SCALE },
   name: { marginTop: 8, fontSize: 15, fontWeight: "700", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  title: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
-  loaderTrack: { width: 120, height: 6, borderRadius: 3, overflow: "hidden" },
+  // web's .splash-text — uppercase, heavily tracked. The gradient fill it uses needs a
+  // mask layer RN has no dependency for here, so it takes the theme's primary text color.
+  title: { fontSize: 20, fontWeight: "800", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 },
+  loaderTrack: { width: TRACK_WIDTH, height: TRACK_HEIGHT, borderRadius: 10, overflow: "hidden", marginTop: 12 },
 });

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
 import { FormModal, TextField, Button } from "./ui";
+import DateField from "./DateField";
 
 export default function EditCompanyEventModal({ isOpen, onClose, event }) {
   const { updateCompanyEvent } = useApp();
@@ -10,7 +11,7 @@ export default function EditCompanyEventModal({ isOpen, onClose, event }) {
 
   useEffect(() => {
     if (event) {
-      setDate(event.date || "");
+      setDate(String(event.date || "").split("T")[0]);
       setTitle(event.title || "");
     }
   }, [event, isOpen]);
@@ -31,7 +32,7 @@ export default function EditCompanyEventModal({ isOpen, onClose, event }) {
   return (
     <FormModal visible={isOpen} onClose={onClose} title="📅 Edit Event">
       <TextField label="Event Name" value={title} onChangeText={setTitle} />
-      <TextField label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} />
+      <DateField label="Date" value={date} onChange={setDate} />
       <Button title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} />
     </FormModal>
   );

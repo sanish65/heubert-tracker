@@ -517,6 +517,14 @@ export function AppProvider({ children }) {
   };
 
   // ── Attendance ───────────────────────────────────────────
+  // Freelance/WFH staff are the employees an admin gave unrestricted punch access to on
+  // the web (can_punch_web without web_punch_office_bound). They have no fixed office
+  // desk, so the geofence does not apply to them on mobile either — matching punchIn /
+  // punchOut on the web side. On-site staff, including those set to office-bound web
+  // punching, still have to be at the office.
+  const isGeofenceExempt = (employee) =>
+    !!employee?.can_punch_web && !employee?.web_punch_office_bound;
+
   const verifyAtOffice = async () => {
     if (!officeSettings) throw new Error("Office location isn't configured yet. Contact an admin.");
 
@@ -558,20 +566,20 @@ export function AppProvider({ children }) {
     const existing = attendance.find((a) => a.employee_name === currentEmployee.name && a.date === todayStr);
     if (existing?.check_in_at) throw new Error("You've already checked in today.");
 
-    const position = await verifyAtOffice();
+    const position = isGeofenceExempt(currentEmployee) ? null : await verifyAtOffice();
     await verifyDeviceSecurity("Verify it's you to check in");
 
     const now = new Date();
     const { isLate, lateMinutes } = isWorkingDay(todayStr, publicHolidays)
-      ? computeLateness(now, officeSettings.sync_time)
+      ? computeLateness(now, officeSettings?.sync_time)
       : { isLate: false, lateMinutes: 0 };
 
     const payload = {
       employee_name: currentEmployee.name,
       date: todayStr,
       check_in_at: now.toISOString(),
-      check_in_lat: position.coords.latitude,
-      check_in_lng: position.coords.longitude,
+      check_in_lat: position?.coords.latitude ?? null,
+      check_in_lng: position?.coords.longitude ?? null,
       is_late: isLate,
       late_minutes: lateMinutes,
     };
@@ -585,7 +593,7 @@ export function AppProvider({ children }) {
 
     setAttendance((prev) => [data, ...prev.filter((a) => a.id !== data.id)]);
 
-    if (isLate) {
+    if (isLate && officeSettings) {
       await addFine({
         name: currentEmployee.name,
         date: todayStr,
@@ -605,7 +613,7 @@ export function AppProvider({ children }) {
     if (!existing?.check_in_at) throw new Error("You need to check in before checking out.");
     if (existing.check_out_at) throw new Error("You've already checked out today.");
 
-    const position = await verifyAtOffice();
+    const position = isGeofenceExempt(currentEmployee) ? null : await verifyAtOffice();
     await verifyDeviceSecurity("Verify it's you to check out");
 
     const now = new Date();
@@ -613,8 +621,8 @@ export function AppProvider({ children }) {
       .from("attendance")
       .update({
         check_out_at: now.toISOString(),
-        check_out_lat: position.coords.latitude,
-        check_out_lng: position.coords.longitude,
+        check_out_lat: position?.coords.latitude ?? null,
+        check_out_lng: position?.coords.longitude ?? null,
       })
       .eq("id", existing.id)
       .select()
@@ -1066,6 +1074,7 @@ export function AppProvider({ children }) {
         officeSettings,
         checkIn,
         checkOut,
+        isAttendanceGeofenceExempt: isGeofenceExempt(currentEmployee),
         updateOfficeSettings,
         leaveTypes,
         addLeaveType,

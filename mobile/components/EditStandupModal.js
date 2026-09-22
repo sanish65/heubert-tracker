@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
 import { FormModal, TextField, Select, Button } from "./ui";
+import DateField from "./DateField";
 
 export default function EditStandupModal({ isOpen, onClose, record }) {
   const { updateStandupFine } = useApp();
@@ -10,7 +11,7 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
 
   useEffect(() => {
     if (record) {
-      setDate(record.date || "");
+      setDate(String(record.date || "").split("T")[0]);
       setStatus(record.status || "unpaid");
     }
   }, [record, isOpen]);
@@ -30,7 +31,7 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
   return (
     <FormModal visible={isOpen} onClose={onClose} title="📝 Edit Standup Record">
       <TextField label="Employee" value={record.employee_name} editable={false} />
-      <TextField label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} />
+      <DateField label="Date" value={date} onChange={setDate} />
       <Select label="Status" value={status} onSelect={setStatus} options={[{ value: "unpaid", label: "Pending" }, { value: "paid", label: "Complete" }]} />
       <Button title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} />
     </FormModal>

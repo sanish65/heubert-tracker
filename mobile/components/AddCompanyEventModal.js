@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Text } from "react-native";
 import { useApp } from "../context/AppContext";
 import { FormModal, TextField, Button } from "./ui";
+import DateField from "./DateField";
 import { useThemeColors } from "../lib/theme";
 
 export default function AddCompanyEventModal({ isOpen, onClose }) {
@@ -25,7 +26,7 @@ export default function AddCompanyEventModal({ isOpen, onClose }) {
   return (
     <FormModal visible={isOpen} onClose={onClose} title="📅 Record an Event">
       <TextField label="Event Name" value={title} onChangeText={(v) => { setTitle(v); setError(""); }} placeholder="e.g., Company Retreat" />
-      <TextField label="Date (YYYY-MM-DD)" value={date} onChangeText={(v) => { setDate(v); setError(""); }} />
+      <DateField label="Date" value={date} onChange={(v) => { setDate(v); setError(""); }} />
       {error ? <Text style={{ color: t.accentRed, fontSize: 13, marginBottom: 12 }}>{error}</Text> : null}
       <Button title={loading ? "Adding..." : "Add Event"} onPress={handleSubmit} disabled={loading} />
     </FormModal>
