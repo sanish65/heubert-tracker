@@ -7225,6 +7225,21 @@ select.poker-input option { background: var(--bg-secondary); color: var(--text-p
   pointer-events: all;
 }
 
+/* Touch screens never fire the hover above, which left edit/delete permanently
+   invisible and pointer-events: none on phones and tablets. */
+@media (hover: none) {
+  .memory-card-actions {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+  }
+}
+
+.card-action-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .card-action-btn {
   background: rgba(20, 20, 30, 0.9);
   border: 1px solid rgba(255,255,255,0.15);

@@ -12,22 +12,26 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
   const [editing, setEditing] = useState(null); // {id, type, content, caption}
   const [editForm, setEditForm] = useState({ content: "", caption: "" });
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
+  // Only cards that are new to the wall get staggered in. Clearing the whole list on
+  // every `memories` change made a single delete blank the wall and rebuild it one
+  // card at a time, which reads as the delete having gone wrong.
   useEffect(() => {
-    setVisibleItems([]);
-    if (memories.length > 0) {
-      let current = 0;
-      const interval = setInterval(() => {
-        if (current < memories.length) {
-          const item = memories[current];
-          if (item) setVisibleItems(prev => [...prev, item.id]);
-          current++;
-        } else {
-          clearInterval(interval);
-        }
-      }, 100);
-      return () => clearInterval(interval);
-    }
+    const ids = memories.map(m => m.id);
+    setVisibleItems(prev => prev.filter(id => ids.includes(id)));
+    if (ids.length === 0) return;
+
+    let current = 0;
+    const interval = setInterval(() => {
+      if (current >= ids.length) {
+        clearInterval(interval);
+        return;
+      }
+      const id = ids[current++];
+      setVisibleItems(prev => (prev.includes(id) ? prev : [...prev, id]));
+    }, 100);
+    return () => clearInterval(interval);
   }, [memories]);
 
   const handleCardClick = (memory) => {
@@ -46,7 +50,14 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
   const handleDelete = async (e, memory) => {
     e.stopPropagation();
     if (!(await confirmDialog(`Delete this memory?`, { danger: true }))) return;
-    await deleteMemory(memory.id);
+    setDeletingId(memory.id);
+    try {
+      await deleteMemory(memory.id);
+    } catch (err) {
+      await alertDialog(`Failed to delete: ${err.message}`, { tone: 'error' });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleEditSave = async () => {
@@ -124,8 +135,9 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
                     <button
                       className="card-action-btn delete-btn-card"
                       onClick={(e) => handleDelete(e, memory)}
+                      disabled={deletingId === memory.id}
                       title="Delete memory"
-                    >🗑️</button>
+                    >{deletingId === memory.id ? '⏳' : '🗑️'}</button>
                   </div>
                 )}
 
