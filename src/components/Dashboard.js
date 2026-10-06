@@ -3,6 +3,7 @@ import { useApp } from "@/context/AppContext";
 import StatsCard from "./StatsCard";
 import EventBanner from "@/components/EventBanner";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
+import DashainBanner from "@/components/DashainBanner";
 import { useDialog } from "@/context/DialogContext";
 
 export default function Dashboard() {
@@ -178,6 +179,9 @@ export default function Dashboard() {
       </div>
       <div style={{ marginBottom: "20px" }}>
         <NewFiscalYearBanner />
+      </div>
+      <div style={{ marginBottom: "20px" }}>
+        <DashainBanner />
       </div>
 
       <div className="dashboard-extras-grid">

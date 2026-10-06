@@ -13,12 +13,12 @@ import { div as MotionDiv } from "motion/react-m";
  * AnimatePresence lives here (not in the caller), so a modal keeps its current
  * `<Modal isOpen={...}>` call site and gains an exit animation for free.
  */
-export default function Modal({ isOpen, onClose, size = "", children }) {
+export default function Modal({ isOpen, onClose, size = "", overlayClassName = "", children }) {
   return (
     <AnimatePresence>
       {isOpen && (
         <MotionDiv
-          className="modal-overlay is-motion"
+          className={`modal-overlay is-motion ${overlayClassName}`.trim()}
           onClick={onClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

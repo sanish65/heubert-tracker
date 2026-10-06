@@ -11,6 +11,7 @@ import EditLeaveModal from "@/components/EditLeaveModal";
 import HumanLoader from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
+import DashainBanner from "@/components/DashainBanner";
 import { computeLeaveBalances, parseHalfDaySegment, findExistingLateFine } from "@/lib/utils";
 import { useDialog } from "@/context/DialogContext";
 
@@ -467,6 +468,7 @@ export default function MeetingPage() {
     <div className="meeting-layout">
       <EventBanner />
       <NewFiscalYearBanner />
+      <DashainBanner />
       <header className="meeting-header">
         <div className="meeting-title-group">
           <Link href="/" className="exit-link">← Exit Meeting</Link>

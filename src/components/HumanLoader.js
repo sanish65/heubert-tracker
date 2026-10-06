@@ -2,8 +2,49 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
+import { FestiveScene } from "@/components/DashainBanner";
+import { isFestiveSeason } from "@/lib/festiveSeason";
 
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
+const festiveGreetings = [
+  "शुभ दशैं! 🙏",
+  "Happy Dashain! 🪁",
+  "Tika & jamara time! 🌾",
+  "Let's fly kites! 🪁",
+  "शुभ दीपावली! 🪔",
+  "Happy Tihar! 🎆",
+];
+// Divisible by both list lengths, so each list cycles through every entry.
+const GREETING_CYCLE = 30;
+
+// Kites and fireworks for the full-screen loader, kept to the sides so the
+// walking avatar in the middle stays clear.
+const LOADER_KITES = [
+  { left: "8%", top: "14%", size: 44, body: "#ef4444", stripe: "#facc15", delay: 0 },
+  { left: "20%", top: "34%", size: 34, body: "#22c55e", stripe: "#f97316", delay: 1.1, wide: true },
+  { left: "76%", top: "26%", size: 40, body: "#3b82f6", stripe: "#f472b6", delay: 0.5, wide: true },
+  { left: "88%", top: "10%", size: 48, body: "#a855f7", stripe: "#fde047", delay: 1.7 },
+];
+const LOADER_FIREWORKS = [
+  { left: "18%", top: "18%", color: "#fde047", delay: 0 },
+  { left: "82%", top: "36%", color: "#f472b6", delay: 0.9 },
+  { left: "70%", top: "12%", color: "#38bdf8", delay: 1.7 },
+  { left: "30%", top: "10%", color: "#fb923c", delay: 2.4, wide: true },
+];
+
+// Children cheering in front of the rooftops. Their lines take turns on a 9s
+// cycle, so neighbours never talk over each other.
+const LOADER_KIDS = [
+  { left: "6%", pose: "kite", shirt: "#ef4444", head: "#fcd34d", say: "दुई धार्के धागो छोड! 🪁", sayDelay: 0 },
+  { left: "22%", pose: "jump", shirt: "#22c55e", head: "#fdba74", say: "दशैं आयो! 🎉", sayDelay: 4.5, wide: true },
+  { left: "36%", pose: "wave", shirt: "#3b82f6", head: "#fcd34d", say: "मासु भात खाउँ! 🍖", sayDelay: 1.5, wide: true },
+  { left: "52%", pose: "kite", shirt: "#a855f7", head: "#fdba74", say: "चेट! 🪁", sayDelay: 3 },
+  { left: "64%", pose: "jump", shirt: "#f97316", head: "#fcd34d", say: "नयाँ लुगा लगाएँ! 👕", sayDelay: 6, wide: true },
+  { left: "76%", pose: "wave", shirt: "#ec4899", head: "#fdba74", say: "देउसी रे! 🪔", sayDelay: 7.5, wide: true },
+];
+
+// People who already carry their own prop; everyone else gets a kite during the festival.
+const hasOwnProp = ["aashish", "nikhil", "nitesh", "jenish", "prativa", "dinesh", "pratisha", "bikesh", "pranay", "sanish"];
 
 // Known categorizations
 const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "ankit", "bipin" , "nikesh"];
@@ -22,6 +63,12 @@ export default function HumanLoader() {
   const [shuffledDefaults, setShuffledDefaults] = useState([]);
   const [isMounted, setIsMounted] = useState(false);
   const isPausedRef = useRef(false);
+  const festive = isFestiveSeason();
+  const splashClass = `loading-splash${festive ? " loading-splash-festive" : ""}${festive && animationsEnabled === false ? " dashain-still" : ""}`;
+  const festiveBackdrop = festive && (
+    <FestiveScene kites={LOADER_KITES} fireworks={LOADER_FIREWORKS} diyas={24} swingSay="चा चा हुई! 🎉" kids={LOADER_KIDS} />
+  );
+  const festiveTagline = festive && <div className="splash-festive-tagline" lang="ne">🪔 शुभ दशैं तथा तिहार 🪁</div>;
 
   useEffect(() => {
     setShuffledDefaults(shuffle(defaultNames));
@@ -45,7 +92,7 @@ export default function HumanLoader() {
     }, 1500); // Change person every 1.5s
 
     const greetInterval = setInterval(() => {
-      if (!isPausedRef.current) setGreetingIndex(prev => (prev + 1) % greetings.length);
+      if (!isPausedRef.current) setGreetingIndex(prev => (prev + 1) % GREETING_CYCLE);
     }, 3000); // Change greeting every 3s
 
     return () => {
@@ -76,8 +123,10 @@ export default function HumanLoader() {
   const mouthParam = "smile,laughing";
   const baseColorParam = "ffffff";
 
-  let displayGreeting = greetings[greetingIndex];
-  if (nameKey === "dinesh") displayGreeting = "Hello!";
+  let displayGreeting = greetings[greetingIndex % greetings.length];
+  // During Dashain & Tihar everyone swaps their usual line for a festival greeting.
+  if (festive) displayGreeting = festiveGreetings[greetingIndex % festiveGreetings.length];
+  else if (nameKey === "dinesh") displayGreeting = "Hello!";
   else if (nameKey === "pratisha") displayGreeting = "Lets register the marathon guys, hurry up!!";
   else if (nameKey === "jenish") displayGreeting = "Jerry is my game code";
   else if (nameKey === "nitesh") displayGreeting = "Hi, Its me Nitesh!";
@@ -98,7 +147,8 @@ export default function HumanLoader() {
 
   if (!isMounted || animationsEnabled === false) {
     return (
-      <div className="loading-splash">
+      <div className={splashClass}>
+        {festiveBackdrop}
         <div 
           className="human-loader-container" 
           style={{
@@ -137,6 +187,7 @@ export default function HumanLoader() {
             </div>
           )}
           <div className="splash-text">Heubert Tracker</div>
+        {festiveTagline}
           <div className="loader-bar-container" style={{ marginTop: '1rem' }}>
             <div className="loader-bar"></div>
           </div>
@@ -146,7 +197,8 @@ export default function HumanLoader() {
   }
 
   return (
-    <div className="loading-splash">
+    <div className={splashClass}>
+        {festiveBackdrop}
       <div
         className="human-loader-container"
         onMouseEnter={() => { isPausedRef.current = true; }}
@@ -430,6 +482,9 @@ export default function HumanLoader() {
               </div>
             </>
           )}
+          {festive && !hasOwnProp.includes(nameKey) && (
+            <span className="loader-festive-kite" aria-hidden="true">🪁</span>
+          )}
           <span style={{ 
             marginTop: '8px', 
             fontSize: '1.2rem', 
@@ -444,6 +499,7 @@ export default function HumanLoader() {
         </div>
         
         <div className="splash-text">Heubert Tracker</div>
+        {festiveTagline}
         <div className="loader-bar-container" style={{ marginTop: '1rem' }}>
           <div className="loader-bar"></div>
         </div>

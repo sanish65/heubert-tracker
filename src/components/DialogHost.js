@@ -34,7 +34,7 @@ export default function DialogHost() {
   const icon = TONE_ICON[tone] || (danger ? "⚠️" : kind === "prompt" ? "✏️" : "❓");
 
   return (
-    <Modal isOpen={isOpen} onClose={handleCancel} size="confirm-dialog">
+    <Modal isOpen={isOpen} onClose={handleCancel} size="confirm-dialog" overlayClassName="dialog-host-overlay">
       <div className={`confirm-dialog-icon ${danger || tone === "error" ? "is-danger" : ""}`}>
         {icon}
       </div>

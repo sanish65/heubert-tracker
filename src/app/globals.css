@@ -5221,6 +5221,544 @@ a.jira-tag-key:hover {
   50% { transform: translateY(-10px) rotate(4deg); }
 }
 
+/* ===== DASHAIN & TIHAR BANNER ===== */
+.dashain-banner {
+  position: relative;
+  min-height: 240px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(180deg, #1e1b4b 0%, #6d28d9 45%, #db2777 75%, #f97316 100%);
+  box-shadow: 0 10px 30px rgba(219, 39, 119, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: flex-start;
+}
+
+.dashain-scene {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dashain-text {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 700px;
+  padding: 20px 24px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.dashain-text strong {
+  font-size: 1.5rem;
+  color: #fde68a;
+  letter-spacing: 0.02em;
+}
+
+.dashain-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.dashain-sub {
+  font-size: 0.88rem;
+  opacity: 0.92;
+}
+
+.dashain-timers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 6px;
+}
+
+.dashain-timer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dashain-timer .dashain-title {
+  font-size: 0.95rem;
+}
+
+/* Once a countdown has finished, its message takes a line of its own. */
+.dashain-timer-done {
+  flex-basis: 100%;
+}
+
+.dashain-date {
+  display: block;
+  font-weight: 500;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.dashain-countdown {
+  display: flex;
+  gap: 8px;
+}
+
+.dashain-count-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 58px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  background: rgba(30, 16, 53, 0.55);
+  border: 1px solid rgba(253, 224, 71, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+}
+
+.dashain-count-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #fde68a;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashain-count-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.dashain-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dashain-close:hover {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Kites */
+.dashain-kite {
+  position: absolute;
+  transform-origin: 50% 100%;
+  animation: dashainKiteSway 4s ease-in-out infinite;
+}
+
+.dashain-kite svg {
+  display: block;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.3));
+}
+
+.dashain-kite-string {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  width: 1px;
+  height: 260px;
+  background: linear-gradient(rgba(255, 255, 255, 0.55), transparent);
+  transform-origin: top;
+  transform: rotate(28deg);
+}
+
+@keyframes dashainKiteSway {
+  0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+  50% { transform: translate(10px, -8px) rotate(8deg); }
+}
+
+/* Fireworks */
+.dashain-firework {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.dashain-spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  opacity: 0;
+  transform: rotate(var(--angle)) translateX(0);
+  animation: dashainBurst 3.2s ease-out infinite;
+}
+
+@keyframes dashainBurst {
+  0% { opacity: 0; transform: rotate(var(--angle)) translateX(0) scale(1); }
+  5% { opacity: 1; }
+  35% { opacity: 1; transform: rotate(var(--angle)) translateX(44px) scale(0.9); }
+  55% { opacity: 0; transform: rotate(var(--angle)) translateX(54px) translateY(6px) scale(0.4); }
+  100% { opacity: 0; transform: rotate(var(--angle)) translateX(54px) scale(0.4); }
+}
+
+/* Tihar string lights */
+.dashain-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+}
+
+.dashain-bulb {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+  animation: dashainTwinkle 1.4s ease-in-out infinite;
+}
+
+@keyframes dashainTwinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Skyline, swing and diyas */
+.dashain-skyline {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 70px;
+}
+
+.dashain-ping {
+  position: absolute;
+  bottom: 6px;
+  right: 3%;
+}
+
+.dashain-ping > svg {
+  display: block;
+}
+
+.dashain-ping-bubble {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 30px;
+  padding: 3px 10px;
+  border-radius: 12px 12px 2px 12px;
+  background: #fff;
+  color: #9a3412;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  animation: dashainBubbleBob 1.3s ease-in-out infinite;
+}
+
+@keyframes dashainBubbleBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.dashain-still .dashain-ping-bubble {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashain-ping-bubble {
+    animation: none;
+  }
+}
+
+.dashain-ping-swing {
+  position: absolute;
+  top: 6px;
+  left: 23px;
+  transform-origin: 12px 0;
+  animation: dashainSwing 2.6s ease-in-out infinite;
+}
+
+.dashain-ping-swing svg {
+  display: block;
+}
+
+@keyframes dashainSwing {
+  0%, 100% { transform: rotate(-24deg); }
+  50% { transform: rotate(24deg); }
+}
+
+/* Children in front of the rooftops (loading screen) */
+.dashain-kid {
+  position: absolute;
+  bottom: 24px;
+  transform-origin: 50% 100%;
+}
+
+.dashain-kid svg {
+  display: block;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+
+.dashain-kid-kite {
+  animation: dashainKidTug 1.8s ease-in-out infinite;
+}
+
+.dashain-kid-jump {
+  animation: dashainKidJump 0.7s ease-in-out infinite;
+}
+
+.dashain-kid-wave {
+  animation: dashainKidBob 1.2s ease-in-out infinite;
+}
+
+@keyframes dashainKidTug {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+@keyframes dashainKidJump {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes dashainKidBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.dashain-kid-string {
+  position: absolute;
+  bottom: 56px;
+  left: 34px;
+  width: 1px;
+  height: 170px;
+  background: linear-gradient(transparent, rgba(255, 255, 255, 0.65));
+  transform-origin: bottom;
+  transform: rotate(32deg);
+}
+
+.dashain-kid-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  padding: 3px 9px;
+  border-radius: 12px 12px 12px 2px;
+  background: #fff;
+  color: #9a3412;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  animation: dashainKidSay 9s ease-in-out infinite both;
+}
+
+/* Visible for about a third of the cycle, then quiet. */
+@keyframes dashainKidSay {
+  0% { opacity: 0; transform: translateY(6px) scale(0.8); }
+  4%, 30% { opacity: 1; transform: translateY(0) scale(1); }
+  34%, 100% { opacity: 0; transform: translateY(6px) scale(0.8); }
+}
+
+.dashain-still .dashain-kid,
+.dashain-still .dashain-kid-bubble {
+  animation: none;
+}
+
+.dashain-still .dashain-kid-bubble {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashain-kid,
+  .dashain-kid-bubble {
+    animation: none;
+  }
+
+  .dashain-kid-bubble {
+    opacity: 1;
+  }
+}
+
+.dashain-diyas {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  display: flex;
+  justify-content: space-around;
+  padding: 0 8px;
+}
+
+.dashain-diya {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dashain-diya svg {
+  display: block;
+}
+
+.dashain-flame {
+  width: 6px;
+  height: 10px;
+  margin-bottom: -1px;
+  border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+  background: radial-gradient(circle at 50% 70%, #fff7ed 0%, #fde047 40%, #f97316 100%);
+  box-shadow: 0 0 10px 3px rgba(253, 224, 71, 0.6);
+  transform-origin: 50% 100%;
+  animation: dashainFlicker 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes dashainFlicker {
+  0% { transform: scale(1, 1) rotate(-3deg); opacity: 0.9; }
+  100% { transform: scale(0.85, 1.15) rotate(3deg); opacity: 1; }
+}
+
+/* Animations toggle off: keep a still scene with the fireworks frozen mid-burst. */
+.dashain-still .dashain-kite,
+.dashain-still .dashain-bulb,
+.dashain-still .dashain-ping-swing,
+.dashain-still .dashain-flame {
+  animation: none;
+}
+
+.dashain-still .dashain-spark {
+  animation: none;
+  opacity: 0.9;
+  transform: rotate(var(--angle)) translateX(30px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashain-kite,
+  .dashain-bulb,
+  .dashain-ping-swing,
+  .dashain-flame {
+    animation: none;
+  }
+
+  .dashain-spark {
+    animation: none;
+    opacity: 0.9;
+    transform: rotate(var(--angle)) translateX(30px);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashain-banner {
+    min-height: 380px;
+  }
+
+  .dashain-count-tile {
+    min-width: 52px;
+  }
+
+  .dashain-count-value {
+    font-size: 1.35rem;
+  }
+
+  /* The greeting spans the full width on phones, so fly the kites in the sky below it. */
+  .dashain-banner .dashain-kite {
+    margin-top: 220px;
+    scale: 0.75;
+  }
+
+  .dashain-text {
+    padding: 16px 44px 16px 16px;
+  }
+
+  .dashain-text strong {
+    font-size: 1.25rem;
+  }
+
+  .dashain-wide-only {
+    display: none;
+  }
+}
+
+/* ===== FESTIVE LOADING SCREEN (Dashain & Tihar) ===== */
+.loading-splash.loading-splash-festive,
+[data-theme="light"] .loading-splash.loading-splash-festive {
+  background: linear-gradient(180deg, #1e1b4b 0%, #4c1d95 40%, #be185d 75%, #ea580c 100%);
+}
+
+.loading-splash-festive .human-loader-container {
+  z-index: 1;
+}
+
+.loading-splash-festive .dashain-skyline {
+  height: 120px;
+}
+
+.loading-splash-festive .dashain-firework {
+  scale: 2;
+}
+
+.loading-splash-festive .dashain-lights {
+  top: 6px;
+}
+
+.loading-splash-festive .dashain-ping {
+  bottom: 10px;
+  right: 6%;
+  transform: scale(1.4);
+  transform-origin: bottom right;
+}
+
+.loading-splash-festive .dashain-diyas {
+  bottom: 6px;
+}
+
+.loading-splash-festive .splash-text {
+  background: linear-gradient(135deg, #fde68a, #fb923c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+.splash-festive-tagline {
+  margin-top: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fef3c7;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.loading-splash-festive .loader-bar-container {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.loading-splash-festive .loader-bar {
+  background: linear-gradient(90deg, #facc15, #f97316, #ef4444);
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+}
+
+.loader-festive-kite {
+  position: absolute;
+  bottom: 35px;
+  right: 0;
+  font-size: 2.5rem;
+  z-index: 10;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  animation: dashainKiteSway 1.6s ease-in-out infinite;
+}
+
+.dashain-still .loader-festive-kite {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-festive-kite {
+    animation: none;
+  }
+}
+
 /* ===== VACATION ANIMATION ===== */
 .vacation-animation-container {
   width: 100%;
@@ -7988,6 +8526,13 @@ select.poker-input option { background: var(--bg-secondary); color: var(--text-p
 }
 
 /* ===== CONFIRM / ALERT / PROMPT DIALOG ===== */
+/* Confirms, alerts and prompts are often opened from inside another modal.
+   DialogHost mounts before the page content, so at an equal z-index the calling
+   modal would paint over it; keep it above every other overlay layer. */
+.modal-overlay.dialog-host-overlay {
+  z-index: 10000;
+}
+
 .confirm-dialog {
   width: 90%;
   max-width: 380px;
