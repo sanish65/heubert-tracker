@@ -5,6 +5,13 @@ import EventBanner from "@/components/EventBanner";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
 import DashainBanner from "@/components/DashainBanner";
 import { useDialog } from "@/context/DialogContext";
+import { groupPublicHolidays } from "@/lib/utils";
+
+// Parsed as local time — a bare "YYYY-MM-DD" goes through Date() as UTC and can render as
+// the day before in timezones behind it.
+function formatHolidayDay(day) {
+  return new Date(day + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
 
 export default function Dashboard() {
   const { fines, fineSeasons, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled } = useApp();
@@ -37,6 +44,10 @@ export default function Dashboard() {
   const upcomingLeaves = leaves
     .filter((l) => l.end_date >= todayStr)
     .sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+  // A multi-day holiday is stored a row per day, so fold it back into one entry and keep
+  // it listed until its last day has passed rather than its first.
+  const upcomingHolidays = groupPublicHolidays(publicHolidays).filter((h) => h.endDate >= todayStr);
 
   // Celebrations: Birthdays and Anniversaries (15-day window)
   const windowMs = 15 * 24 * 60 * 60 * 1000;
@@ -224,24 +235,24 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="section-title">🌴 Upcoming Holidays</h3>
           <div className="compact-list">
-            {publicHolidays
-              .filter((h) => h.date >= todayStr)
-              .sort((a, b) => a.date.localeCompare(b.date))
-              .map((h) => (
-                <div key={h.id} className="compact-item holiday-item">
+            {upcomingHolidays.map((h) => (
+                <div key={h.key} className="compact-item holiday-item">
                   <div className="item-info">
                     <span className="item-icon">🚩</span>
                     <div className="item-text">
                       <span className="item-name">{h.title}</span>
-                      <span className="item-meta">{new Date(h.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                      <span className="item-meta">
+                        {formatHolidayDay(h.startDate)}
+                        {h.days > 1 && ` – ${formatHolidayDay(h.endDate)} · ${h.days} days`}
+                      </span>
                     </div>
                   </div>
-                  {h.date === todayStr && <span className="status-badge holiday">Today</span>}
-                  {h.date === tomorrowStr && <span className="status-badge holiday">Tomorrow</span>}
+                  {h.startDate <= todayStr && h.endDate >= todayStr && <span className="status-badge holiday">Today</span>}
+                  {h.startDate === tomorrowStr && <span className="status-badge holiday">Tomorrow</span>}
                 </div>
               ))
             }
-            {publicHolidays.filter(h => h.date >= todayStr).length === 0 && (
+            {upcomingHolidays.length === 0 && (
               <p className="empty-msg">No upcoming holidays.</p>
             )}
           </div>

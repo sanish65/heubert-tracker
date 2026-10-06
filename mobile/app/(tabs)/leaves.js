@@ -19,7 +19,7 @@ const SEGMENT_ICONS = { first: "🌅", second: "🌇" };
 const PRE_SEASON = "pre-season";
 
 export default function LeavesScreen() {
-  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
+  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, canManageLeave, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
   const leaves = useMemo(() => allLeaves.filter(l => l.employee_name !== "Developers"), [allLeaves]);
   const t = useThemeColors();
   const [filterEmployee, setFilterEmployee] = useState("");
@@ -206,7 +206,7 @@ export default function LeavesScreen() {
           <EmptyState icon="🏖️" text="No leave records yet" />
         ) : (
           filtered.map((leave) => {
-            const canEdit = isAdmin || (currentEmployee && leave.employee_name === currentEmployee.name);
+            const canEdit = canManageLeave(leave);
             const dayCount = leave.type === "half" ? (leave.dates || []).length * 0.5 : (leave.dates || []).length;
             return (
               <View key={leave.id} style={{ borderLeftWidth: 3, borderLeftColor: t[TYPE_COLORS[leave.type]], backgroundColor: t.bgElevated, borderRadius: 10, padding: 12, marginBottom: 10 }}>

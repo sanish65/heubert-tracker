@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { fineToday } from "@/lib/utils";
 
 export default function AddStandupFineModal({ isOpen, onClose }) {
   const { addStandupFine, employees, currentEmployee, standupFines } = useApp();
   const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && !emp.standup_fine_excluded);
-  const today = new Date().toISOString().split("T")[0];
+  const today = fineToday();
   const [form, setForm] = useState({
     name: "",
     date: today,
@@ -23,8 +24,15 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const doAdd = () => {
-    addStandupFine({ ...form, createdAt: new Date().toISOString() });
+  // A missed standup can only be recorded for a day that has already happened.
+  const isFutureDate = form.date > today;
+
+  const doAdd = async () => {
+    const { error: submitError } = await addStandupFine({ ...form, createdAt: new Date().toISOString() });
+    if (submitError) {
+      setError(submitError.message || "Failed to save the record. Please try again.");
+      return;
+    }
     setForm({ name: "", date: today, status: "unpaid" });
     setDuplicateWarning(false);
     onClose();
@@ -33,6 +41,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name) { setError("Please select an employee"); return; }
+    if (isFutureDate) { setError("A standup fine can only be recorded for today or an earlier day."); return; }
 
     const isDuplicate = standupFines.some(s =>
       s.employee_name === form.name &&
@@ -78,7 +87,8 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
                   id="standup-date"
                   type="date"
                   value={form.date}
-                  onChange={(e) => { setForm({ ...form, date: e.target.value }); setDuplicateWarning(false); }}
+                  max={today}
+                  onChange={(e) => { setForm({ ...form, date: e.target.value }); setError(""); setDuplicateWarning(false); }}
                 />
               </div>
               <div className="form-group-interactive">
@@ -97,6 +107,19 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
 
           {error && <span className="form-error">{error}</span>}
 
+          {isFutureDate && (
+            <div className="duplicate-warning">
+              <span className="duplicate-warning-icon">🚫</span>
+              <div className="duplicate-warning-text">
+                <strong>That day hasn&apos;t happened yet</strong>
+                <p>
+                  A standup fine records a standup someone actually missed, so it can only be
+                  dated today ({today}) or earlier.
+                </p>
+              </div>
+            </div>
+          )}
+
           {duplicateWarning && (
             <div className="duplicate-warning">
               <span className="duplicate-warning-icon">⚠️</span>
@@ -112,11 +135,11 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
               Cancel
             </button>
             {duplicateWarning ? (
-              <button type="submit" className="btn btn-warning">
+              <button type="submit" className="btn btn-warning" disabled={isFutureDate}>
                 Add Anyway
               </button>
             ) : (
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary" disabled={isFutureDate}>
                 Record Fine
               </button>
             )}

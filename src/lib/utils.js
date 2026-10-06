@@ -1,3 +1,24 @@
+import { getNepalDateStr } from "@/lib/attendanceTime";
+
+/**
+ * The Nepal business day, as a Y-M-D string. Fines are office records, so "today" is the
+ * office's day, not the browser's — a laptop set to another timezone must not be able to
+ * book a fine the office has not reached yet, or be refused one it has.
+ */
+export function fineToday(now = new Date()) {
+  return getNepalDateStr(now);
+}
+
+/**
+ * A fine records something that already happened: someone came in late, someone missed
+ * standup. There is nothing to record about a day that has not happened yet, so dates
+ * after today are rejected. Today itself and any past day are allowed.
+ */
+export function isFutureFineDate(date, now = new Date()) {
+  if (!date) return false;
+  return String(date).split("T")[0] > fineToday(now);
+}
+
 /**
  * Returns a Google Drive thumbnail image URL for use in <img> tags.
  * Returns null if the URL is not a Google Drive link.
@@ -177,6 +198,74 @@ export function findExistingLateFine(fines, employeeName, date) {
  * date, or null. Deliberately ignores `title` — a second holiday on a taken date is a
  * duplicate whatever it is called.
  */
+/**
+ * Every calendar date from start to end inclusive, as YYYY-MM-DD. Unlike
+ * buildWorkingDates this keeps weekends: a holiday that spans a weekend is still a
+ * holiday on those days, and the working-day maths elsewhere skips them anyway.
+ * Returns [] if the range is backwards or either end is missing.
+ */
+export function expandDateRange(startStr, endStr) {
+  const dates = [];
+  if (!startStr) return dates;
+  const end = endStr || startStr;
+  if (end < startStr) return dates;
+
+  const current = new Date(startStr + "T00:00:00");
+  const last = new Date(end + "T00:00:00");
+  while (current <= last) {
+    const y = current.getFullYear();
+    const m = String(current.getMonth() + 1).padStart(2, "0");
+    const d = String(current.getDate()).padStart(2, "0");
+    dates.push(`${y}-${m}-${d}`);
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+}
+
+/**
+ * public_holidays stores one row per day, because every consumer (calendars, capacity,
+ * attendance, leave maths) keys off a single date and the table has a UNIQUE index on it.
+ * A multi-day holiday is therefore a run of rows sharing a title. This folds those runs
+ * back into one entry each, so the UI can show "Dashain · Oct 11 – Oct 15" and delete the
+ * whole thing at once.
+ *
+ * Only *consecutive* days with the same title merge, so two separate one-day holidays
+ * that happen to share a name stay separate.
+ */
+export function groupPublicHolidays(publicHolidays) {
+  const rows = (publicHolidays || [])
+    .map((h) => ({ ...h, day: String(h.date).split("T")[0] }))
+    .filter((h) => h.day)
+    .sort((a, b) => a.day.localeCompare(b.day));
+
+  const groups = [];
+  for (const row of rows) {
+    const last = groups[groups.length - 1];
+    const followsLast =
+      last &&
+      last.title === row.title &&
+      expandDateRange(last.endDate, row.day).length === 2;
+
+    if (followsLast) {
+      last.endDate = row.day;
+      last.days += 1;
+      last.ids.push(row.id);
+      last.dates.push(row.day);
+    } else {
+      groups.push({
+        key: `${row.day}-${row.title}`,
+        title: row.title,
+        startDate: row.day,
+        endDate: row.day,
+        days: 1,
+        ids: [row.id],
+        dates: [row.day],
+      });
+    }
+  }
+  return groups;
+}
+
 export function findExistingPublicHoliday(publicHolidays, date) {
   if (!date) return null;
   const day = String(date).split("T")[0];

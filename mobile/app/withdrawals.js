@@ -44,7 +44,7 @@ function WithdrawModal({ isOpen, onClose }) {
 }
 
 export default function WithdrawalsScreen() {
-  const { withdrawals, isAdmin, deleteWithdrawal } = useApp();
+  const { withdrawals, canManageFines, deleteWithdrawal } = useApp();
   const t = useThemeColors();
   const [showModal, setShowModal] = useState(false);
 
@@ -69,7 +69,7 @@ export default function WithdrawalsScreen() {
               Rs. {totalWithdrawn.toLocaleString()} withdrawn · {withdrawals.length} record{withdrawals.length !== 1 ? "s" : ""}
             </Text>
           </View>
-          {isAdmin && <Button title="+ Withdraw" small onPress={() => setShowModal(true)} />}
+          {canManageFines && <Button title="+ Withdraw" small onPress={() => setShowModal(true)} />}
         </View>
 
         {withdrawals.length === 0 ? (
@@ -81,7 +81,7 @@ export default function WithdrawalsScreen() {
                 <Text style={{ color: t.textPrimary, fontWeight: "700", fontSize: 15 }}>Rs. {w.amount.toLocaleString()}</Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                   <Text style={{ color: t.textMuted, fontSize: 12 }}>{formatDate(w.created_at)}</Text>
-                  {isAdmin && (
+                  {canManageFines && (
                     <Text onPress={() => confirmDelete(w)} style={{ fontSize: 14 }}>
                       🗑
                     </Text>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { mailFrom } from '@/lib/mailer';
 
 export async function POST(req) {
   try {
@@ -33,7 +34,7 @@ export async function POST(req) {
     });
 
     const mailOptions = {
-      from: `"Heubert Tracker" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      from: mailFrom(),
       to: email,
       subject: dynamicSubject,
       text: `Hi ${name},\n\n${dynamicMessage.replace(/<[^>]*>?/gm, '')}\n\nBest regards,\nThe Heubert Team`,

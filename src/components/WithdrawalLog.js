@@ -4,7 +4,7 @@ import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 
 export default function WithdrawalLog({ onWithdraw }) {
-  const { withdrawals, isAdmin, deleteWithdrawal } = useApp();
+  const { withdrawals, canManageFines, deleteWithdrawal } = useApp();
   const { confirmDialog } = useDialog();
 
   const totalWithdrawn = withdrawals.reduce((s, w) => s + w.amount, 0);
@@ -29,7 +29,7 @@ export default function WithdrawalLog({ onWithdraw }) {
             Rs. {totalWithdrawn.toLocaleString()} withdrawn · {withdrawals.length} record{withdrawals.length !== 1 ? "s" : ""}
           </span>
         </div>
-        {isAdmin && (
+        {canManageFines && (
           <button className="btn btn-primary btn-sm" onClick={onWithdraw}>
             + Withdraw
           </button>
@@ -48,7 +48,7 @@ export default function WithdrawalLog({ onWithdraw }) {
                 <span className="withdrawal-amount">Rs. {w.amount.toLocaleString()}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span className="withdrawal-date">{formatDate(w.created_at)}</span>
-                  {isAdmin && (
+                  {canManageFines && (
                     <button
                       className="btn-icon-delete"
                       onClick={async () => {

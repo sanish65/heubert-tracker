@@ -44,6 +44,8 @@ export default function MeetingScreen() {
     standupSubmissions,
     standupQuestions,
     isAdmin,
+    canManageFines,
+    canManageLeave,
     deleteFine,
     deleteStandupFine,
     deleteLeave,
@@ -142,8 +144,12 @@ export default function MeetingScreen() {
       <Stack.Screen options={{ title: "Meeting Mode" }} />
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-        <Button title="+ Late Fine" small onPress={() => setShowAddFine(true)} />
-        <Button title="+ Standup Fine" small variant="warning" onPress={() => setShowAddStandup(true)} />
+        {canManageFines && (
+          <>
+            <Button title="+ Late Fine" small onPress={() => setShowAddFine(true)} />
+            <Button title="+ Standup Fine" small variant="warning" onPress={() => setShowAddStandup(true)} />
+          </>
+        )}
         <Button title="+ Leave" small variant="accent" onPress={() => setShowAddLeave(true)} />
         {!todaysWord && <Button title="+ Set Word" small variant="ghost" onPress={() => setShowAddWord(true)} />}
       </View>
@@ -158,7 +164,7 @@ export default function MeetingScreen() {
               <Text style={{ color: t.textPrimary, fontSize: 14 }}>{f.employee_name}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                 <Text style={{ color: t.textMuted, fontSize: 13 }}>Rs. {f.amount} · {f.status}</Text>
-                {isAdmin && (
+                {canManageFines && (
                   <AdminItemActions onEdit={() => setEditingFine(f)} onDelete={() => confirmDeleteFine(f)} />
                 )}
               </View>
@@ -177,7 +183,7 @@ export default function MeetingScreen() {
               <Text style={{ color: t.textPrimary, fontSize: 14 }}>{s.employee_name}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                 <Text style={{ color: t.textMuted, fontSize: 13 }}>{s.status}</Text>
-                {isAdmin && (
+                {canManageFines && (
                   <AdminItemActions onEdit={() => setEditingStandup(s)} onDelete={() => confirmDeleteStandup(s)} />
                 )}
               </View>
@@ -201,7 +207,7 @@ export default function MeetingScreen() {
                     {MEETING_TYPE_ICONS[l.type]} {MEETING_TYPE_LABELS[l.type]} · {leaveTypeById.get(l.leave_type_id)?.name || "Uncategorized"}
                     {segment ? ` · ${MEETING_SEGMENT_ICONS[segment]} ${MEETING_SEGMENT_LABELS[segment]}` : ""}
                   </Text>
-                  {isAdmin && (
+                  {canManageLeave(l) && (
                     <AdminItemActions onEdit={() => setEditingLeave(l)} onDelete={() => confirmDeleteLeave(l)} />
                   )}
                 </View>

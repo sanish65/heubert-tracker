@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { findExistingLateFine } from "@/lib/utils";
+import { findExistingLateFine, fineToday } from "@/lib/utils";
 
 export default function AddFineModal({ isOpen, onClose }) {
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
   const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && !emp.late_fine_excluded);
-  const today = new Date().toISOString().split("T")[0];
+  const today = fineToday();
 
   // A new fine always belongs to the season that is current NOW — never an earlier season
   // and never a null season, whichever season the page happens to be browsing. Anything else
@@ -40,11 +40,14 @@ export default function AddFineModal({ isOpen, onClose }) {
   // A late fine is one per person per day, whatever the amount — surfaced live so the
   // block is visible before the user tries to submit.
   const existingFine = findExistingLateFine(fines, form.name, form.date);
+  // Someone can only have been late on a day that has already happened.
+  const isFutureDate = form.date > today;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name) { setError("Please select an employee"); return; }
     if (!form.amount) { setError("Please fill all required fields"); return; }
+    if (isFutureDate) { setError("A late fine can only be recorded for today or an earlier day."); return; }
 
     const { error: submitError } = await addFine({
       ...form,
@@ -93,6 +96,7 @@ export default function AddFineModal({ isOpen, onClose }) {
                   id="fine-date"
                   type="date"
                   value={form.date}
+                  max={today}
                   onChange={handleChange("date")}
                 />
               </div>
@@ -129,6 +133,19 @@ export default function AddFineModal({ isOpen, onClose }) {
 
           {error && <span className="form-error">{error}</span>}
 
+          {isFutureDate && (
+            <div className="duplicate-warning">
+              <span className="duplicate-warning-icon">🚫</span>
+              <div className="duplicate-warning-text">
+                <strong>That day hasn&apos;t happened yet</strong>
+                <p>
+                  A late fine records a day someone actually came in late, so it can only be
+                  dated today ({today}) or earlier.
+                </p>
+              </div>
+            </div>
+          )}
+
           {existingFine && (
             <div className="duplicate-warning">
               <span className="duplicate-warning-icon">🚫</span>
@@ -147,7 +164,7 @@ export default function AddFineModal({ isOpen, onClose }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={!!existingFine}>
+            <button type="submit" className="btn btn-primary" disabled={!!existingFine || isFutureDate}>
               Add Fine
             </button>
           </div>

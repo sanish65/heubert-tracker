@@ -9,10 +9,15 @@ import SailboatScene from "@/components/SailboatScene";
 import SpaceScene    from "@/components/SpaceScene";
 
 const RETRO_TEMPLATES = {
+  // Left to right: what we are taking forward, then what to fix, then what went well.
+  // This is display order only — a card's column_type is its key, so reordering here
+  // moves nothing in the database. Do NOT mirror this order into the TEMPLATES arrays in
+  // src/app/api/retro/route.js: those map template keys onto the three DB column values
+  // BY POSITION, and reordering them would file Focus cards as went_well.
   standard: [
-    { key: "went_well", label: "What Went Well?",   emoji: "🎉", color: "green"  },
-    { key: "improve",   label: "Needs Improvement", emoji: "🔧", color: "amber"  },
     { key: "focus",     label: "Focus More On",      emoji: "🎯", color: "indigo" },
+    { key: "improve",   label: "Needs Improvement", emoji: "🔧", color: "amber"  },
+    { key: "went_well", label: "What Went Well?",   emoji: "🎉", color: "green"  },
   ],
   sailboat: [
     { key: "wind",    label: "Wind (Pushing us forward)", emoji: "⛵", color: "sky"    },

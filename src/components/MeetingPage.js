@@ -8,7 +8,7 @@ import EditFineModal from "@/components/EditFineModal";
 import EditStandupModal from "@/components/EditStandupModal";
 import EditWordModal from "@/components/EditWordModal";
 import EditLeaveModal from "@/components/EditLeaveModal";
-import HumanLoader from "@/components/HumanLoader";
+import { useSplashExit } from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
 import DashainBanner from "@/components/DashainBanner";
@@ -43,6 +43,8 @@ export default function MeetingPage() {
     updateLeave,
     employees,
     isAdmin,
+    canManageFines,
+    canManageLeave,
     isLoaded,
     publicHolidays,
     leaveTypes,
@@ -450,8 +452,12 @@ export default function MeetingPage() {
   const [showEditLeave, setShowEditLeave] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
 
-  if (!isClient || !isLoaded || !isAuthReady || (user && !isAuthorized)) {
-    return <HumanLoader />;
+  const booting = !isClient || !isLoaded || !isAuthReady || (user && !isAuthorized);
+  // Stays mounted for one fade after booting finishes, over the app below it.
+  const splash = useSplashExit(booting);
+
+  if (booting) {
+    return <>{splash}</>;
   }
 
   // Nudge phrases
@@ -465,6 +471,8 @@ export default function MeetingPage() {
   ];
 
   return (
+    <>
+    {splash}
     <div className="meeting-layout">
       <EventBanner />
       <NewFiscalYearBanner />
@@ -486,8 +494,12 @@ export default function MeetingPage() {
           >
             Meeting Link
           </a>
-          <button className="btn btn-primary" onClick={() => setShowAddFine(true)}>+ Late Fine</button>
-          <button className="btn btn-warning" onClick={() => setShowAddStandup(true)}>+ Standup Fine</button>
+          {canManageFines && (
+            <>
+              <button className="btn btn-primary" onClick={() => setShowAddFine(true)}>+ Late Fine</button>
+              <button className="btn btn-warning" onClick={() => setShowAddStandup(true)}>+ Standup Fine</button>
+            </>
+          )}
           <button className="btn btn-accent" onClick={() => setShowAddLeave(true)}>+ Leave</button>
           {!todaysWord && (
              <button className="btn btn-secondary" onClick={() => setShowAddWord(true)}>+ Set Word</button>
@@ -508,7 +520,7 @@ export default function MeetingPage() {
                   <span className="item-name">{f.employee_name}</span>
                   <span className="item-value">Rs. {f.amount}</span>
                   <span className={`status-badge ${f.status}`}>{f.status}</span>
-                  {isAdmin && (
+                  {canManageFines && (
                     <div className="item-actions">
                       <button onClick={() => { setEditingFine(f); setShowEditFine(true); }} title="Edit">✏️</button>
                       <button onClick={async () => { if (await confirmDialog("Delete fine?", { danger: true })) deleteFine(f.id); }} title="Delete">🗑</button>
@@ -531,7 +543,7 @@ export default function MeetingPage() {
                 <div key={`standup-item-${index}`} className="meeting-item group">
                   <span className="item-name">{s.employee_name}</span>
                   <span className={`status-badge ${s.status}`}>{s.status}</span>
-                  {isAdmin && (
+                  {canManageFines && (
                     <div className="item-actions">
                       <button onClick={() => { setEditingStandup(s); setShowEditStandup(true); }} title="Edit">✏️</button>
                       <button onClick={async () => { if (await confirmDialog("Delete record?", { danger: true })) deleteStandupFine(s.id); }} title="Delete">🗑</button>
@@ -559,7 +571,7 @@ export default function MeetingPage() {
                     {MEETING_TYPE_ICONS[l.type]} {MEETING_TYPE_LABELS[l.type]} · {leaveTypeById.get(l.leave_type_id)?.name || "Uncategorized"}
                     {segment ? ` · ${MEETING_SEGMENT_ICONS[segment]} ${MEETING_SEGMENT_LABELS[segment]}` : ""}
                   </span>
-                  {isAdmin && (
+                  {canManageLeave(l) && (
                     <div className="item-actions">
                       <button onClick={() => { setEditingLeave(l); setShowEditLeave(true); }} title="Edit">✏️</button>
                       <button onClick={async () => { if (await confirmDialog("Delete leave?", { danger: true })) deleteLeave(l.id); }} title="Delete">🗑</button>
@@ -896,6 +908,7 @@ export default function MeetingPage() {
         />
       )}
     </div>
+    </>
   );
 }
 
@@ -1344,8 +1357,9 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
 function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, today, standupFines }) {
   const [name, setName] = useState("");
   const [duplicateWarning, setDuplicateWarning] = useState(false);
+  const [error, setError] = useState("");
 
-  const hSubmit = (e) => {
+  const hSubmit = async (e) => {
     e.preventDefault();
     if (!name) return;
 
@@ -1359,7 +1373,11 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
       return;
     }
 
-    addStandupFine({ name, date: today, status: "unpaid" });
+    const { error: submitError } = await addStandupFine({ name, date: today, status: "unpaid" });
+    if (submitError) {
+      setError(submitError.message || "Failed to save the record. Please try again.");
+      return;
+    }
     onClose();
   };
 
@@ -1375,6 +1393,8 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
           </div>
+          {error && <span className="form-error">{error}</span>}
+
           {duplicateWarning && (
             <div className="duplicate-warning">
               <span className="duplicate-warning-icon">⚠️</span>

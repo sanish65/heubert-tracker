@@ -7,12 +7,15 @@ import { wordSeedSeasons, wordSeedWords } from "@/data/wordSeedData";
 import {
   findExistingLateFine,
   findExistingPublicHoliday,
+  expandDateRange,
   findLeaveConflict,
   describeLeave,
   buildWorkingDates,
   parseHalfDaySegment,
+  isFutureFineDate,
 } from "@/lib/utils";
 import { getNepalDateStr, computeLateness, isWorkingDay, haversineMeters } from "@/lib/attendanceTime";
+import { notifyFineAdded } from "@/lib/fineNotifications";
 
 // The startup fetch pulls ~22 tables. Firing them all at once opens ~22 TLS connections
 // to the same host in one burst, and a subset of those reliably stall for minutes before
@@ -108,6 +111,11 @@ export function AppProvider({ children }) {
   const [activeSprint, setActiveSprint] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  // What the last startup fetch actually managed to reach: "ok" once rows came back,
+  // "partial" if some tables failed or stalled, "unreachable" if none of them answered.
+  // Drives the message the loading screen shows instead of spinning silently.
+  const [startupReach, setStartupReach] = useState("ok");
+  const [isOffline, setIsOffline] = useState(false);
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState(null);
@@ -127,6 +135,31 @@ export function AppProvider({ children }) {
   const isAdmin = currentEmployee?.is_admin === true;
   const isFineAdmin = currentEmployee?.is_fine_admin === true;
   const canPunchAttendance = currentEmployee?.can_punch_web === true;
+
+  // Who may change what. Mirrors scripts/admin-write-permissions-rls.sql, which is the
+  // boundary that actually holds — these checks exist so a blocked action says why
+  // instead of coming back as a bare Postgres rejection.
+  //
+  // Fines (late and standup) belong to admins and the narrower fine-admin role. Every
+  // other office record — holidays, attendance, leave settings, employees — is admins
+  // only. Leave is the exception: it also belongs to the person it is for and to whoever
+  // entered it, either of whom may edit or delete it.
+  const canManageFines = isAdmin || isFineAdmin;
+
+  const ownsLeave = (leave) => {
+    if (!leave) return false;
+    const mine = currentEmployee?.name && leave.employee_name === currentEmployee.name;
+    const entered =
+      leave.created_by && user?.email &&
+      String(leave.created_by).toLowerCase() === user.email.toLowerCase();
+    return Boolean(mine || entered);
+  };
+  const canManageLeave = (leave) => isAdmin || ownsLeave(leave);
+
+  const denied = (action) => ({
+    data: null,
+    error: new Error(`You don't have permission to ${action}. Ask an admin.`),
+  });
 
   // Initial load from Supabase
   const fetchData = useCallback(async () => {
@@ -172,6 +205,9 @@ export function AppProvider({ children }) {
         STARTUP_CONCURRENCY
       );
       results.forEach((res, i) => apply(queries[i], res));
+
+      const failed = results.filter((res) => res.error).length;
+      setStartupReach(failed === 0 ? "ok" : failed === results.length ? "unreachable" : "partial");
 
       // Only stalls get a second chance — a table that answered with a real error will
       // just answer with it again. The app is already past its loading screen by now, so
@@ -246,6 +282,19 @@ export function AppProvider({ children }) {
 
     return () => subscription.unsubscribe();
   }, [fetchData]);
+
+  // The browser's own view of connectivity. Not authoritative (online can still mean
+  // "captive portal"), but offline is a definite answer worth saying out loud.
+  useEffect(() => {
+    const sync = () => setIsOffline(navigator.onLine === false);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
 
   const verifyEmployeeAccess = async (u) => {
     if (!u.email) return;
@@ -364,6 +413,7 @@ export function AppProvider({ children }) {
 
   // CRUD Helpers
   const addEmployee = async (employee) => {
+    if (!isAdmin) return denied("add an employee");
     const payload = {
         name: employee.name,
         emp_no: employee.empNo,
@@ -382,6 +432,7 @@ export function AppProvider({ children }) {
   };
 
   const updateEmployee = async (id, updatedData) => {
+    if (!isAdmin) return denied("edit an employee");
     const payload = {
         name: updatedData.name,
         emp_no: updatedData.empNo,
@@ -402,6 +453,7 @@ export function AppProvider({ children }) {
   // Freelance/WFH web punch access — unrestricted, no office geofence. Turning it on
   // always clears web_punch_office_bound, so an employee is only ever in one category.
   const setEmployeePunchAccess = async (id, canPunchWeb) => {
+    if (!isAdmin) return denied("change punch access");
     const payload = canPunchWeb
       ? { can_punch_web: true, web_punch_office_bound: false }
       : { can_punch_web: false };
@@ -413,6 +465,7 @@ export function AppProvider({ children }) {
   // On-site employees who still want to punch from the tracker website instead of the
   // mobile app — same web punch flow, but bound to the office geofence like mobile is.
   const setEmployeeOfficeBoundPunch = async (id, enabled) => {
+    if (!isAdmin) return denied("change office-bound punching");
     const payload = enabled
       ? { can_punch_web: true, web_punch_office_bound: true }
       : { can_punch_web: false, web_punch_office_bound: false };
@@ -433,6 +486,7 @@ export function AppProvider({ children }) {
     "is_fine_admin",
   ]);
   const setEmployeeFlag = async (id, field, value) => {
+    if (!isAdmin) return denied("change employee roles");
     if (!EMPLOYEE_FLAG_FIELDS.has(field)) return { data: null, error: new Error("Unknown employee flag") };
     const { data, error } = await supabase.from("employees").update({ [field]: value }).eq("id", id).select();
     if (data) setEmployees(prev => prev.map(e => e.id === id ? data[0] : e));
@@ -440,6 +494,7 @@ export function AppProvider({ children }) {
   };
 
   const removeEmployee = async (id) => {
+    if (!isAdmin) return denied("remove an employee");
     const employee = employees.find(e => e.id === id);
     if (!employee) return;
 
@@ -465,7 +520,25 @@ export function AppProvider({ children }) {
     return { error };
   };
 
+  // A fine records a day that has already happened, so a future date is never valid.
+  // Enforced here so every entry point (fine modal, standup modal, meeting quick-add,
+  // mobile) is covered rather than each form re-implementing it.
+  const futureDateError = (date) =>
+    isFutureFineDate(date)
+      ? new Error(
+          `${String(date).split("T")[0]} is in the future. A fine can only be recorded for today or an earlier day.`
+        )
+      : null;
+
   const addFine = async (fine) => {
+    // The one exception to "fine admins only": the auto late fine mobile raises against
+    // the person punching in. They can only ever fine themselves this way.
+    const selfFine = currentEmployee?.name && fine.name === currentEmployee.name;
+    if (!canManageFines && !selfFine) return denied("record a late fine");
+
+    const futureError = futureDateError(fine.date);
+    if (futureError) return { data: null, error: futureError };
+
     // One late fine per person per day, regardless of amount — being late is a single
     // event, so a second fine for the same day is always a duplicate. Enforced here so
     // every entry point (main page, meeting quick-add, mobile) is covered.
@@ -487,11 +560,16 @@ export function AppProvider({ children }) {
         season_id: fine.seasonId ?? latestSeasonId(fineSeasons)
     };
     const { data, error } = await supabase.from("fines").insert([payload]).select();
-    if (data) setFines(prev => [data[0], ...prev]);
+    if (data) {
+      setFines(prev => [data[0], ...prev]);
+      // Not awaited — the fine is recorded either way, and SMTP must not stall the UI.
+      notifyFineAdded({ kind: "late", employeeName: fine.name, date: fine.date, amount: fine.amount });
+    }
     return { data, error };
   };
 
   const toggleFineStatus = async (id) => {
+    if (!canManageFines) return denied("change a fine's status");
     const fine = fines.find(f => f.id === id);
     if (!fine) return;
     const newStatus = fine.status === "paid" ? "unpaid" : "paid";
@@ -500,11 +578,13 @@ export function AppProvider({ children }) {
   };
 
   const deleteFine = async (id) => {
+    if (!canManageFines) return denied("delete a late fine");
     const { error } = await supabase.from("fines").delete().eq("id", id);
     if (!error) setFines(prev => prev.filter(f => f.id !== id));
   };
 
   const updateFine = async (id, updatedData) => {
+    if (!canManageFines) return denied("edit a late fine");
     const { data, error } = await supabase
       .from("fines")
       .update({
@@ -521,12 +601,14 @@ export function AppProvider({ children }) {
   };
 
   const addFineSeason = async (title) => {
+    if (!canManageFines) return denied("create a fine season");
     const { data, error } = await supabase.from("fine_seasons").insert([{ title, created_by: user?.email }]).select();
     if (data) setFineSeasons(prev => [...prev, data[0]]);
     return { data, error };
   };
 
   const deleteFineSeason = async (id) => {
+    if (!canManageFines) return denied("delete a fine season");
     const { error } = await supabase.from("fine_seasons").delete().eq("id", id);
     if (!error) {
       setFineSeasons(prev => prev.filter(s => s.id !== id));
@@ -537,6 +619,7 @@ export function AppProvider({ children }) {
   };
 
   const updateFineSeason = async (id, title) => {
+    if (!canManageFines) return denied("rename a fine season");
     const { data, error } = await supabase.from("fine_seasons").update({ title }).eq("id", id).select();
     if (data) setFineSeasons(prev => prev.map(s => s.id === id ? data[0] : s));
     return { data, error };
@@ -544,6 +627,11 @@ export function AppProvider({ children }) {
 
   const addLeave = async (leave) => {
     if (!leave.name || !leave.name.trim()) return { data: null, error: new Error("Employee name is required") };
+
+    // Booking leave for somebody else is an admin act. Your own is always yours.
+    if (!isAdmin && leave.name !== currentEmployee?.name) {
+      return denied("record leave for someone else");
+    }
 
     // One leave per person per working day. A full-day or early leave takes the whole day,
     // so nothing else can be booked on it; two half-days only coexist when they cover
@@ -575,6 +663,8 @@ export function AppProvider({ children }) {
         reason: leave.reason,
         leave_type_id: leave.leaveTypeId ?? null,
         season_id: leave.seasonId ?? latestSeasonId(leaveSeasons),
+        // Who entered it, so they keep hold of it even if it is not their own leave.
+        created_by: user?.email ?? null,
     };
     const { data, error } = await supabase.from("leaves").insert([payload]).select();
     if (data) setLeaves(prev => [data[0], ...prev]);
@@ -582,11 +672,14 @@ export function AppProvider({ children }) {
   };
 
   const deleteLeave = async (id) => {
+    if (!canManageLeave(leaves.find(l => l.id === id))) return denied("delete this leave");
     const { error } = await supabase.from("leaves").delete().eq("id", id);
     if (!error) setLeaves(prev => prev.filter(l => l.id !== id));
   };
 
   const updateLeave = async (id, updatedData) => {
+    if (!canManageLeave(leaves.find(l => l.id === id))) return denied("edit this leave");
+
     // Same one-per-day rule as addLeave, or editing a leave onto an occupied date would be
     // a way straight around it. The record being edited is excluded from its own check.
     const { holidaySet, dates } = leaveWorkingDates(updatedData, publicHolidays);
@@ -627,12 +720,14 @@ export function AppProvider({ children }) {
   };
 
   const addLeaveSeason = async (title) => {
+    if (!isAdmin) return denied("create a leave season");
     const { data, error } = await supabase.from("leave_seasons").insert([{ title, created_by: user?.email }]).select();
     if (data) setLeaveSeasons(prev => [...prev, data[0]]);
     return { data, error };
   };
 
   const deleteLeaveSeason = async (id) => {
+    if (!isAdmin) return denied("delete a leave season");
     const { error } = await supabase.from("leave_seasons").delete().eq("id", id);
     if (!error) {
       setLeaveSeasons(prev => prev.filter(s => s.id !== id));
@@ -643,12 +738,14 @@ export function AppProvider({ children }) {
   };
 
   const updateLeaveSeason = async (id, title) => {
+    if (!isAdmin) return denied("rename a leave season");
     const { data, error } = await supabase.from("leave_seasons").update({ title }).eq("id", id).select();
     if (data) setLeaveSeasons(prev => prev.map(s => s.id === id ? data[0] : s));
     return { data, error };
   };
 
   const addLeaveType = async (leaveType) => {
+    if (!isAdmin) return denied("create a leave type");
     const payload = {
         name: leaveType.name,
         annual_days: leaveType.annualDays,
@@ -662,6 +759,7 @@ export function AppProvider({ children }) {
   };
 
   const updateLeaveType = async (id, updatedData) => {
+    if (!isAdmin) return denied("edit a leave type");
     const payload = {
         name: updatedData.name,
         annual_days: updatedData.annualDays,
@@ -675,6 +773,7 @@ export function AppProvider({ children }) {
   };
 
   const deleteLeaveType = async (id) => {
+    if (!isAdmin) return denied("delete a leave type");
     const { error } = await supabase.from("leave_types").delete().eq("id", id);
     if (!error) setLeaveTypes(prev => prev.filter(t => t.id !== id));
     return { error };
@@ -822,16 +921,26 @@ export function AppProvider({ children }) {
   };
 
   const addStandupFine = async (record) => {
+    if (!canManageFines) return denied("record a standup fine");
+
+    const futureError = futureDateError(record.date);
+    if (futureError) return { data: null, error: futureError };
+
     const payload = {
         employee_name: record.name,
         date: record.date,
         status: record.status
     };
-    const { data } = await supabase.from("standup_records").insert([payload]).select();
-    if (data) setStandupFines(prev => [data[0], ...prev]);
+    const { data, error } = await supabase.from("standup_records").insert([payload]).select();
+    if (data) {
+      setStandupFines(prev => [data[0], ...prev]);
+      notifyFineAdded({ kind: "standup", employeeName: record.name, date: record.date });
+    }
+    return { data, error };
   };
 
   const toggleStandupFineStatus = async (id) => {
+    if (!canManageFines) return denied("change a standup fine's status");
     const record = standupFines.find(s => s.id === id);
     if (!record) return;
     const newStatus = record.status === "paid" ? "unpaid" : "paid";
@@ -840,12 +949,18 @@ export function AppProvider({ children }) {
   };
 
   const deleteStandupFine = async (id) => {
+    if (!canManageFines) return denied("delete a standup fine");
     const { error } = await supabase.from("standup_records").delete().eq("id", id);
     if (!error) setStandupFines(prev => prev.filter(s => s.id !== id));
     return { error };
   };
 
   const updateStandupFine = async (id, updatedData) => {
+    if (!canManageFines) return denied("edit a standup fine");
+
+    const futureError = futureDateError(updatedData.date);
+    if (futureError) return { data: null, error: futureError };
+
     const { data, error } = await supabase
       .from("standup_records")
       .update({
@@ -874,6 +989,7 @@ export function AppProvider({ children }) {
   };
 
   const addWithdrawal = async (amount, reason) => {
+    if (!canManageFines) return denied("record a withdrawal");
     const withdrawnBy = user?.user_metadata?.full_name || user?.email || "Admin";
     const payload = { amount, reason, withdrawn_by: withdrawnBy };
     const { data, error } = await supabase.from("withdrawals").insert([payload]).select();
@@ -882,6 +998,7 @@ export function AppProvider({ children }) {
   };
 
   const deleteWithdrawal = async (id) => {
+    if (!canManageFines) return denied("delete a withdrawal");
     const { error } = await supabase.from("withdrawals").delete().eq("id", id);
     if (!error) setWithdrawals(prev => prev.filter(w => w.id !== id));
   };
@@ -949,32 +1066,62 @@ export function AppProvider({ children }) {
     return { data, error };
   };
 
-  const addPublicHoliday = async (date, title) => {
-    // One holiday per date: the calendar renders a single name per day and the working-day
-    // maths keys off the date alone. public_holidays.date also has a UNIQUE index, but that
-    // only surfaces as a raw Postgres error, so the readable message is produced here.
-    const existing = findExistingPublicHoliday(publicHolidays, date);
-    if (existing) {
+  // A holiday can span several days (Dashain, Tihar). It is stored as one row per day,
+  // because public_holidays.date is UNIQUE and every consumer — calendars, capacity,
+  // attendance, the leave working-day maths — looks a single date up. endDate is optional
+  // and defaults to a one-day holiday, so existing single-day callers are unaffected.
+  const addPublicHoliday = async (date, title, endDate) => {
+    if (!isAdmin) return denied("add a public holiday");
+
+    const days = expandDateRange(date, endDate);
+    if (!days.length) {
+      return { data: null, error: new Error("The end date must be on or after the start date.") };
+    }
+
+    // One holiday per date. The UNIQUE index enforces it too, but only as a raw Postgres
+    // error, so the readable message is produced here — and naming every clashing day
+    // beats failing on the first one and leaving the admin to guess at the rest.
+    const clashes = days
+      .map((day) => findExistingPublicHoliday(publicHolidays, day))
+      .filter(Boolean);
+    if (clashes.length) {
+      const listed = clashes
+        .slice(0, 3)
+        .map((h) => `${h.title} on ${String(h.date).split("T")[0]}`)
+        .join(", ");
+      const more = clashes.length > 3 ? ` (and ${clashes.length - 3} more)` : "";
       return {
         data: null,
-        error: new Error(
-          `${existing.title} is already the holiday on ${String(existing.date).split("T")[0]}. Delete it first to rename or replace it.`
-        ),
+        error: new Error(`Already booked: ${listed}${more}. Delete those first to replace them.`),
       };
     }
 
-    const { data, error } = await supabase.from("public_holidays").insert([{ date, title }]).select();
-    if (data) setPublicHolidays(prev => [...prev, data[0]]);
+    const { data, error } = await supabase
+      .from("public_holidays")
+      .insert(days.map((day) => ({ date: day, title })))
+      .select();
+    if (data) setPublicHolidays(prev => [...prev, ...data]);
     return { data, error };
   };
 
+  // Takes one id or a list of them, so deleting a multi-day holiday removes the whole run
+  // in a single request rather than leaving half a holiday behind if one call fails.
   const deletePublicHoliday = async (id) => {
-    const { error } = await supabase.from("public_holidays").delete().eq("id", id);
-    if (!error) setPublicHolidays(prev => prev.filter(h => h.id !== id));
+    if (!isAdmin) return denied("delete a public holiday");
+
+    const ids = Array.isArray(id) ? id : [id];
+    if (!ids.length) return { error: null };
+
+    const { error } = await supabase.from("public_holidays").delete().in("id", ids);
+    if (!error) {
+      const removed = new Set(ids);
+      setPublicHolidays(prev => prev.filter(h => !removed.has(h.id)));
+    }
     return { error };
   };
 
   const updateOfficeSettings = async (patch) => {
+    if (!isAdmin) return denied("change the office settings");
     const payload = { id: 1, ...officeSettings, ...patch, updated_at: new Date().toISOString() };
     const { data, error } = await supabase.from("office_settings").upsert(payload).select().single();
     if (data) setOfficeSettings(data);
@@ -1086,6 +1233,10 @@ export function AppProvider({ children }) {
   // all. Lateness is recomputed from the check-in time, same rule as punchIn, so a manually
   // entered time keeps is_late/late_minutes consistent.
   const upsertAttendanceRecord = async (employeeName, date, { check_in_at, check_out_at }) => {
+    // Punching yourself in and out goes through punchIn/punchOut; this is the admin
+    // correction path, which can write any day for anyone, so it stays admin-only.
+    if (!isAdmin) throw new Error("Only admins can edit attendance records.");
+
     const { isLate, lateMinutes } =
       check_in_at && isWorkingDay(date, publicHolidays)
         ? computeLateness(new Date(check_in_at), officeSettings?.sync_time)
@@ -1113,6 +1264,7 @@ export function AppProvider({ children }) {
   };
 
   const deleteAttendanceRecord = async (id) => {
+    if (!isAdmin) return denied("delete an attendance record");
     const { error } = await supabase.from("attendance").delete().eq("id", id);
     if (!error) setAttendance((prev) => prev.filter((a) => a.id !== id));
     return { error };
@@ -1328,6 +1480,8 @@ export function AppProvider({ children }) {
         companyEvents,
         isLoaded,
         isSyncing,
+        startupReach,
+        isOffline,
         addEmployee,
         updateEmployee,
         removeEmployee,
@@ -1382,6 +1536,9 @@ export function AppProvider({ children }) {
         currentEmployee,
         isAdmin,
         isFineAdmin,
+        canManageFines,
+        canManageLeave,
+        ownsLeave,
         theme,
         toggleTheme,
         animationsEnabled,

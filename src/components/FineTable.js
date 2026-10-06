@@ -9,7 +9,7 @@ import EditFineModal from "./EditFineModal";
 const UNASSIGNED = "unassigned";
 
 export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onAddSeason, onEditSeason }) {
-  const { fines: allFines, fineSeasons, employees, toggleFineStatus, deleteFine, isAdmin, isFineAdmin } = useApp();
+  const { fines: allFines, fineSeasons, employees, toggleFineStatus, deleteFine, canManageFines } = useApp();
   const { confirmDialog } = useDialog();
   const lateFineExcludedNames = useMemo(
     () => new Set(employees.filter((e) => e.late_fine_excluded).map((e) => e.name)),
@@ -19,7 +19,7 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
     () => allFines.filter((f) => !lateFineExcludedNames.has(f.employee_name)),
     [allFines, lateFineExcludedNames]
   );
-  const canManageSeasons = isAdmin || isFineAdmin;
+  const canManageSeasons = canManageFines;
 
   const [activeSeasonId, setActiveSeasonId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -257,12 +257,14 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
                   {filtered.length} records · Rs. {totalFiltered.toLocaleString()}
                 </span>
               </div>
-              <button
-                className="btn btn-primary"
-                onClick={() => onAddFine()}
-              >
-                <span>+</span> Record Fine
-              </button>
+              {canManageFines && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => onAddFine()}
+                >
+                  <span>+</span> Record Fine
+                </button>
+              )}
             </div>
 
             <div className="fine-filters">
@@ -304,13 +306,13 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
                     <th onClick={() => handleSort("status")}>
                       Status {sortIcon("status")}
                     </th>
-                    {(isAdmin || isFineAdmin) && <th>Actions</th>}
+                    {canManageFines && <th>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={(isAdmin || isFineAdmin) ? 5 : 4} className="empty-row">
+                      <td colSpan={canManageFines ? 5 : 4} className="empty-row">
                         No records found
                       </td>
                     </tr>
@@ -327,17 +329,17 @@ export default function FineTable({ selectedEmployee, onAddFine, onWithdraw, onA
                         <td className="amount-cell">Rs. {f.amount}</td>
                         <td>
                           <span
-                            className={`status-badge ${f.status} ${!(isAdmin || isFineAdmin) ? "status-static" : ""}`}
+                            className={`status-badge ${f.status} ${!canManageFines ? "status-static" : ""}`}
                             onClick={async () => {
-                              if (!(isAdmin || isFineAdmin)) return;
+                              if (!canManageFines) return;
                               if (await confirmDialog(`Mark as ${f.status === "paid" ? "unpaid" : "paid"}? ${f.employee_name} · Rs. ${f.amount}`)) toggleFineStatus(f.id);
                             }}
-                            title={(isAdmin || isFineAdmin) ? "Click to toggle status" : ""}
+                            title={canManageFines ? "Click to toggle status" : ""}
                           >
                             {f.status}
                           </span>
                         </td>
-                        {(isAdmin || isFineAdmin) && (
+                        {canManageFines && (
                           <td>
                             <div className="action-btns">
                               <button

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
+import { fineToday } from "@/lib/utils";
 
 export default function EditStandupModal({ isOpen, onClose, record }) {
   const { updateStandupFine } = useApp();
@@ -20,8 +21,17 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
 
   if (!isOpen || !record) return null;
 
+  // A standup fine records a standup that was already missed, so it can never be moved
+  // to a day that has not happened yet.
+  const today = fineToday();
+  const isFutureDate = date > today;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isFutureDate) {
+      await alertDialog("A standup fine can only be dated today or an earlier day.", { tone: 'error' });
+      return;
+    }
     setSubmitting(true);
     try {
       const { error } = await updateStandupFine(record.id, {
@@ -29,7 +39,7 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
         status
       });
       if (!error) onClose();
-      else await alertDialog("Failed to update record.", { tone: 'error' });
+      else await alertDialog(error.message || "Failed to update record.", { tone: 'error' });
     } catch (err) {
       console.error("Update error:", err);
       await alertDialog("Error updating record.", { tone: 'error' });
@@ -55,6 +65,7 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
             <input
               type="date"
               value={date}
+              max={today}
               onChange={(e) => setDate(e.target.value)}
               required
             />
@@ -69,7 +80,7 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
 
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
+            <button type="submit" className="btn btn-primary" disabled={submitting || isFutureDate}>
               {submitting ? "Saving..." : "Save Changes"}
             </button>
           </div>

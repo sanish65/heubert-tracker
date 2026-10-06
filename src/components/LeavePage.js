@@ -5,7 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import LeaveCalendar from "./LeaveCalendar";
 import EditLeaveModal from "./EditLeaveModal";
-import { computeLeaveBalances, parseHalfDaySegment, stripHalfDaySegmentPrefix } from "@/lib/utils";
+import { computeLeaveBalances, parseHalfDaySegment, stripHalfDaySegmentPrefix, groupPublicHolidays } from "@/lib/utils";
 
 const TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
 const TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
@@ -13,8 +13,18 @@ const SEGMENT_LABELS = { first: "First Half", second: "Second Half" };
 const SEGMENT_ICONS = { first: "🌅", second: "🌇" };
 const PRE_SEASON = "pre-season";
 
+// Parsed as local time — a bare "YYYY-MM-DD" goes through Date() as UTC and can render
+// as the day before in timezones behind it.
+function formatHolidayDate(day) {
+  return new Date(day + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEditSeason }) {
-  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
+  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, canManageLeave, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
   const { confirmDialog } = useDialog();
   const leaveExcludedNames = useMemo(
     () => new Set(employees.filter((e) => e.leave_excluded).map((e) => e.name)),
@@ -38,6 +48,9 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
     () => new Set((publicHolidays || []).map((h) => h.date?.split("T")[0])),
     [publicHolidays]
   );
+
+  // Stored one row per day; shown as one entry per holiday.
+  const holidayGroups = useMemo(() => groupPublicHolidays(publicHolidays), [publicHolidays]);
 
   const sortedLeaveSeasons = useMemo(
     () => [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
@@ -289,7 +302,7 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
                             </span>
                           )}
                         </div>
-                        {(isAdmin || (currentEmployee && leave.employee_name === currentEmployee.name)) && (
+                        {canManageLeave(leave) && (
                           <div className="action-btns">
                             <button
                               className="btn btn-sm btn-secondary"
@@ -344,27 +357,31 @@ export default function LeavePage({ onAddLeave, onAddHoliday, onAddSeason, onEdi
           )}
         </div>
         <div className="holiday-list-grid">
-          {publicHolidays.length === 0 ? (
+          {holidayGroups.length === 0 ? (
             <p className="empty-msg">No public holidays recorded.</p>
           ) : (
-            publicHolidays.map((holiday) => (
-              <div key={holiday.id} className="holiday-list-item">
+            holidayGroups.map((holiday) => (
+              <div key={holiday.key} className="holiday-list-item">
                 <div className="holiday-info">
                   <span className="holiday-date">
-                    {new Date(holiday.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {holiday.days === 1
+                      ? formatHolidayDate(holiday.startDate)
+                      : `${formatHolidayDate(holiday.startDate)} – ${formatHolidayDate(holiday.endDate)}`}
                   </span>
                   <span className="holiday-title">{holiday.title}</span>
+                  {holiday.days > 1 && (
+                    <span className="holiday-day-count">{holiday.days} days</span>
+                  )}
                 </div>
                 {isAdmin && (
                   <button
                     className="btn-delete-holiday"
                     onClick={async () => {
-                        if (await confirmDialog(`Delete holiday "${holiday.title}"?`, { danger: true })) {
-                            deletePublicHoliday(holiday.id);
+                        const what = holiday.days === 1
+                          ? `holiday "${holiday.title}"`
+                          : `all ${holiday.days} days of "${holiday.title}"`;
+                        if (await confirmDialog(`Delete ${what}?`, { danger: true })) {
+                            deletePublicHoliday(holiday.ids);
                         }
                     }}
                   >

@@ -74,11 +74,11 @@ function FineRow({ f, canManage, onEdit, onDelete, onToggle }) {
 }
 
 export default function FinesScreen() {
-  const { fines: allFines, fineSeasons, standupFines: allStandupFines, toggleFineStatus, deleteFine, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin, withdrawals, isLoaded } = useApp();
+  const { fines: allFines, fineSeasons, standupFines: allStandupFines, toggleFineStatus, deleteFine, toggleStandupFineStatus, deleteStandupFine, canManageFines, withdrawals, isLoaded } = useApp();
   const fines = useMemo(() => allFines.filter(f => f.employee_name !== "Developers"), [allFines]);
   const standupFines = useMemo(() => allStandupFines.filter(f => f.employee_name !== "Developers"), [allStandupFines]);
   const t = useThemeColors();
-  const canManage = isAdmin || isFineAdmin;
+  const canManage = canManageFines;
 
   const [tab, setTab] = useState("late");
   const [search, setSearch] = useState("");
@@ -208,7 +208,7 @@ export default function FinesScreen() {
               {tab === "late" ? `${filteredFines.length} records · Rs. ${totalFiltered.toLocaleString()}` : `${filteredStandups.length} instances`}
             </Text>
           </View>
-          <Button title="+ Record" small onPress={() => (tab === "late" ? setShowAddFine(true) : setShowAddStandup(true))} />
+          {canManage && <Button title="+ Record" small onPress={() => (tab === "late" ? setShowAddFine(true) : setShowAddStandup(true))} />}
         </View>
 
         <TextField placeholder="Search by name, date..." value={search} onChangeText={setSearch} />

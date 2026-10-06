@@ -1,3 +1,25 @@
+import { getNepalDateStr } from "./attendance";
+
+/**
+ * The Nepal business day, as a Y-M-D string. Fines are office records, so "today" is the
+ * office's day, not the phone's — a device set to another timezone must not be able to
+ * book a fine the office has not reached yet, or be refused one it has.
+ */
+export function fineToday(now = new Date()) {
+  return getNepalDateStr(now);
+}
+
+/**
+ * A fine records something that already happened: someone came in late, someone missed
+ * standup. There is nothing to record about a day that has not happened yet, so dates
+ * after today are rejected. Today itself and any past day are allowed.
+ * Mirrors src/lib/utils.js — web and mobile don't share code.
+ */
+export function isFutureFineDate(date, now = new Date()) {
+  if (!date) return false;
+  return String(date).split("T")[0] > fineToday(now);
+}
+
 /**
  * Returns a Google Drive thumbnail image URL for use as an <Image> source.
  * Returns null if the URL is not a Google Drive link.

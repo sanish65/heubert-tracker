@@ -28,7 +28,7 @@ import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
 import EditWordModal from "@/components/EditWordModal";
 import ThemeToggle from "@/components/ThemeToggle";
 import AnimationToggle from "@/components/AnimationToggle";
-import HumanLoader from "@/components/HumanLoader";
+import { useSplashExit } from "@/components/HumanLoader";
 import EventsPage from "@/components/EventsPage";
 import AddCompanyEventModal from "@/components/AddCompanyEventModal";
 import EditCompanyEventModal from "@/components/EditCompanyEventModal";
@@ -46,7 +46,7 @@ import StandupFloatingButton from "@/components/StandupFloatingButton";
 import AdminFloatingButtons from "@/components/AdminFloatingButtons";
 
 export default function Home() {
-  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin } = useApp();
+  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin, canManageFines } = useApp();
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef(null);
@@ -146,8 +146,12 @@ export default function Home() {
     setShowEditEvent(true);
   };
 
-  if (!isLoaded || !isAuthReady || (user && !isAuthorized)) {
-    return <HumanLoader />;
+  const booting = !isLoaded || !isAuthReady || (user && !isAuthorized);
+  // Stays mounted for one fade after booting finishes, over the app below it.
+  const splash = useSplashExit(booting);
+
+  if (booting) {
+    return <>{splash}</>;
   }
 
   //   if (true) {
@@ -156,6 +160,8 @@ export default function Home() {
 
   if (activeTab === "memories") {
     return (
+      <>
+      {splash}
       <div className="standalone-memories-root">
         <MemoriesPage 
           onAddMemory={() => setShowAddMemory(true)} 
@@ -166,10 +172,13 @@ export default function Home() {
           onClose={() => setShowAddMemory(false)}
         />
       </div>
+      </>
     );
   }
 
   return (
+    <>
+    {splash}
     <div className="app-shell">
       <StandupFloatingButton onOpen={() => setActiveTab("standup-form")} />
       <AdminFloatingButtons
@@ -239,7 +248,7 @@ export default function Home() {
               <span>+</span> Record Leave
             </button>
           )}
-          {activeTab === "standup" && (
+          {activeTab === "standup" && canManageFines && (
             <button
               className="btn btn-secondary"
               style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
@@ -248,7 +257,7 @@ export default function Home() {
               <span>+</span> Standup Fine
             </button>
           )}
-          {activeTab === "records" && (
+          {activeTab === "records" && canManageFines && (
             <button
               className="btn btn-primary"
               onClick={() => setShowAddFine(true)}
@@ -266,12 +275,14 @@ export default function Home() {
                   Add Employee
                 </button>
               )}
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => setShowAddFine(true)}
-              >
-                Record Fine
-              </button>
+              {canManageFines && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setShowAddFine(true)}
+                >
+                  Record Fine
+                </button>
+              )}
             </div>
           )}
           <button className="btn-logout-premium" onClick={signOut}>
@@ -569,5 +580,6 @@ export default function Home() {
         onClose={() => setShowReleaseUpdates(false)}
       />
     </div>
+    </>
   );
 }

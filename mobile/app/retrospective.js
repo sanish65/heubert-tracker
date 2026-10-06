@@ -10,10 +10,12 @@ import { DetailCardSkeleton } from "../components/Skeleton";
 const REACTION_EMOJIS = ["❤️", "😂", "😮", "🎉", "💡"];
 
 const RETRO_TEMPLATES = {
+  // Display order only — see the note in src/components/RetrospectivePage.js. Kept in
+  // step with the web board so the same retro reads the same on both.
   standard: [
-    { key: "went_well", label: "What Went Well?", emoji: "🎉" },
-    { key: "improve", label: "Needs Improvement", emoji: "🔧" },
     { key: "focus", label: "Focus More On", emoji: "🎯" },
+    { key: "improve", label: "Needs Improvement", emoji: "🔧" },
+    { key: "went_well", label: "What Went Well?", emoji: "🎉" },
   ],
   sailboat: [
     { key: "wind", label: "Wind (Pushing us forward)", emoji: "⛵" },

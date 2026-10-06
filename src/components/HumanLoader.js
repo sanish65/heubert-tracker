@@ -6,16 +6,6 @@ import { FestiveScene } from "@/components/DashainBanner";
 import { isFestiveSeason } from "@/lib/festiveSeason";
 
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
-const festiveGreetings = [
-  "शुभ दशैं! 🙏",
-  "Happy Dashain! 🪁",
-  "Tika & jamara time! 🌾",
-  "Let's fly kites! 🪁",
-  "शुभ दीपावली! 🪔",
-  "Happy Tihar! 🎆",
-];
-// Divisible by both list lengths, so each list cycles through every entry.
-const GREETING_CYCLE = 30;
 
 // Kites and fireworks for the full-screen loader, kept to the sides so the
 // walking avatar in the middle stays clear.
@@ -56,15 +46,50 @@ function shuffle(arr) {
 
 const defaultNames = [...knownBoys, ...knownGirls];
 
-export default function HumanLoader() {
-  const { employees, animationsEnabled } = useApp() || { employees: [], animationsEnabled: true };
+// A normal load settles well inside a second or two. Past these marks the splash stops
+// pretending everything is fine and says what it is waiting on.
+const SLOW_AFTER_MS = 6000;
+const VERY_SLOW_AFTER_MS = 15000;
+
+// How long the splash lingers, fading, after loading finishes. Keep in sync
+// with the .loading-splash-exit animation in globals.css.
+export const SPLASH_EXIT_MS = 700;
+
+// Keeps the splash mounted for one fade once `booting` goes false, so the app
+// cross-fades in from underneath instead of the backdrop cutting straight to
+// the page colours. Returns the splash element, or null once it is done.
+export function useSplashExit(booting) {
+  const [gone, setGone] = useState(false);
+
+  useEffect(() => {
+    if (booting) {
+      setGone(false);
+      return;
+    }
+    if (gone) return;
+    const timer = setTimeout(() => setGone(true), SPLASH_EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [booting, gone]);
+
+  if (gone) return null;
+  return <HumanLoader key="splash" exiting={!booting} />;
+}
+
+export default function HumanLoader({ exiting = false }) {
+  const { employees, animationsEnabled, startupReach, isOffline } = useApp() || { employees: [], animationsEnabled: true };
   const [index, setIndex] = useState(0);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [shuffledDefaults, setShuffledDefaults] = useState([]);
   const [isMounted, setIsMounted] = useState(false);
   const isPausedRef = useRef(false);
   const festive = isFestiveSeason();
-  const splashClass = `loading-splash${festive ? " loading-splash-festive" : ""}${festive && animationsEnabled === false ? " dashain-still" : ""}`;
+  const splashClass = [
+    "loading-splash",
+    festive && "loading-splash-festive",
+    festive && animationsEnabled === false && "dashain-still",
+    exiting && "loading-splash-exit",
+    exiting && animationsEnabled === false && "loading-splash-exit-plain",
+  ].filter(Boolean).join(" ");
   const festiveBackdrop = festive && (
     <FestiveScene kites={LOADER_KITES} fireworks={LOADER_FIREWORKS} diyas={24} swingSay="चा चा हुई! 🎉" kids={LOADER_KIDS} />
   );
@@ -92,7 +117,7 @@ export default function HumanLoader() {
     }, 1500); // Change person every 1.5s
 
     const greetInterval = setInterval(() => {
-      if (!isPausedRef.current) setGreetingIndex(prev => (prev + 1) % GREETING_CYCLE);
+      if (!isPausedRef.current) setGreetingIndex(prev => (prev + 1) % greetings.length);
     }, 3000); // Change greeting every 3s
 
     return () => {
@@ -100,6 +125,34 @@ export default function HumanLoader() {
       clearInterval(greetInterval);
     };
   }, [names.length]);
+
+  // Ticks only while the splash is actually waiting; the exit fade freezes it so the
+  // message cannot appear on the way out.
+  const [waitedMs, setWaitedMs] = useState(0);
+  useEffect(() => {
+    if (exiting) return;
+    const startedAt = Date.now();
+    const tick = setInterval(() => setWaitedMs(Date.now() - startedAt), 1000);
+    return () => clearInterval(tick);
+  }, [exiting]);
+
+  let statusMessage = null;
+  if (!exiting) {
+    if (isOffline) {
+      statusMessage = "You're offline — waiting for a connection…";
+    } else if (startupReach === "unreachable") {
+      statusMessage = "Can't reach the server right now.";
+    } else if (startupReach === "partial" && waitedMs >= SLOW_AFTER_MS) {
+      statusMessage = "Some data is still on its way…";
+    } else if (waitedMs >= VERY_SLOW_AFTER_MS) {
+      statusMessage = "Still waiting on the server — this is unusually slow.";
+    } else if (waitedMs >= SLOW_AFTER_MS) {
+      statusMessage = "Your connection looks slow. Hang tight…";
+    }
+  }
+  const statusNote = statusMessage && (
+    <div className="splash-status" role="status">{statusMessage}</div>
+  );
 
   const currentName = names[index] || "Employee";
   const nameKey = currentName.toLowerCase();
@@ -114,7 +167,7 @@ export default function HumanLoader() {
 
   const hairParam = isGirl ? girlHair : boyHair;
 
-  const wearsGlasses = ["sanish", "bikesh", "merisha", "jenish", "nikhil", "pratisha", "prativa", "amogh" , "bipin" , "nikesh", "nebula"].includes(nameKey);
+  const wearsGlasses = ["sanish", "bikesh", "merisha", "jenish", "pratisha", "amogh" , "bipin" , "nikesh", "nebula"].includes(nameKey);
   const glassesParam = wearsGlasses ? "&glassesProbability=100" : "&glassesProbability=0";
   
   const hasBeard = ["sanish" , "dinesh"].includes(nameKey);
@@ -124,9 +177,7 @@ export default function HumanLoader() {
   const baseColorParam = "ffffff";
 
   let displayGreeting = greetings[greetingIndex % greetings.length];
-  // During Dashain & Tihar everyone swaps their usual line for a festival greeting.
-  if (festive) displayGreeting = festiveGreetings[greetingIndex % festiveGreetings.length];
-  else if (nameKey === "dinesh") displayGreeting = "Hello!";
+  if (nameKey === "dinesh") displayGreeting = "Hello!";
   else if (nameKey === "pratisha") displayGreeting = "Lets register the marathon guys, hurry up!!";
   else if (nameKey === "jenish") displayGreeting = "Jerry is my game code";
   else if (nameKey === "nitesh") displayGreeting = "Hi, Its me Nitesh!";
@@ -191,6 +242,7 @@ export default function HumanLoader() {
           <div className="loader-bar-container" style={{ marginTop: '1rem' }}>
             <div className="loader-bar"></div>
           </div>
+          {statusNote}
         </div>
       </div>
     );
@@ -243,7 +295,7 @@ export default function HumanLoader() {
             filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))',
           }}
         >
-          <div className="walking-figure">
+          <div className="walking-figure" style={{ position: 'relative' }}>
             <img 
               src={`https://api.dicebear.com/7.x/micah/svg?seed=${nameKey}&hair=${hairParam}&hairProbability=100&mouth=${mouthParam}${glassesParam}&baseColor=${baseColorParam}${facialHairParamString}`}
               alt={`${currentName}'s avatar`}
@@ -254,6 +306,77 @@ export default function HumanLoader() {
                 filter: 'grayscale(100%) brightness(1.1) contrast(1.1)' 
               }}
             />
+            {/* Sanish walks out in his KAKA shirt, drawn over the avatar's shoulders. */}
+            {nameKey === "sanish" && (
+              <svg
+                viewBox="0 0 120 60"
+                width="84"
+                height="42"
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  bottom: '-6px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 5,
+                  pointerEvents: 'none',
+                  filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))'
+                }}
+              >
+                <defs>
+                  <clipPath id="kaka-jersey-clip">
+                    <path d="M4 16 L34 6 C44 4 48 18 60 18 C72 18 76 4 86 6 L116 16 L108 34 L96 30 L98 60 L22 60 L24 30 L12 34 Z" />
+                  </clipPath>
+                </defs>
+                <g clipPath="url(#kaka-jersey-clip)">
+                  <rect x="0" y="0" width="120" height="60" fill="#c8102e" />
+                  <rect x="4" y="0" width="8" height="60" fill="#111111" />
+                  <rect x="20" y="0" width="8" height="60" fill="#111111" />
+                  <rect x="36" y="0" width="8" height="60" fill="#111111" />
+                  <rect x="52" y="0" width="8" height="60" fill="#111111" />
+                  <rect x="68" y="0" width="8" height="60" fill="#111111" />
+                  <rect x="84" y="0" width="8" height="60" fill="#111111" />
+                  <rect x="100" y="0" width="8" height="60" fill="#111111" />
+                </g>
+                <path
+                  d="M4 16 L34 6 C44 4 48 18 60 18 C72 18 76 4 86 6 L116 16 L108 34 L96 30 L98 60 L22 60 L24 30 L12 34 Z"
+                  fill="none"
+                  stroke="#000000"
+                  strokeWidth="3"
+                  strokeLinejoin="round"
+                />
+                <path d="M46 10 C50 20 70 20 74 10" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
+                <text
+                  x="60"
+                  y="35"
+                  textAnchor="middle"
+                  fontSize="15"
+                  fontWeight="bold"
+                  letterSpacing="1.5"
+                  fill="#ffffff"
+                  stroke="#000000"
+                  strokeWidth="0.8"
+                  paintOrder="stroke"
+                  fontFamily="Arial, Helvetica, sans-serif"
+                >
+                  KAKA
+                </text>
+                <text
+                  x="60"
+                  y="54"
+                  textAnchor="middle"
+                  fontSize="14"
+                  fontWeight="bold"
+                  fill="#ffffff"
+                  stroke="#000000"
+                  strokeWidth="0.8"
+                  paintOrder="stroke"
+                  fontFamily="Arial, Helvetica, sans-serif"
+                >
+                  22
+                </text>
+              </svg>
+            )}
           </div>
           {nameKey === "aashish" && (
             <>
@@ -315,7 +438,7 @@ export default function HumanLoader() {
                 zIndex: 10,
                 textShadow: '0 2px 4px rgba(0,0,0,0.3)'
               }}>
-                🥁
+                
               </span>
             </>
           )}
@@ -503,6 +626,7 @@ export default function HumanLoader() {
         <div className="loader-bar-container" style={{ marginTop: '1rem' }}>
           <div className="loader-bar"></div>
         </div>
+        {statusNote}
       </div>
     </div>
   );

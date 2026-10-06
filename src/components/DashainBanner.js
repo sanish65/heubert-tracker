@@ -11,10 +11,9 @@ const FESTIVAL_START = new Date(2026, 9, 11); // Oct 11, 2026
 const VACATION_START = new Date(2026, 9, 17); // Oct 17, 2026
 
 const TIMERS = [
-  { target: FESTIVAL_START, label: "🪁 Dashain & Tihar begin in", date: "Sunday, Oct 11", done: "🎉 Dashain & Tihar have begun!" },
+  { target: FESTIVAL_START, label: "🪁 Dashain & Tihar festive begins in", date: "Sunday, Oct 11", done: "🎉 Dashain & Tihar have begun!" },
   { target: VACATION_START, label: "🏖️ Vacation starts in", date: "Saturday, Oct 17" },
 ];
-const DISMISS_KEY = "dashain-banner-2026-dismissed";
 
 const KITES = [
   { left: "60%", top: "14%", size: 34, body: "#ef4444", stripe: "#facc15", delay: 0 },
@@ -200,8 +199,6 @@ export function FestiveScene({ kites = KITES, fireworks = FIREWORKS, diyas = 14,
   );
 }
 
-const noopSubscribe = () => () => {};
-
 // A once-a-second clock for the countdown. The snapshot is whole seconds so it
 // stays stable between ticks.
 const subscribeToClock = (onTick) => {
@@ -246,33 +243,16 @@ function Countdown({ target, label, date, done, nowSeconds }) {
   );
 }
 
-function readDismissed() {
-  try {
-    return localStorage.getItem(DISMISS_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 export default function DashainBanner() {
   const { animationsEnabled } = useApp();
-  // Hidden on the server so a dismissed banner never flashes in during hydration.
-  const storedDismissed = useSyncExternalStore(noopSubscribe, readDismissed, () => true);
+  // Dismissal is not persisted: closing hides the banner until the next reload.
   const [closed, setClosed] = useState(false);
-  const dismissed = storedDismissed || closed;
   const nowSeconds = useSyncExternalStore(subscribeToClock, readClock, () => null);
 
-  if (dismissed || nowSeconds === null) return null;
+  if (closed || nowSeconds === null) return null;
   const nowMs = nowSeconds * 1000;
   if (nowMs < SHOW_FROM.getTime() || nowMs >= VACATION_START.getTime()) return null;
   const festivalStarted = nowMs >= FESTIVAL_START.getTime();
-
-  const dismiss = () => {
-    setClosed(true);
-    try {
-      localStorage.setItem(DISMISS_KEY, "1");
-    } catch {}
-  };
 
   return (
     <div className={`dashain-banner ${animationsEnabled === false ? "dashain-still" : ""}`}>
@@ -285,7 +265,7 @@ export default function DashainBanner() {
         </div>
       </div>
 
-      <button type="button" className="dashain-close" onClick={dismiss} aria-label="Dismiss festival banner">
+      <button type="button" className="dashain-close" onClick={() => setClosed(true)} aria-label="Dismiss festival banner">
         ×
       </button>
     </div>

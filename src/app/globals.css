@@ -2816,6 +2816,24 @@ body {
   margin-top: 4px;
 }
 
+/* Inline "optional" marker inside a field label. */
+.label-hint {
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+/* A multi-day holiday shows its span under the name instead of one row per day. */
+.holiday-day-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
 /* ===== HOLIDAY NOTICES ===== */
 .holiday-alert-banner {
   background: linear-gradient(135deg, var(--accent-orange), #ea580c);
@@ -3734,6 +3752,83 @@ body {
   justify-content: center;
   z-index: 9999;
   overflow: hidden;
+}
+
+/* Splash exit — the splash backdrop (especially the bright festive gradient)
+   is very far from the app background, so it dissolves over the already
+   rendered app instead of cutting to it in one frame. */
+.loading-splash-exit {
+  pointer-events: none;
+  will-change: opacity;
+  animation: splashFadeOut 700ms cubic-bezier(0.33, 0, 0.2, 1) forwards;
+}
+
+@keyframes splashFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* The avatar and title leave a little earlier, so the backdrop colour is the
+   last thing to go and nothing is still walking around at 5% opacity. */
+.loading-splash-exit .human-loader-container,
+.loading-splash-exit .splash-festive-tagline {
+  animation: splashContentOut 420ms ease-in forwards;
+}
+
+@keyframes splashContentOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Animations turned off, or the OS asking for less motion: still cross-fade
+   (an abrupt contrast flip is worse than a fade), just shorter and flatter. */
+.loading-splash-exit-plain {
+  animation: splashFadeOut 400ms linear forwards;
+}
+
+.loading-splash-exit-plain .human-loader-container,
+.loading-splash-exit-plain .splash-festive-tagline {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-splash-exit {
+    animation: splashFadeOut 400ms linear forwards;
+  }
+
+  .loading-splash-exit .human-loader-container,
+  .loading-splash-exit .splash-festive-tagline {
+    animation: none;
+  }
+}
+
+/* Shown only once the load has clearly stalled, so a normal boot never flashes it. */
+.splash-status {
+  margin-top: 0.9rem;
+  max-width: 22rem;
+  padding: 0 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary, #9ca3af);
+  animation: splashStatusIn 400ms ease-out both;
+}
+
+.loading-splash-festive .splash-status {
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+@keyframes splashStatusIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-status {
+    animation: none;
+  }
 }
 
 .splash-logo {

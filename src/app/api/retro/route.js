@@ -108,6 +108,10 @@ export async function GET(request) {
     .from('retro_card_reactions').select('card_id, participant_name, emoji').eq('session_id', sessionId);
 
   // Map DB column types back to the template keys if restricted by constraints
+  // ORDER IS LOAD-BEARING: each template's keys map onto DB_COLS by position, because
+  // retro_cards.column_type is constrained to the three standard values. The board shows
+  // the standard columns in a different order (focus, improve, went_well) — that is
+  // display only. Reordering the arrays here would file Focus cards as went_well.
   const TEMPLATES = {
     standard: ['went_well', 'improve', 'focus'],
     sailboat: ['wind', 'anchors', 'rocks'],
@@ -206,6 +210,10 @@ export async function POST(request) {
     }
     template = template || 'standard';
 
+    // ORDER IS LOAD-BEARING: each template's keys map onto DB_COLS by position, because
+    // retro_cards.column_type is constrained to the three standard values. The board shows
+    // the standard columns in a different order (focus, improve, went_well) — that is
+    // display only. Reordering the arrays here would file Focus cards as went_well.
     const TEMPLATES = {
       standard: ['went_well', 'improve', 'focus'],
       sailboat: ['wind', 'anchors', 'rocks'],
@@ -269,6 +277,10 @@ export async function POST(request) {
         const match = session.title.match(/\s\[(\w+)\]$/);
         if (match) template = match[1];
       }
+      // ORDER IS LOAD-BEARING: each template's keys map onto DB_COLS by position, because
+      // retro_cards.column_type is constrained to the three standard values. The board shows
+      // the standard columns in a different order (focus, improve, went_well) — that is
+      // display only. Reordering the arrays here would file Focus cards as went_well.
       const TEMPLATES = { standard: ['went_well', 'improve', 'focus'], sailboat: ['wind', 'anchors', 'rocks'], start_stop: ['start', 'stop', 'continue'] };
       const DB_COLS = ['went_well', 'improve', 'focus'];
       const sessionCols = TEMPLATES[template] || TEMPLATES.standard;

@@ -6,7 +6,7 @@ import { useDialog } from "@/context/DialogContext";
 import EditStandupModal from "./EditStandupModal";
 
 export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
-  const { standupFines: allStandupFines, employees, toggleStandupFineStatus, deleteStandupFine, isAdmin, isFineAdmin } = useApp();
+  const { standupFines: allStandupFines, employees, toggleStandupFineStatus, deleteStandupFine, canManageFines } = useApp();
   const { confirmDialog } = useDialog();
   const standupFineExcludedNames = useMemo(
     () => new Set(employees.filter((e) => e.standup_fine_excluded).map((e) => e.name)),
@@ -96,9 +96,11 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
           </h2>
           {selectedEmployee && <span className="filter-badge">Filter: {selectedEmployee}</span>}
         </div>
-        <button className="btn btn-primary" onClick={onAddStandup}>
-          <span>+</span> Standup Fine
-        </button>
+        {canManageFines && (
+          <button className="btn btn-primary" onClick={onAddStandup}>
+            <span>+</span> Standup Fine
+          </button>
+        )}
 
         <div className="fine-filters">
           <div className="search-box">
@@ -141,13 +143,13 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
               <th onClick={() => handleSort("date")}>Date {sortConfig.key === "date" && (sortConfig.direction === "asc" ? "↑" : "↓")}</th>
               <th onClick={() => handleSort("employee_name")}>Employee {sortConfig.key === "employee_name" && (sortConfig.direction === "asc" ? "↑" : "↓")}</th>
               <th>Status</th>
-              {(isAdmin || isFineAdmin) && <th>Actions</th>}
+              {canManageFines && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {filteredFines.length === 0 ? (
               <tr>
-                <td colSpan={(isAdmin || isFineAdmin) ? "4" : "3"} className="empty-row">No standup records found</td>
+                <td colSpan={canManageFines ? "4" : "3"} className="empty-row">No standup records found</td>
               </tr>
             ) : (
               filteredFines.map((fine) => (
@@ -161,13 +163,13 @@ export default function StandupFineTable({ selectedEmployee, onAddStandup }) {
                   </td>
                   <td>
                     <span
-                      className={`status-badge ${fine.status} ${!(isAdmin || isFineAdmin) ? 'status-static' : ''}`}
-                      onClick={() => (isAdmin || isFineAdmin) && handleToggle(fine)}
+                      className={`status-badge ${fine.status} ${!canManageFines ? 'status-static' : ''}`}
+                      onClick={() => canManageFines && handleToggle(fine)}
                     >
                       {fine.status === "paid" ? "contribution complete" : "pending contribution"}
                     </span>
                   </td>
-                  {(isAdmin || isFineAdmin) && (
+                  {canManageFines && (
                     <td>
                       <div className="action-btns">
                         <button

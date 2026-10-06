@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getNepalDateStr, getNepalTimeParts, isWorkingDay } from "@/lib/attendanceTime";
+import { mailFrom } from "@/lib/mailer";
 
 // Polled every 15 minutes by cron (see vercel.json). Compares the current Nepal time
 // against the admin-configured checkin_reminder_time/checkout_reminder_time in
@@ -22,7 +23,7 @@ async function sendReminderEmail(transporter, { email, name, kind }) {
     : "It looks like you haven't punched out yet today.";
 
   await transporter.sendMail({
-    from: `"Heubert Tracker" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    from: mailFrom(),
     to: email,
     subject,
     text: `Hi ${name},\n\n${message} Please punch ${isCheckin ? "in" : "out"} on the Heubert Tracker attendance page.\n\nBest regards,\nThe Heubert Team`,
