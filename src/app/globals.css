@@ -51,6 +51,23 @@
 
 html {
   scroll-behavior: smooth;
+  /* Tells the browser which theme its own widgets (open <select> lists, date pickers,
+     scrollbars, autofill) must match. Without it they stay light in the dark theme. */
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* An open <select> list is drawn by the browser, not the page: it ignores the select's
+   background but inherits its text colour, so light theme text landed on a white list
+   and the names vanished. Every option, everywhere, takes the theme's own pair — new
+   dropdowns need no per-class fix. */
+select option,
+select optgroup {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 body {
@@ -619,11 +636,6 @@ body {
   border-color: var(--accent-indigo);
 }
 
-.season-select option {
-  background: var(--bg-secondary);
-  color: var(--text-primary, var(--text-main));
-}
-
 /* ===== TABLE ===== */
 .table-wrapper {
   overflow-x: auto;
@@ -952,11 +964,6 @@ body {
   outline: none;
   border-color: var(--accent-indigo);
   box-shadow: 0 0 0 3px var(--accent-indigo-soft);
-}
-
-.attendance-select option {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
 }
 
 .attendance-card {
@@ -1472,11 +1479,6 @@ body {
   border-color: var(--accent-indigo);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
   outline: none;
-}
-
-.form-group select option {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
 }
 
 .form-row {
@@ -6033,11 +6035,7 @@ a.jira-tag-key:hover {
 .poker-input { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; padding: 10px 14px; transition: border-color 0.2s, box-shadow 0.2s; outline: none; width: 100%; }
 .poker-input:focus { border-color: var(--accent-indigo); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
-/* The native dropdown popup does not inherit the control's colours: an unstyled
-   <option> paints --text-primary on the browser's white list, which is unreadable in
-   the dark theme. Same var pairing the other selects in this file use. */
 select.poker-input { cursor: pointer; }
-select.poker-input option { background: var(--bg-secondary); color: var(--text-primary); }
 
 .poker-template-selector { display: flex; gap: 8px; margin-top: 8px; }
 .poker-template-btn { flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-secondary); padding: 10px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
