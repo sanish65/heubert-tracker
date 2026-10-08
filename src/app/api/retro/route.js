@@ -2,7 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import {
   ACTION_ITEM_MAX,
+  KUDOS_MAX,
   canChangeActionItem,
+  canChangeKudos,
   isFacilitator,
   selectBoardActionItems,
 } from '@/lib/retroBoardRules';
@@ -181,6 +183,111 @@ async function handleActionItem(request, body) {
     return fail('Could not save the action item.', 500);
   }
   return NextResponse.json(op === 'delete' ? { ok: true } : { item: data });
+}
+
+const MISSING_KUDOS_TABLE = 'Kudos need scripts/retro-action-items-kudos-schema.sql applied.';
+
+const KUDOS_OPS = {
+  add_kudos: 'add',
+  edit_kudos: 'edit',
+  delete_kudos: 'delete',
+  react_kudos: 'react',
+  unreact_kudos: 'unreact',
+};
+
+async function handleKudos(body) {
+  const kind = KUDOS_OPS[body.action];
+  // unreact is a react-side write as far as the rules are concerned.
+  const op = kind === 'unreact' ? 'react' : kind;
+  const { sessionId, kudosId, actorName } = body;
+  const writesContent = kind === 'add' || kind === 'edit';
+  const needsKudos = kind !== 'add';
+  const isReaction = kind === 'react' || kind === 'unreact';
+
+  // 1. Shape
+  if (typeof sessionId !== 'string' || !sessionId || typeof actorName !== 'string' || !actorName.trim()) {
+    return fail('sessionId and actorName required', 400);
+  }
+  if (needsKudos && (typeof kudosId !== 'string' || !kudosId)) return fail('kudosId required', 400);
+  let content;
+  let taggedIds = [];
+  if (writesContent) {
+    content = typeof body.content === 'string' ? body.content.trim() : '';
+    if (!content || content.length > KUDOS_MAX) {
+      return fail(`content required, up to ${KUDOS_MAX} characters`, 400);
+    }
+    const tagged = body.taggedEmployeeIds ?? [];
+    if (!Array.isArray(tagged) || !tagged.every(Number.isInteger)) {
+      return fail('taggedEmployeeIds must be a list of numbers', 400);
+    }
+    taggedIds = [...new Set(tagged)];
+  }
+  const emoji = body.emoji;
+  if (isReaction && (typeof emoji !== 'string' || !emoji || emoji.length > 32)) {
+    return fail('emoji required', 400);
+  }
+
+  // 2. Board, then the kudos on it
+  const { session, isEnded } = await loadBoard(sessionId);
+  if (!session) return fail('Session not found', 404);
+
+  let kudos = null;
+  if (needsKudos) {
+    const { data, error } = await supabase
+      .from('retro_kudos').select('id,session_id,author').eq('id', kudosId).maybeSingle();
+    if (error) {
+      if (missingTable(error.message)) return fail(MISSING_KUDOS_TABLE, 503);
+      console.warn('Retro kudos lookup failed:', error.message);
+      return fail('Could not load the kudos.', 500);
+    }
+    if (!data || data.session_id !== sessionId) return fail('Kudos not found', 404);
+    kudos = data;
+  }
+
+  // 3. Ended board
+  if (isEnded) return fail('This retro has ended.', 409);
+
+  // 4. Permission. Admins get no extra kudos rights.
+  if (!canChangeKudos({ op, isEnded, kudos, actorName, isFacilitator: isFacilitator(session, actorName) })) {
+    return fail('You cannot do that to this kudos.', 403);
+  }
+
+  // 5. Tagged people must be on the board's project (none when it has no project)
+  if (writesContent && taggedIds.length) {
+    const memberIds = await projectMemberIds(session.project_id);
+    if (!taggedIds.every((id) => memberIds.includes(id))) {
+      return fail("Tagged people must be members of this board's project.", 400);
+    }
+  }
+
+  const name = actorName.trim();
+  let query;
+  if (kind === 'add') {
+    query = supabase.from('retro_kudos')
+      .insert({ session_id: sessionId, content, author: name, tagged_employee_ids: taggedIds })
+      .select().single();
+  } else if (kind === 'edit') {
+    query = supabase.from('retro_kudos')
+      .update({ content, tagged_employee_ids: taggedIds }).eq('id', kudosId).select().single();
+  } else if (kind === 'delete') {
+    query = supabase.from('retro_kudos').delete().eq('id', kudosId);
+  } else if (kind === 'react') {
+    query = supabase.from('retro_kudos_reactions').upsert(
+      { kudos_id: kudosId, session_id: sessionId, participant_name: name, emoji },
+      { onConflict: 'kudos_id,participant_name,emoji' }
+    );
+  } else {
+    query = supabase.from('retro_kudos_reactions').delete()
+      .eq('kudos_id', kudosId).eq('participant_name', name).eq('emoji', emoji);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (missingTable(error.message)) return fail(MISSING_KUDOS_TABLE, 503);
+    console.warn('Retro kudos write failed:', error.message);
+    return fail('Could not save the kudos.', 500);
+  }
+  return NextResponse.json(writesContent ? { kudos: data } : { ok: true });
 }
 
 // Everything the board shows beyond cards: action items (carried from earlier boards of
@@ -645,6 +752,7 @@ export async function POST(request) {
   }
 
   if (Object.hasOwn(ACTION_ITEM_OPS, body.action)) return handleActionItem(request, body);
+  if (Object.hasOwn(KUDOS_OPS, body.action)) return handleKudos(body);
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }
