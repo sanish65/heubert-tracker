@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import {
@@ -8,6 +9,7 @@ import {
   isFacilitator,
   selectBoardActionItems,
 } from '@/lib/retroBoardRules';
+import { THEME_NAME_MAX, canChangeThemes, checkThemes, cleanThemeName } from '@/lib/retroThemes';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -326,6 +328,165 @@ async function handleKudos(body) {
   return NextResponse.json(writesContent ? { kudos: data } : { ok: true });
 }
 
+const MISSING_THEME_TABLE = 'Themes need scripts/retro-card-themes-schema.sql applied.';
+
+const THEME_OPS = {
+  group_cards: 'group',
+  create_theme: 'create',
+  move_card_to_theme: 'move',
+  rename_theme: 'rename',
+  ungroup_cards: 'ungroup',
+};
+
+// Card and theme ids are uuids; anything else would make Postgres reject the query with
+// a 500 instead of the 400 a malformed request deserves.
+const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+
+// The board's real cards: system rows (end signal, typing activity, timer) are not cards.
+const boardCardsQuery = (sessionId) => supabase
+  .from('retro_cards').select('id,column_type').eq('session_id', sessionId)
+  .neq('content', '__SESSION_ENDED__').neq('content', '__THINKING__').neq('author', 'SYSTEM:TIMER');
+
+const themeWriteFailed = (error) => {
+  if (missingTable(error.message)) return fail(MISSING_THEME_TABLE, 503);
+  console.warn('Retro theme write failed:', error.message);
+  return fail('Could not save the themes.', 500);
+};
+
+// A theme younger than this is never pruned: another request may have inserted it and
+// not yet written its card links (create_theme, group_cards), and pruning it then would
+// make that request's link write fail. The boards hide themes with no present cards
+// anyway, so a theme left behind for a minute shows nothing and goes on a later prune.
+const PRUNE_GRACE_MS = 60_000;
+
+// Housekeeping after a move or split: drop the board's themes no card links to any more
+// (AC 11). Two reads and at most one delete, whatever the number of themes.
+async function pruneEmptyThemes(sessionId) {
+  const cutoff = new Date(Date.now() - PRUNE_GRACE_MS).toISOString();
+  const [themes, links] = await Promise.all([
+    supabase.from('retro_themes').select('id').eq('session_id', sessionId).lt('created_at', cutoff),
+    supabase.from('retro_theme_cards').select('theme_id').eq('session_id', sessionId),
+  ]);
+  const readError = themes.error || links.error;
+  if (readError) return readError;
+  const linked = new Set((links.data || []).map((l) => l.theme_id));
+  const empty = (themes.data || []).map((t) => t.id).filter((id) => !linked.has(id));
+  if (!empty.length) return null;
+  const { error } = await supabase.from('retro_themes').delete().eq('session_id', sessionId).in('id', empty);
+  return error || null;
+}
+
+async function handleTheme(request, body) {
+  const op = THEME_OPS[body.action];
+  const { sessionId, actorName } = body;
+
+  // 1. Shape
+  if (typeof sessionId !== 'string' || !sessionId || typeof actorName !== 'string' || !actorName.trim()) {
+    return fail('sessionId and actorName required', 400);
+  }
+  if (op === 'group' && !Array.isArray(body.themes)) return fail('themes required', 400);
+  if (op === 'create' && !Array.isArray(body.cardIds)) return fail('cardIds required', 400);
+  if (op === 'move' && !isUuid(body.cardId)) return fail('cardId required', 400);
+  if ((op === 'move' || op === 'rename') && !isUuid(body.themeId)) return fail('themeId required', 400);
+  let name = null;
+  if (op === 'create' || op === 'rename') {
+    name = cleanThemeName(body.name);
+    if (!name) return fail(`Theme names are 1 to ${THEME_NAME_MAX} characters.`, 400);
+  }
+
+  // 2. Board
+  const { session, isEnded } = await loadBoard(sessionId);
+  if (!session) return fail('Session not found', 404);
+
+  // 3. Facilitator or admin
+  const facilitator = isFacilitator(session, actorName);
+  const isAdmin = facilitator ? false : await callerIsAdmin(request);
+  if (!facilitator && !isAdmin) return fail('Only the facilitator or an admin can change themes.', 403);
+
+  // 4. Ended board
+  if (!canChangeThemes({ isEnded, isFacilitator: facilitator, isAdmin })) {
+    return fail('This retro has ended — themes can no longer change.', 409);
+  }
+
+  // 5. The cards and theme the request names must be on this board
+  let checked = null;
+  if (op === 'group' || op === 'create') {
+    const { data: boardCards, error } = await boardCardsQuery(sessionId);
+    if (error) return themeWriteFailed(error);
+    const themes = op === 'group' ? body.themes : [{ name, cardIds: body.cardIds }];
+    const result = checkThemes({ boardCards: boardCards || [], themes });
+    if (result.error) return fail(result.error, 400);
+    checked = result.themes;
+  }
+
+  if (op === 'move' || op === 'rename') {
+    const { data: theme, error } = await supabase
+      .from('retro_themes').select('id,column_type')
+      .eq('id', body.themeId).eq('session_id', sessionId).maybeSingle();
+    if (error) return themeWriteFailed(error);
+    if (!theme) return fail('Theme not found', 404);
+
+    if (op === 'move') {
+      const { data: card, error: cardError } = await boardCardsQuery(sessionId).eq('id', body.cardId).maybeSingle();
+      if (cardError) return themeWriteFailed(cardError);
+      if (!card) return fail('That card is not on this board.', 404);
+      if (card.column_type !== theme.column_type) return fail('A card can only move to a theme in its own column.', 400);
+    }
+  }
+
+  // 6. Writes. Ids are made here so link rows can be built without relying on the order
+  // of bulk-insert results.
+  const createdBy = actorName.trim();
+  const toRows = (themes) => {
+    const themeRows = [];
+    const linkRows = [];
+    for (const t of themes) {
+      const id = randomUUID();
+      themeRows.push({ id, session_id: sessionId, column_type: t.column_type, name: t.name, created_by: createdBy });
+      t.cardIds.forEach((cardId) => linkRows.push({ card_id: cardId, theme_id: id, session_id: sessionId }));
+    }
+    return { themeRows, linkRows };
+  };
+
+  if (op === 'group') {
+    const { themeRows, linkRows } = toRows(checked);
+    // Not a transaction: Supabase's client has none. If a later step fails the request
+    // returns 500 and the next poll shows whatever landed (no themes, or themes with no
+    // cards, which the boards hide); grouping again replaces it all.
+    const cleared = await supabase.from('retro_themes').delete().eq('session_id', sessionId);
+    if (cleared.error) return themeWriteFailed(cleared.error);
+    const inserted = await supabase.from('retro_themes').insert(themeRows);
+    if (inserted.error) return themeWriteFailed(inserted.error);
+    const linked = await supabase.from('retro_theme_cards').insert(linkRows);
+    if (linked.error) return themeWriteFailed(linked.error);
+  } else if (op === 'create' || op === 'move') {
+    let linkRows;
+    if (op === 'create') {
+      const rows = toRows(checked);
+      const inserted = await supabase.from('retro_themes').insert(rows.themeRows);
+      if (inserted.error) return themeWriteFailed(inserted.error);
+      linkRows = rows.linkRows;
+    } else {
+      linkRows = [{ card_id: body.cardId, theme_id: body.themeId, session_id: sessionId }];
+    }
+    // Each card leaves whatever theme it was in: card_id is the key.
+    const linked = await supabase.from('retro_theme_cards').upsert(linkRows, { onConflict: 'card_id' });
+    if (linked.error) return themeWriteFailed(linked.error);
+    // The change is saved; a failed prune only leaves an empty theme the boards hide.
+    const pruneError = await pruneEmptyThemes(sessionId);
+    if (pruneError) console.warn('Retro empty-theme prune failed:', pruneError.message);
+  } else if (op === 'rename') {
+    const { error } = await supabase
+      .from('retro_themes').update({ name }).eq('id', body.themeId).eq('session_id', sessionId);
+    if (error) return themeWriteFailed(error);
+  } else {
+    const { error } = await supabase.from('retro_themes').delete().eq('session_id', sessionId);
+    if (error) return themeWriteFailed(error);
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
 // Everything the board shows beyond cards: action items (carried from earlier boards of
 // the project plus this board's own), the project's members, kudos and their reactions.
 // Every read here degrades to an empty list on error — these are extras, and a board that
@@ -341,7 +502,7 @@ async function loadBoardExtras(session) {
     if (missingTable(error.message)) {
       if (!warnedMissing) {
         warnedMissing = true;
-        console.warn('Retro action items / kudos tables are missing — apply scripts/retro-action-items-kudos-schema.sql.');
+        console.warn('Retro board extras tables are missing — apply scripts/retro-action-items-kudos-schema.sql and scripts/retro-card-themes-schema.sql.');
       }
     } else {
       console.warn('Retro board extras read failed:', error.message);
@@ -349,7 +510,7 @@ async function loadBoardExtras(session) {
     return [];
   };
 
-  const [projectBoardRows, memberRows, kudosRows, reactionRows] = await Promise.all([
+  const [projectBoardRows, memberRows, kudosRows, reactionRows, themes, themeCards] = await Promise.all([
     hasProject
       ? safe(supabase.from('retro_sessions').select('id,title,created_at').eq('project_id', session.project_id))
       : [],
@@ -358,6 +519,8 @@ async function loadBoardExtras(session) {
       : [],
     safe(supabase.from('retro_kudos').select('*').eq('session_id', session.id).order('created_at', { ascending: true })),
     safe(supabase.from('retro_kudos_reactions').select('kudos_id, participant_name, emoji').eq('session_id', session.id)),
+    safe(supabase.from('retro_themes').select('id,name,created_at').eq('session_id', session.id)),
+    safe(supabase.from('retro_theme_cards').select('card_id,theme_id').eq('session_id', session.id)),
   ]);
 
   const projectBoards = projectBoardRows.map((b) => ({
@@ -401,6 +564,8 @@ async function loadBoardExtras(session) {
       tagged_names: (k.tagged_employee_ids || []).map((id) => names.get(id)).filter(Boolean),
     })),
     kudosReactions: reactionRows,
+    themes,
+    themeCards,
   };
 }
 
@@ -789,6 +954,7 @@ export async function POST(request) {
 
   if (Object.hasOwn(ACTION_ITEM_OPS, body.action)) return handleActionItem(request, body);
   if (Object.hasOwn(KUDOS_OPS, body.action)) return handleKudos(body);
+  if (Object.hasOwn(THEME_OPS, body.action)) return handleTheme(request, body);
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }
@@ -800,5 +966,10 @@ export async function DELETE(request) {
 
   const { error } = await supabase.from('retro_cards').delete().eq('id', cardId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // The theme link has no foreign key (edit_card re-inserts under the same id), so it goes
+  // here. Its error is ignored: the table may not exist yet, and a stale link to a missing
+  // card shows nothing.
+  await supabase.from('retro_theme_cards').delete().eq('card_id', cardId);
   return NextResponse.json({ ok: true });
 }
