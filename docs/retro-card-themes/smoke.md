@@ -98,7 +98,8 @@ API     Any theme action as the facilitator  → 409
 | 7 · Facilitator theme tools | opus | 2m 46s | 54,942 | `347d57e` |
 | 8 · Late-card placement | opus | 1m 44s | 35,417 | `ddcc680` |
 | 9 · Share page themes | sonnet | 0m 35s | 33,395 | `1efe0c8` |
-| **Total** | | 13m 9s | 298,445 | 9 |
+| Review · branch-reviewer | fable | 10m 56s | 162,059 | `review.md` |
+| **Total** | | 24m 5s | 460,504 | 9 |
 Tokens are the subagents' own; this session's context is not in them.
 
 **Result** — 2026-10-08 · local dev
