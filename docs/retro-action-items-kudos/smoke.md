@@ -1,7 +1,7 @@
 **Smoke test — retro-action-items-kudos** · local dev · `http://localhost:3000`
 
 **Before you start**
-- Apply `scripts/retro-action-items-kudos-schema.sql` in the Supabase SQL editor; the three verify counts return `0`.
+- Apply `scripts/retro-action-items-kudos-schema.sql`, then `scripts/retro-voted-action-items.sql`, in the Supabase SQL editor; run each file's verify lines.
 - Start the app yourself: `npm run dev`.
 - One project **P** with at least two members (**A**, **B**), and a second project **Q**.
 - Signed in as the facilitator in one browser; a second browser profile (not signed in) for a guest.
@@ -56,11 +56,12 @@ Do      look at Action Items · then open a board with no project (if one exists
 See     Q: nothing from P · no project: own list only, no owner select, nothing carried
 ```
 
-**8 · Top Voted and promoting a card** — AC 18, 19
+**8 · Pick voted cards as action items** — AC 18, 19, 27, 28, 29, 30
 ```
-Go to   S4 in the tab
-Do      add a card and react to it · click "🗳️ Top Voted" · "➕ Make action item" on that card
-See     the button reads "🗳️ Top Voted"; the item appears under "New this retro"; the button turns "✓ Added"; the card is unchanged
+Go to   S4 in the tab (facilitator)
+Do      add 3 cards, react to them with any emoji · "🗳️ Top Voted" · tick "Mark as action item" on two · untick one
+See     the ticked card shows "Action item" for everyone and appears under "New this retro" with "🗳️ From votes"; unticking removes it
+Then    End Session → checkboxes locked · create S5 for P → the ticked card is under "From earlier retros", can be ticked done, edited, deleted
 ```
 
 **9 · Kudos** — AC 20, 21, 22, 23, 24

@@ -113,3 +113,15 @@ Who hits it: every team running retros in Heubert Tracker, every sprint.
 
 ## Open questions
 - If an action item's owner is later removed from the project, what should the item show, and should the owner be changed? Owner: Sanish. Does not block the start of work.
+
+## Change — 2026-10-08, decided by Sanish during the smoke test
+After a retro the team votes on cards with any reaction emoji. Before ending the retro, the facilitator picks the action items from the voted cards with a checkbox.
+- In the Top Voted view each voted card has a checkbox for the facilitator (and admins). Ticking it makes the card an action item of this board; unticking removes it. It is the same action item as one added by hand: it shows under "New this retro", carries into the project's later boards while open, and there can be ticked done, edited or deleted (criteria 6–17).
+- Picking is only possible before the board ends. A card can be picked once.
+- The "➕ Make action item" button is replaced by the checkbox. The hand-written Action Items form stays.
+- The share page has no Top Voted view, so picking happens in the web Retrospective tab.
+
+27. Given a board that hasn't ended and the facilitator or an admin in the Top Voted view, when they tick a voted card, then it shows as an action item ("🗳️ From votes") under "New this retro", and the card stays ticked for everyone. Applies to the web Retrospective tab.
+28. Given a ticked card on a board that hasn't ended, when the facilitator unticks it, then that action item is removed from the board. Applies to the web Retrospective tab.
+29. Given a board has ended, when anyone views Top Voted, then ticked cards show as action items and the checkboxes can't be changed. Applies to the web Retrospective tab.
+30. Given a card was ticked on an earlier board of the project, when a later board is opened, then it appears under "From earlier retros" and can be ticked done, edited or deleted as criteria 11–17 describe. Applies to both web surfaces.

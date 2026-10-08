@@ -80,6 +80,11 @@ async function callerIsAdmin(request) {
 
 const fail = (error, status) => NextResponse.json({ error }, { status });
 const MISSING_ACTION_TABLE = 'Action items need scripts/retro-action-items-kudos-schema.sql applied.';
+const MISSING_SOURCE_CARD_COLUMN = 'Ticking voted cards needs scripts/retro-voted-action-items.sql applied.';
+// PostgREST names the column table-qualified ("retro_action_items.source_card_id does not
+// exist") or as a schema-cache miss, neither of which missingColumn's patterns catch.
+const missingSourceCardColumn = (message = '') =>
+  /source_card_id/.test(message) && /does not exist|Could not find/i.test(message);
 
 // An item is on a board when it was added there, or on an earlier board of the same
 // project (that is what "carried" means). Without this a facilitator of one project could
@@ -125,6 +130,11 @@ async function handleActionItem(request, body) {
     }
   }
   if (op === 'tick' && typeof body.done !== 'boolean') return fail('done must be true or false', 400);
+  // A card the facilitator ticked in the Top Voted view. Optional: hand-written items have none.
+  const sourceCardId = op === 'add' ? (body.sourceCardId ?? null) : null;
+  if (sourceCardId !== null && (typeof sourceCardId !== 'string' || !sourceCardId)) {
+    return fail('sourceCardId must be a card id or null', 400);
+  }
 
   // 2. Board
   const { session, isEnded } = await loadBoard(sessionId);
@@ -159,11 +169,29 @@ async function handleActionItem(request, body) {
     if (!memberIds.includes(ownerEmployeeId)) return fail("Owner must be a member of this board's project.", 400);
   }
 
+  // 7. A voted card becomes an action item at most once, and only from its own board.
+  if (sourceCardId !== null) {
+    const { data: card } = await supabase
+      .from('retro_cards').select('id,session_id').eq('id', sourceCardId).maybeSingle();
+    if (!card || card.session_id !== sessionId) return fail('That card is not on this board.', 404);
+
+    const { data: existing, error } = await supabase
+      .from('retro_action_items').select('*').eq('source_card_id', sourceCardId).maybeSingle();
+    if (error) {
+      if (missingTable(error.message) || missingSourceCardColumn(error.message)) {
+        return fail(MISSING_SOURCE_CARD_COLUMN, 503);
+      }
+      console.warn('Retro action item lookup failed:', error.message);
+      return fail('Could not save the action item.', 500);
+    }
+    if (existing) return NextResponse.json({ item: existing });
+  }
+
   let query;
   if (op === 'add') {
-    query = supabase.from('retro_action_items')
-      .insert({ session_id: sessionId, content, owner_employee_id: ownerEmployeeId, created_by: actorName.trim() })
-      .select().single();
+    const row = { session_id: sessionId, content, owner_employee_id: ownerEmployeeId, created_by: actorName.trim() };
+    if (sourceCardId !== null) row.source_card_id = sourceCardId;
+    query = supabase.from('retro_action_items').insert(row).select().single();
   } else if (op === 'edit') {
     query = supabase.from('retro_action_items')
       .update({ content, owner_employee_id: ownerEmployeeId }).eq('id', itemId).select().single();
@@ -179,6 +207,14 @@ async function handleActionItem(request, body) {
   const { data, error } = await query;
   if (error) {
     if (missingTable(error.message)) return fail(MISSING_ACTION_TABLE, 503);
+    if (missingSourceCardColumn(error.message)) return fail(MISSING_SOURCE_CARD_COLUMN, 503);
+    // Two clicks racing on the same card: the unique index lets one through; hand the
+    // loser the item that won rather than an error.
+    if (sourceCardId !== null && error.code === '23505') {
+      const { data: winner } = await supabase
+        .from('retro_action_items').select('*').eq('source_card_id', sourceCardId).maybeSingle();
+      if (winner) return NextResponse.json({ item: winner });
+    }
     console.warn('Retro action item write failed:', error.message);
     return fail('Could not save the action item.', 500);
   }

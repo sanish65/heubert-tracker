@@ -128,7 +128,7 @@ export default function RetrospectivePage() {
   const [members, setMembers]       = useState([]);
   const [kudos, setKudos]           = useState([]);
   const [kudosReactions, setKudosReactions] = useState([]);
-  const [promotedCardIds, setPromotedCardIds] = useState([]); // cards already turned into action items this visit
+  const [pickingCardIds, setPickingCardIds] = useState([]); // voted cards whose action-item tick is in flight
   const [reactionPickerFor, setReactionPickerFor] = useState(null);
   const [activity, setActivity]     = useState([]); // [{participant_name, column_type}]
   const [participantName, setParticipantName] = useState("");
@@ -500,21 +500,33 @@ export default function RetrospectivePage() {
     resetToHome();
   };
 
-  const handleMakeActionItem = async (card) => {
-    if (!session || promotedCardIds.includes(card.id)) return;
-    setPromotedCardIds(prev => [...prev, card.id]);
+  // Before ending the retro the facilitator ticks the voted cards the team will act on.
+  // A ticked card is an action item of this board (so later boards of the project carry
+  // it); unticking removes it again. The board's own items say which cards are ticked.
+  const actionItemForCard = (cardId) => actionItems.own.find(i => i.source_card_id === cardId);
+
+  const handleToggleCardAction = async (card) => {
+    if (!session || pickingCardIds.includes(card.id)) return;
+    const existing = actionItemForCard(card.id);
+    setPickingCardIds(prev => [...prev, card.id]);
     try {
-      await postRetro({
-        action: "add_action_item",
-        sessionId: session.id,
-        content: card.content.trim().slice(0, ACTION_ITEM_MAX),
-        ownerEmployeeId: null,
-        actorName: participantName,
-      });
-      fetchBoard(session.id);
+      if (existing) {
+        await postRetro({ action: "delete_action_item", sessionId: session.id, itemId: existing.id, actorName: participantName });
+      } else {
+        await postRetro({
+          action: "add_action_item",
+          sessionId: session.id,
+          content: card.content.trim().slice(0, ACTION_ITEM_MAX),
+          ownerEmployeeId: null,
+          sourceCardId: card.id,
+          actorName: participantName,
+        });
+      }
+      await fetchBoard(session.id);
     } catch (err) {
-      setPromotedCardIds(prev => prev.filter(id => id !== card.id));
       setError(err.message);
+    } finally {
+      setPickingCardIds(prev => prev.filter(id => id !== card.id));
     }
   };
 
@@ -1146,7 +1158,10 @@ export default function RetrospectivePage() {
           )}
           <div className="retro-actions-header">
             <h2 className="retro-actions-title">🗳️ Top Voted — {session.title}</h2>
-            <p className="retro-actions-sub">Cards ranked by team votes. Highest voted = most important to act on.</p>
+            <p className="retro-actions-sub">
+              Cards ranked by team votes. Highest voted = most important to act on.
+              {canManageActions && !session.is_ended && " Tick the ones the team will act on — they carry into the project's next retros."}
+            </p>
           </div>
 
           {allCardsSorted.length === 0 ? (
@@ -1158,7 +1173,7 @@ export default function RetrospectivePage() {
                 const col    = currentColumns.find(c => c.key === card.column_type) || currentColumns[0];
                 const tier   = priorityTier(card.id);
                 return (
-                  <div key={card.id} className={`retro-action-item ${tier.cls}`}>
+                  <div key={card.id} className={`retro-action-item ${tier.cls}${actionItemForCard(card.id) ? " retro-action-item-picked" : ""}`}>
                     <div className="retro-action-rank">#{idx + 1}</div>
                     <div className="retro-action-votes">
                       <span className="retro-action-vote-num">{votes}</span>
@@ -1171,15 +1186,26 @@ export default function RetrospectivePage() {
                       </div>
                       <p className="retro-action-content">{card.content}</p>
                       <span className="retro-action-author">— {card.author}</span>
-                      {canManageActions && !session.is_ended && (
-                        <button
-                          className="retro-action-promote-btn"
-                          disabled={promotedCardIds.includes(card.id)}
-                          onClick={() => handleMakeActionItem(card)}
-                        >
-                          {promotedCardIds.includes(card.id) ? "✓ Added" : "➕ Make action item"}
-                        </button>
-                      )}
+                      {(() => {
+                        const picked   = !!actionItemForCard(card.id);
+                        const editable = canManageActions && !session.is_ended;
+                        if (!editable && !picked) return null;
+                        const busy = pickingCardIds.includes(card.id);
+                        return (
+                          <label
+                            className={`retro-action-pick${picked ? " retro-action-pick-on" : ""}${!editable || busy ? " retro-action-pick-disabled" : ""}`}
+                            title={editable ? (picked ? "Untick to remove it from the action items" : "Tick to carry this into the next retros") : undefined}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={picked}
+                              disabled={!editable || busy}
+                              onChange={() => handleToggleCardAction(card)}
+                            />
+                            {picked ? "Action item" : "Mark as action item"}
+                          </label>
+                        );
+                      })()}
                     </div>
                   </div>
                 );

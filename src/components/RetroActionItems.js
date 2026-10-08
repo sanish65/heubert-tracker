@@ -118,6 +118,7 @@ export default function RetroActionItems({ session, actionItems, members = [], p
         />
         <span className="retro-todo-text">{item.content}</span>
         {item.owner_name && <span className="retro-todo-owner">👤 {item.owner_name}</span>}
+        {item.source_card_id && <span className="retro-todo-owner retro-todo-voted">🗳️ From votes</span>}
         {isCarried && item.origin_title && (
           <span className="retro-todo-origin">from {item.origin_title} · {formatDate(item.origin_created_at)}</span>
         )}
