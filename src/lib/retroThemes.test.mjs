@@ -6,6 +6,12 @@ import {
   cleanThemeName,
   checkThemes,
   arrangeColumn,
+  GROUPING_MIN_CARDS,
+  similarity,
+  clusterByMeaning,
+  nameFromTexts,
+  buildThemes,
+  placeCard,
 } from './retroThemes.js';
 
 // ── canChangeThemes ──
@@ -109,4 +115,83 @@ test('no themes: every card is loose', () => {
   const out = arrangeColumn({ cards: [card('a'), card('b')] });
   assert.deepEqual(out.themes, []);
   assert.deepEqual(out.loose.map((c) => c.id), ['a', 'b']);
+});
+
+// ── similarity / clusterByMeaning ──
+const items = [
+  { id: 'a', vector: [1, 0, 0] },
+  { id: 'b', vector: [0.9, 0.1, 0] },
+  { id: 'c', vector: [0, 1, 0] },
+  { id: 'd', vector: [0, 0.95, 0.05] },
+  { id: 'e', vector: [0, 0, 1] },
+];
+
+test('similarity is cosine: 1 for the same direction, 0 for unrelated or empty', () => {
+  assert.equal(similarity([1, 0], [2, 0]), 1);
+  assert.equal(similarity([1, 0], [0, 1]), 0);
+  assert.equal(similarity([0, 0], [1, 0]), 0);
+});
+
+test('similar cards share a group; a card like no other stays alone (AC 1)', () => {
+  assert.deepEqual(clusterByMeaning(items, 0.5), [['a', 'b'], ['c', 'd'], ['e']]);
+});
+
+test('a threshold nothing reaches leaves every card alone', () => {
+  assert.deepEqual(clusterByMeaning(items, 1.01), [['a'], ['b'], ['c'], ['d'], ['e']]);
+});
+
+test('a threshold everything reaches makes one group', () => {
+  assert.deepEqual(clusterByMeaning(items, 0), [['a', 'b', 'c', 'd', 'e']]);
+});
+
+// ── nameFromTexts ──
+test('a theme is named from the words its cards share most', () => {
+  assert.equal(
+    nameFromTexts(['Deploys were slow on Friday', 'Slow deploy pipeline', 'The deploy pipeline broke twice']),
+    'Slow · Deploy · Pipeline'
+  );
+});
+
+test('@mentions are names, not topics, and are skipped', () => {
+  assert.equal(nameFromTexts(['@Sanish fixed the build', '@Sanish build green']), 'Build · Fixed · Green');
+});
+
+test('with no usable words the name falls back to the first card, then to "Theme"', () => {
+  assert.equal(nameFromTexts(['it is ok']), 'it is ok');
+  assert.equal(nameFromTexts(['']), 'Theme');
+});
+
+test('names never exceed the theme name limit', () => {
+  const long = ['Supercalifragilisticexpialidocious antidisestablishmentarianism pneumonoultramicroscopic'];
+  assert.ok(nameFromTexts(long).length <= THEME_NAME_MAX);
+});
+
+// ── buildThemes ──
+const colCards = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, content: `card ${id} topic` }));
+const colVectors = items.map((i) => i.vector);
+
+test('a column below the grouping minimum is left alone (AC 3)', () => {
+  const few = colCards.slice(0, GROUPING_MIN_CARDS - 1);
+  assert.deepEqual(buildThemes({ cards: few, vectors: colVectors.slice(0, few.length) }), []);
+});
+
+test('every card of a grouped column lands in exactly one named theme (AC 1, 2)', () => {
+  const themes = buildThemes({ cards: colCards, vectors: colVectors });
+  assert.deepEqual(themes.map((t) => t.cardIds), [['a', 'b'], ['c', 'd'], ['e']]);
+  themes.forEach((t) => assert.ok(t.name.length > 0));
+});
+
+// ── placeCard ──
+const columnThemes = [
+  { id: 't1', vectors: [[1, 0, 0], [0.9, 0.1, 0]] },
+  { id: 't2', vectors: [[0, 1, 0]] },
+  { id: 't-empty', vectors: [] },
+];
+
+test('a late card joins the theme it is most like (AC 12)', () => {
+  assert.equal(placeCard({ vector: [0.95, 0.05, 0], themes: columnThemes }), 't1');
+});
+
+test('a late card like no theme starts its own (AC 12)', () => {
+  assert.equal(placeCard({ vector: [0, 0, 1], themes: columnThemes }), null);
 });
