@@ -9,9 +9,10 @@ import SailboatScene from "@/components/SailboatScene";
 import SpaceScene    from "@/components/SpaceScene";
 import RetroActionItems from "@/components/RetroActionItems";
 import RetroKudos from "@/components/RetroKudos";
+import RetroThemeTools from "@/components/RetroThemeTools";
 import { postRetro } from "@/lib/retroApi";
 import { ACTION_ITEM_MAX } from "@/lib/retroBoardRules";
-import { arrangeColumn } from "@/lib/retroThemes";
+import { arrangeColumn, THEME_NAME_MAX } from "@/lib/retroThemes";
 
 const RETRO_TEMPLATES = {
   // Left to right: what we are taking forward, then what to fix, then what went well.
@@ -131,6 +132,8 @@ export default function RetrospectivePage() {
   const [kudosReactions, setKudosReactions] = useState([]);
   const [themes, setThemes]         = useState([]);
   const [themeCards, setThemeCards] = useState([]);
+  const [selectedCardIds, setSelectedCardIds] = useState([]); // cards ticked for "New theme"
+  const [renamingTheme, setRenamingTheme] = useState(null);   // { id, text } while a theme name is edited
   const [pickingCardIds, setPickingCardIds] = useState([]); // voted cards whose action-item tick is in flight
   const [reactionPickerFor, setReactionPickerFor] = useState(null);
   const [activity, setActivity]     = useState([]); // [{participant_name, column_type}]
@@ -207,6 +210,7 @@ export default function RetrospectivePage() {
       setKudosReactions(data.kudosReactions || []);
       setThemes(data.themes || []);
       setThemeCards(data.themeCards || []);
+      if (data.session?.is_ended) { setSelectedCardIds([]); setRenamingTheme(null); } // themes freeze when the board ends
       setActivity(data.activity || []);
       setTimerState(data.timerState);
     } catch (_) {}
@@ -233,6 +237,8 @@ export default function RetrospectivePage() {
     setKudosReactions([]);
     setThemes([]);
     setThemeCards([]);
+    setSelectedCardIds([]);
+    setRenamingTheme(null);
     setPromotedCardIds([]);
     setReactionPickerFor(null);
     setActivity([]);
@@ -635,6 +641,32 @@ export default function RetrospectivePage() {
     if (diff !== 0) return diff;
     return String(a.id).localeCompare(String(b.id)); // Stable secondary sort
   });
+
+  // ── Themes (facilitator/admin while the board is open; the server checks again) ──
+  const canManageThemes = canManageActions && !session?.is_ended;
+  const themeIdOfCard = new Map(themeCards.map(m => [String(m.card_id), String(m.theme_id)]));
+  // Ticks on cards that have since been deleted are dropped, so the toolbar counts live cards.
+  const liveSelectedIds = selectedCardIds.filter(id => cards.some(c => String(c.id) === id));
+  const toggleSelected = (cardId) => {
+    const id = String(cardId);
+    setSelectedCardIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const handleMoveCard = async (cardId, themeId) => {
+    try {
+      await postRetro({ action: "move_card_to_theme", sessionId: session.id, actorName: participantName, cardId: String(cardId), themeId });
+      fetchBoard(session.id);
+    } catch (err) { setError(err.message); }
+  };
+  const handleRenameTheme = async (theme) => {
+    const name = renamingTheme?.text.trim() || "";
+    setRenamingTheme(null);
+    if (!name || name === theme.name) return;
+    try {
+      await postRetro({ action: "rename_theme", sessionId: session.id, actorName: participantName, themeId: theme.id, name });
+      fetchBoard(session.id);
+    } catch (err) { setError(err.message); }
+  };
+
   const handleCopy = () => { navigator.clipboard.writeText(shareUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
   const isDragging = !!dragType;
 
@@ -943,6 +975,20 @@ export default function RetrospectivePage() {
             onChanged={() => fetchBoard(session.id)}
           />
 
+          {canManageThemes && (
+            <RetroThemeTools
+              session={session}
+              columns={currentColumns}
+              cards={cards}
+              themes={themes}
+              participantName={participantName}
+              selectedCardIds={liveSelectedIds}
+              onClearSelection={() => setSelectedCardIds([])}
+              onChanged={() => fetchBoard(session.id)}
+              onError={setError}
+            />
+          )}
+
           {/* Card Stacks — draggable */}
           {!session.is_ended && (
           <div className="retro-stack-tray">
@@ -1086,6 +1132,35 @@ export default function RetrospectivePage() {
                         )}
                       </div>
                     </div>
+
+                    {canManageThemes && !card.id.toString().startsWith("temp_") && (() => {
+                      const currentThemeId = themeIdOfCard.get(String(card.id));
+                      // Only this column's themes: a card cannot change column by changing theme.
+                      const targets = arranged.themes.filter(t => String(t.id) !== currentThemeId);
+                      return (
+                        <div className="retro-theme-card-controls">
+                          <label className="retro-theme-select">
+                            <input
+                              type="checkbox"
+                              checked={selectedCardIds.includes(String(card.id))}
+                              onChange={() => toggleSelected(card.id)}
+                            />
+                            {" "}Select
+                          </label>
+                          {targets.length > 0 && (
+                            <select
+                              className="retro-theme-move"
+                              title="Move to theme"
+                              value=""
+                              onChange={e => handleMoveCard(card.id, e.target.value)}
+                            >
+                              <option value="" disabled>Move to…</option>
+                              {targets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               };
@@ -1141,7 +1216,32 @@ export default function RetrospectivePage() {
                     {arranged.themes.map(theme => (
                       <section key={theme.id} className="retro-theme">
                         <div className="retro-theme-header">
-                          <span className="retro-theme-name">{theme.name}</span>
+                          {canManageThemes && renamingTheme?.id === theme.id ? (
+                            <input
+                              className="retro-theme-rename"
+                              aria-label="Theme name"
+                              autoFocus
+                              maxLength={THEME_NAME_MAX}
+                              value={renamingTheme.text}
+                              onChange={e => setRenamingTheme({ id: theme.id, text: e.target.value })}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") handleRenameTheme(theme);
+                                if (e.key === "Escape") setRenamingTheme(null);
+                              }}
+                              onBlur={() => setRenamingTheme(null)}
+                            />
+                          ) : canManageThemes ? (
+                            <button
+                              type="button"
+                              className="retro-theme-name retro-theme-name-btn"
+                              title="Rename theme"
+                              onClick={() => setRenamingTheme({ id: theme.id, text: theme.name })}
+                            >
+                              {theme.name}
+                            </button>
+                          ) : (
+                            <span className="retro-theme-name">{theme.name}</span>
+                          )}
                           <span className="retro-theme-meta">
                             {theme.cards.length} {theme.cards.length === 1 ? "card" : "cards"} · {theme.reactions} {theme.reactions === 1 ? "reaction" : "reactions"}
                           </span>
