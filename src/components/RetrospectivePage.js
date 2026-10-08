@@ -7,6 +7,10 @@ import RetroTimer from "./RetroTimer";
 import ShareQRModal from "@/components/ShareQRModal";
 import SailboatScene from "@/components/SailboatScene";
 import SpaceScene    from "@/components/SpaceScene";
+import RetroActionItems from "@/components/RetroActionItems";
+import RetroKudos from "@/components/RetroKudos";
+import { postRetro } from "@/lib/retroApi";
+import { ACTION_ITEM_MAX } from "@/lib/retroBoardRules";
 
 const RETRO_TEMPLATES = {
   // Left to right: what we are taking forward, then what to fix, then what went well.
@@ -120,6 +124,11 @@ export default function RetrospectivePage() {
   const [session, setSession]       = useState(null);
   const [cards, setCards]           = useState([]);
   const [cardReactions, setCardReactions] = useState([]); // [{card_id, participant_name, emoji}] — includes the 👍 "like" reaction
+  const [actionItems, setActionItems] = useState({ carried: [], own: [] });
+  const [members, setMembers]       = useState([]);
+  const [kudos, setKudos]           = useState([]);
+  const [kudosReactions, setKudosReactions] = useState([]);
+  const [promotedCardIds, setPromotedCardIds] = useState([]); // cards already turned into action items this visit
   const [reactionPickerFor, setReactionPickerFor] = useState(null);
   const [activity, setActivity]     = useState([]); // [{participant_name, column_type}]
   const [participantName, setParticipantName] = useState("");
@@ -158,6 +167,7 @@ export default function RetrospectivePage() {
   const employeeNames = employees.map(e => e.name);
   const loggedInName = currentEmployee?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
   const canEndSession = isHost || !!isAdmin;
+  const canManageActions = isHost || !!isAdmin;
 
   // compose
   const [activeCompose, setActiveCompose] = useState(null);
@@ -188,6 +198,10 @@ export default function RetrospectivePage() {
       setSession(data.session);
       setCards(data.cards || []);
       setCardReactions(data.cardReactions || []);
+      setActionItems(data.actionItems || { carried: [], own: [] });
+      setMembers(data.members || []);
+      setKudos(data.kudos || []);
+      setKudosReactions(data.kudosReactions || []);
       setActivity(data.activity || []);
       setTimerState(data.timerState);
     } catch (_) {}
@@ -208,6 +222,11 @@ export default function RetrospectivePage() {
     setSession(null);
     setCards([]);
     setCardReactions([]);
+    setActionItems({ carried: [], own: [] });
+    setMembers([]);
+    setKudos([]);
+    setKudosReactions([]);
+    setPromotedCardIds([]);
     setReactionPickerFor(null);
     setActivity([]);
     setError("");
@@ -251,6 +270,10 @@ export default function RetrospectivePage() {
           setSession(data.session);
           setCards(data.cards || []);
           setCardReactions(data.cardReactions || []);
+          setActionItems(data.actionItems || { carried: [], own: [] });
+          setMembers(data.members || []);
+          setKudos(data.kudos || []);
+          setKudosReactions(data.kudosReactions || []);
           const isCreator = savedName && savedName === data.session.created_by;
           if (isCreator) {
             setIsHost(true);
@@ -421,6 +444,7 @@ export default function RetrospectivePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Session not found");
       setSession(data.session); setCards(data.cards || []); setCardReactions(data.cardReactions || []);
+      setActionItems(data.actionItems || { carried: [], own: [] }); setMembers(data.members || []); setKudos(data.kudos || []); setKudosReactions(data.kudosReactions || []);
       setParticipantName(joinName.trim()); setIsHost(false);
       localStorage.setItem("heubert_retro_session_id", data.session.id);
       localStorage.setItem("heubert_collab_name", joinName.trim());
@@ -474,6 +498,24 @@ export default function RetrospectivePage() {
       });
     } catch (_) {}
     resetToHome();
+  };
+
+  const handleMakeActionItem = async (card) => {
+    if (!session || promotedCardIds.includes(card.id)) return;
+    setPromotedCardIds(prev => [...prev, card.id]);
+    try {
+      await postRetro({
+        action: "add_action_item",
+        sessionId: session.id,
+        content: card.content.trim().slice(0, ACTION_ITEM_MAX),
+        ownerEmployeeId: null,
+        actorName: participantName,
+      });
+      fetchBoard(session.id);
+    } catch (err) {
+      setPromotedCardIds(prev => prev.filter(id => id !== card.id));
+      setError(err.message);
+    }
   };
 
   const handleDelete = async (cardId) => {
@@ -596,7 +638,7 @@ export default function RetrospectivePage() {
         {isEnlarged && <span className="retro-topbar-title">🗂️ Retrospective</span>}
         {view === "board" && (
           <button className="retro-action-items-btn" onClick={() => setView("actions")}>
-            📋 Action Items {allCardsSorted.length > 0 && <span className="retro-ai-badge">{allCardsSorted.length}</span>}
+            🗳️ Top Voted {allCardsSorted.length > 0 && <span className="retro-ai-badge">{allCardsSorted.length}</span>}
           </button>
         )}
         {view === "actions" && (
@@ -724,6 +766,10 @@ export default function RetrospectivePage() {
                     setSession(data.session);
                     setCards(data.cards || []);
                     setCardReactions(data.cardReactions || []);
+                    setActionItems(data.actionItems || { carried: [], own: [] });
+                    setMembers(data.members || []);
+                    setKudos(data.kudos || []);
+                    setKudosReactions(data.kudosReactions || []);
                     setParticipantName(nameToUse.trim());
                     localStorage.setItem("heubert_retro_session_id", data.session.id);
                     localStorage.setItem("heubert_collab_name", nameToUse.trim());
@@ -863,6 +909,15 @@ export default function RetrospectivePage() {
               </div>
             )}
           </div>
+
+          <RetroActionItems
+            session={session}
+            actionItems={actionItems}
+            members={members}
+            participantName={participantName}
+            canManage={canManageActions}
+            onChanged={() => fetchBoard(session.id)}
+          />
 
           {/* Card Stacks — draggable */}
           {!session.is_ended && (
@@ -1066,6 +1121,17 @@ export default function RetrospectivePage() {
               );
             })}
           </div>
+
+          <RetroKudos
+            session={session}
+            kudos={kudos}
+            kudosReactions={kudosReactions}
+            members={members}
+            participantName={participantName}
+            isFacilitator={isHost}
+            reactionEmojis={REACTION_EMOJIS}
+            onChanged={() => fetchBoard(session.id)}
+          />
         </div>
       )}
 
@@ -1073,12 +1139,12 @@ export default function RetrospectivePage() {
       {view === "actions" && session && (
         <div className="retro-actions-view">
           <div className="retro-actions-header">
-            <h2 className="retro-actions-title">📋 Action Items — {session.title}</h2>
+            <h2 className="retro-actions-title">🗳️ Top Voted — {session.title}</h2>
             <p className="retro-actions-sub">Cards ranked by team votes. Highest voted = most important to act on.</p>
           </div>
 
           {allCardsSorted.length === 0 ? (
-            <div className="retro-actions-empty">No voted cards yet — top-voted cards will appear here as action items.</div>
+            <div className="retro-actions-empty">No reactions yet — cards people react to will be ranked here.</div>
           ) : (
             <div className="retro-actions-list">
               {allCardsSorted.map((card, idx) => {
@@ -1099,6 +1165,15 @@ export default function RetrospectivePage() {
                       </div>
                       <p className="retro-action-content">{card.content}</p>
                       <span className="retro-action-author">— {card.author}</span>
+                      {canManageActions && !session.is_ended && (
+                        <button
+                          className="retro-action-promote-btn"
+                          disabled={promotedCardIds.includes(card.id)}
+                          onClick={() => handleMakeActionItem(card)}
+                        >
+                          {promotedCardIds.includes(card.id) ? "✓ Added" : "➕ Make action item"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
