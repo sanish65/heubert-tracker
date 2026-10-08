@@ -9,7 +9,7 @@ import SailboatScene from "@/components/SailboatScene";
 import SpaceScene    from "@/components/SpaceScene";
 import RetroActionItems from "@/components/RetroActionItems";
 import RetroKudos from "@/components/RetroKudos";
-import RetroThemeTools from "@/components/RetroThemeTools";
+import RetroThemeTools, { useThemeAutoPlacement } from "@/components/RetroThemeTools";
 import { postRetro } from "@/lib/retroApi";
 import { ACTION_ITEM_MAX } from "@/lib/retroBoardRules";
 import { arrangeColumn, THEME_NAME_MAX } from "@/lib/retroThemes";
@@ -644,6 +644,12 @@ export default function RetrospectivePage() {
 
   // ── Themes (facilitator/admin while the board is open; the server checks again) ──
   const canManageThemes = canManageActions && !session?.is_ended;
+  useThemeAutoPlacement({
+    enabled: canManageThemes,
+    session, cards, themes, themeCards, participantName,
+    onChanged: () => fetchBoard(session.id),
+    onError: setError,
+  });
   const themeIdOfCard = new Map(themeCards.map(m => [String(m.card_id), String(m.theme_id)]));
   // Ticks on cards that have since been deleted are dropped, so the toolbar counts live cards.
   const liveSelectedIds = selectedCardIds.filter(id => cards.some(c => String(c.id) === id));
