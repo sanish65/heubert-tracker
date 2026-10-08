@@ -7,6 +7,12 @@ import RetroTimer from "./RetroTimer";
 import ShareQRModal from "@/components/ShareQRModal";
 import SailboatScene from "@/components/SailboatScene";
 import SpaceScene    from "@/components/SpaceScene";
+import RetroActionItems from "@/components/RetroActionItems";
+import RetroKudos from "@/components/RetroKudos";
+import RetroThemeTools, { useThemeAutoPlacement } from "@/components/RetroThemeTools";
+import { postRetro } from "@/lib/retroApi";
+import { ACTION_ITEM_MAX } from "@/lib/retroBoardRules";
+import { arrangeColumn, THEME_NAME_MAX } from "@/lib/retroThemes";
 
 const RETRO_TEMPLATES = {
   // Left to right: what we are taking forward, then what to fix, then what went well.
@@ -120,6 +126,15 @@ export default function RetrospectivePage() {
   const [session, setSession]       = useState(null);
   const [cards, setCards]           = useState([]);
   const [cardReactions, setCardReactions] = useState([]); // [{card_id, participant_name, emoji}] — includes the 👍 "like" reaction
+  const [actionItems, setActionItems] = useState({ carried: [], own: [] });
+  const [members, setMembers]       = useState([]);
+  const [kudos, setKudos]           = useState([]);
+  const [kudosReactions, setKudosReactions] = useState([]);
+  const [themes, setThemes]         = useState([]);
+  const [themeCards, setThemeCards] = useState([]);
+  const [selectedCardIds, setSelectedCardIds] = useState([]); // cards ticked for "New theme"
+  const [renamingTheme, setRenamingTheme] = useState(null);   // { id, text } while a theme name is edited
+  const [pickingCardIds, setPickingCardIds] = useState([]); // voted cards whose action-item tick is in flight
   const [reactionPickerFor, setReactionPickerFor] = useState(null);
   const [activity, setActivity]     = useState([]); // [{participant_name, column_type}]
   const [participantName, setParticipantName] = useState("");
@@ -158,6 +173,7 @@ export default function RetrospectivePage() {
   const employeeNames = employees.map(e => e.name);
   const loggedInName = currentEmployee?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
   const canEndSession = isHost || !!isAdmin;
+  const canManageActions = isHost || !!isAdmin;
 
   // compose
   const [activeCompose, setActiveCompose] = useState(null);
@@ -188,6 +204,13 @@ export default function RetrospectivePage() {
       setSession(data.session);
       setCards(data.cards || []);
       setCardReactions(data.cardReactions || []);
+      setActionItems(data.actionItems || { carried: [], own: [] });
+      setMembers(data.members || []);
+      setKudos(data.kudos || []);
+      setKudosReactions(data.kudosReactions || []);
+      setThemes(data.themes || []);
+      setThemeCards(data.themeCards || []);
+      if (data.session?.is_ended) { setSelectedCardIds([]); setRenamingTheme(null); } // themes freeze when the board ends
       setActivity(data.activity || []);
       setTimerState(data.timerState);
     } catch (_) {}
@@ -208,6 +231,15 @@ export default function RetrospectivePage() {
     setSession(null);
     setCards([]);
     setCardReactions([]);
+    setActionItems({ carried: [], own: [] });
+    setMembers([]);
+    setKudos([]);
+    setKudosReactions([]);
+    setThemes([]);
+    setThemeCards([]);
+    setSelectedCardIds([]);
+    setRenamingTheme(null);
+    setPromotedCardIds([]);
     setReactionPickerFor(null);
     setActivity([]);
     setError("");
@@ -251,6 +283,12 @@ export default function RetrospectivePage() {
           setSession(data.session);
           setCards(data.cards || []);
           setCardReactions(data.cardReactions || []);
+          setActionItems(data.actionItems || { carried: [], own: [] });
+          setMembers(data.members || []);
+          setKudos(data.kudos || []);
+          setKudosReactions(data.kudosReactions || []);
+          setThemes(data.themes || []);
+          setThemeCards(data.themeCards || []);
           const isCreator = savedName && savedName === data.session.created_by;
           if (isCreator) {
             setIsHost(true);
@@ -421,6 +459,8 @@ export default function RetrospectivePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Session not found");
       setSession(data.session); setCards(data.cards || []); setCardReactions(data.cardReactions || []);
+      setActionItems(data.actionItems || { carried: [], own: [] }); setMembers(data.members || []); setKudos(data.kudos || []); setKudosReactions(data.kudosReactions || []);
+      setThemes(data.themes || []); setThemeCards(data.themeCards || []);
       setParticipantName(joinName.trim()); setIsHost(false);
       localStorage.setItem("heubert_retro_session_id", data.session.id);
       localStorage.setItem("heubert_collab_name", joinName.trim());
@@ -474,6 +514,36 @@ export default function RetrospectivePage() {
       });
     } catch (_) {}
     resetToHome();
+  };
+
+  // Before ending the retro the facilitator ticks the voted cards the team will act on.
+  // A ticked card is an action item of this board (so later boards of the project carry
+  // it); unticking removes it again. The board's own items say which cards are ticked.
+  const actionItemForCard = (cardId) => actionItems.own.find(i => i.source_card_id === cardId);
+
+  const handleToggleCardAction = async (card) => {
+    if (!session || pickingCardIds.includes(card.id)) return;
+    const existing = actionItemForCard(card.id);
+    setPickingCardIds(prev => [...prev, card.id]);
+    try {
+      if (existing) {
+        await postRetro({ action: "delete_action_item", sessionId: session.id, itemId: existing.id, actorName: participantName });
+      } else {
+        await postRetro({
+          action: "add_action_item",
+          sessionId: session.id,
+          content: card.content.trim().slice(0, ACTION_ITEM_MAX),
+          ownerEmployeeId: null,
+          sourceCardId: card.id,
+          actorName: participantName,
+        });
+      }
+      await fetchBoard(session.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPickingCardIds(prev => prev.filter(id => id !== card.id));
+    }
   };
 
   const handleDelete = async (cardId) => {
@@ -571,6 +641,38 @@ export default function RetrospectivePage() {
     if (diff !== 0) return diff;
     return String(a.id).localeCompare(String(b.id)); // Stable secondary sort
   });
+
+  // ── Themes (facilitator/admin while the board is open; the server checks again) ──
+  const canManageThemes = canManageActions && !session?.is_ended;
+  useThemeAutoPlacement({
+    enabled: canManageThemes,
+    session, cards, themes, themeCards, participantName,
+    onChanged: () => fetchBoard(session.id),
+    onError: setError,
+  });
+  const themeIdOfCard = new Map(themeCards.map(m => [String(m.card_id), String(m.theme_id)]));
+  // Ticks on cards that have since been deleted are dropped, so the toolbar counts live cards.
+  const liveSelectedIds = selectedCardIds.filter(id => cards.some(c => String(c.id) === id));
+  const toggleSelected = (cardId) => {
+    const id = String(cardId);
+    setSelectedCardIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const handleMoveCard = async (cardId, themeId) => {
+    try {
+      await postRetro({ action: "move_card_to_theme", sessionId: session.id, actorName: participantName, cardId: String(cardId), themeId });
+      fetchBoard(session.id);
+    } catch (err) { setError(err.message); }
+  };
+  const handleRenameTheme = async (theme) => {
+    const name = renamingTheme?.text.trim() || "";
+    setRenamingTheme(null);
+    if (!name || name === theme.name) return;
+    try {
+      await postRetro({ action: "rename_theme", sessionId: session.id, actorName: participantName, themeId: theme.id, name });
+      fetchBoard(session.id);
+    } catch (err) { setError(err.message); }
+  };
+
   const handleCopy = () => { navigator.clipboard.writeText(shareUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
   const isDragging = !!dragType;
 
@@ -596,7 +698,7 @@ export default function RetrospectivePage() {
         {isEnlarged && <span className="retro-topbar-title">🗂️ Retrospective</span>}
         {view === "board" && (
           <button className="retro-action-items-btn" onClick={() => setView("actions")}>
-            📋 Action Items {allCardsSorted.length > 0 && <span className="retro-ai-badge">{allCardsSorted.length}</span>}
+            🗳️ Top Voted {allCardsSorted.length > 0 && <span className="retro-ai-badge">{allCardsSorted.length}</span>}
           </button>
         )}
         {view === "actions" && (
@@ -724,6 +826,12 @@ export default function RetrospectivePage() {
                     setSession(data.session);
                     setCards(data.cards || []);
                     setCardReactions(data.cardReactions || []);
+                    setActionItems(data.actionItems || { carried: [], own: [] });
+                    setMembers(data.members || []);
+                    setKudos(data.kudos || []);
+                    setKudosReactions(data.kudosReactions || []);
+                    setThemes(data.themes || []);
+                    setThemeCards(data.themeCards || []);
                     setParticipantName(nameToUse.trim());
                     localStorage.setItem("heubert_retro_session_id", data.session.id);
                     localStorage.setItem("heubert_collab_name", nameToUse.trim());
@@ -864,6 +972,29 @@ export default function RetrospectivePage() {
             )}
           </div>
 
+          <RetroActionItems
+            session={session}
+            actionItems={actionItems}
+            members={members}
+            participantName={participantName}
+            canManage={canManageActions}
+            onChanged={() => fetchBoard(session.id)}
+          />
+
+          {canManageThemes && (
+            <RetroThemeTools
+              session={session}
+              columns={currentColumns}
+              cards={cards}
+              themes={themes}
+              participantName={participantName}
+              selectedCardIds={liveSelectedIds}
+              onClearSelection={() => setSelectedCardIds([])}
+              onChanged={() => fetchBoard(session.id)}
+              onError={setError}
+            />
+          )}
+
           {/* Card Stacks — draggable */}
           {!session.is_ended && (
           <div className="retro-stack-tray">
@@ -922,6 +1053,123 @@ export default function RetrospectivePage() {
               const isReject = rejectedCol === col.key;
               const hasDrop  = dropCol === col.key;
               const colCards = cardsFor(col.key);
+              const arranged = arrangeColumn({ cards: colCards, themes, themeCards, reactionsFor: voteCountFor });
+              const renderCard = (card, idx) => {
+                const isEditing = editingCardId === card.id;
+                const isMine = card.author === participantName;
+
+                // Render content with @mention highlights
+                const renderContent = (text) => {
+                  const parts = text.split(/(@\w[\w\s]*?\b)/g);
+                  return parts.map((part, i) =>
+                    part.startsWith("@")
+                      ? <span key={i} className="retro-mention">{part}</span>
+                      : part
+                  );
+                };
+
+                return (
+                  <div key={card.id} className={`retro-sticky retro-sticky-${col.color}`} style={{ "--card-rotate": `${(idx % 2 === 0 ? 1 : -1) * (0.5 + (idx % 3) * 0.4)}deg` }}>
+                    <div className="retro-sticky-pin">📌</div>
+
+                    {isEditing ? (
+                      <MentionTextarea
+                        value={editText}
+                        onChange={setEditText}
+                        employeeNames={employeeNames}
+                        className="retro-compose-textarea retro-edit-textarea"
+                        maxLength={280}
+                        rows={3}
+                        onSave={() => handleEditCard(card.id)}
+                        onCancel={() => { setEditingCardId(null); setEditText(""); }}
+                        saving={savingEdit}
+                      />
+                    ) : (
+                      <p className="retro-sticky-content">{renderContent(card.content)}</p>
+                    )}
+
+                    <div className="retro-sticky-footer">
+                      <span className="retro-sticky-author">— {card.author}</span>
+                      <div className="retro-sticky-actions">
+                        <div className="retro-reaction-picker-wrap">
+                          {Object.entries(reactionCountsFor(card.id)).map(([emoji, count]) => (
+                            <button
+                              key={emoji}
+                              className={`retro-reaction-badge${hasReacted(card.id, emoji) ? " retro-reaction-badge-active" : ""}`}
+                              onClick={() => !session.is_ended && handleReact(card.id, emoji)}
+                              title={hasReacted(card.id, emoji) ? "Remove your reaction" : "React"}
+                            >
+                              {emoji}<span className="retro-reaction-count">{count}</span>
+                            </button>
+                          ))}
+                          {!session.is_ended && !card.id.toString().startsWith("temp_") && (
+                            <button
+                              className="retro-reaction-add-btn"
+                              onClick={() => setReactionPickerFor(reactionPickerFor === card.id ? null : card.id)}
+                              title="Add reaction"
+                            >
+                              +😀
+                            </button>
+                          )}
+                          {reactionPickerFor === card.id && (
+                            <div className="retro-reaction-popover">
+                              {REACTION_EMOJIS.map(emoji => (
+                                <button
+                                  key={emoji}
+                                  className={`retro-reaction-option${hasReacted(card.id, emoji) ? " retro-reaction-option-active" : ""}`}
+                                  onClick={() => { handleReact(card.id, emoji); setReactionPickerFor(null); }}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {!session.is_ended && isMine && !card.id.toString().startsWith("temp_") && !isEditing && (
+                          <button className="retro-sticky-edit" onClick={() => {
+                            setEditingCardId(card.id);
+                            setEditText(card.content);
+                            setSavingEdit(false);
+                          }} title="Edit">✏️</button>
+                        )}
+                        {(card.author === participantName || isHost) && !session.is_ended && !isEditing && (
+                          <button className="retro-sticky-delete" onClick={() => handleDelete(card.id)} title="Remove">✕</button>
+                        )}
+                      </div>
+                    </div>
+
+                    {canManageThemes && !card.id.toString().startsWith("temp_") && (() => {
+                      const currentThemeId = themeIdOfCard.get(String(card.id));
+                      // Only this column's themes: a card cannot change column by changing theme.
+                      const targets = arranged.themes.filter(t => String(t.id) !== currentThemeId);
+                      return (
+                        <div className="retro-theme-card-controls">
+                          <label className="retro-theme-select">
+                            <input
+                              type="checkbox"
+                              checked={selectedCardIds.includes(String(card.id))}
+                              onChange={() => toggleSelected(card.id)}
+                            />
+                            {" "}Select
+                          </label>
+                          {targets.length > 0 && (
+                            <select
+                              className="retro-theme-move"
+                              title="Move to theme"
+                              value=""
+                              onChange={e => handleMoveCard(card.id, e.target.value)}
+                            >
+                              <option value="" disabled>Move to…</option>
+                              {targets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              };
               return (
                 <div key={col.key}
                   className={["retro-column", `retro-column-${col.color}`, isOver && isMatch ? "retro-column-drop-valid" : "", isOver && !isMatch ? "retro-column-drop-invalid" : "", isReject ? "retro-column-rejected" : ""].filter(Boolean).join(" ")}
@@ -971,93 +1219,46 @@ export default function RetrospectivePage() {
                         {isDragging && isMatch ? "Drop here ↓" : `No cards yet — pick a ${col.emoji} card above!`}
                       </div>
                     )}
-                    {colCards.map((card, idx) => {
-                      const isEditing = editingCardId === card.id;
-                      const isMine = card.author === participantName;
-
-                      // Render content with @mention highlights
-                      const renderContent = (text) => {
-                        const parts = text.split(/(@\w[\w\s]*?\b)/g);
-                        return parts.map((part, i) =>
-                          part.startsWith("@")
-                            ? <span key={i} className="retro-mention">{part}</span>
-                            : part
-                        );
-                      };
-
-                      return (
-                        <div key={card.id} className={`retro-sticky retro-sticky-${col.color}`} style={{ "--card-rotate": `${(idx % 2 === 0 ? 1 : -1) * (0.5 + (idx % 3) * 0.4)}deg` }}>
-                          <div className="retro-sticky-pin">📌</div>
-
-                          {isEditing ? (
-                            <MentionTextarea
-                              value={editText}
-                              onChange={setEditText}
-                              employeeNames={employeeNames}
-                              className="retro-compose-textarea retro-edit-textarea"
-                              maxLength={280}
-                              rows={3}
-                              onSave={() => handleEditCard(card.id)}
-                              onCancel={() => { setEditingCardId(null); setEditText(""); }}
-                              saving={savingEdit}
+                    {arranged.themes.map(theme => (
+                      <section key={theme.id} className="retro-theme">
+                        <div className="retro-theme-header">
+                          {canManageThemes && renamingTheme?.id === theme.id ? (
+                            <input
+                              className="retro-theme-rename"
+                              aria-label="Theme name"
+                              autoFocus
+                              maxLength={THEME_NAME_MAX}
+                              value={renamingTheme.text}
+                              onChange={e => setRenamingTheme({ id: theme.id, text: e.target.value })}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") handleRenameTheme(theme);
+                                if (e.key === "Escape") setRenamingTheme(null);
+                              }}
+                              onBlur={() => setRenamingTheme(null)}
                             />
+                          ) : canManageThemes ? (
+                            <button
+                              type="button"
+                              className="retro-theme-name retro-theme-name-btn"
+                              title="Rename theme"
+                              onClick={() => setRenamingTheme({ id: theme.id, text: theme.name })}
+                            >
+                              {theme.name}
+                            </button>
                           ) : (
-                            <p className="retro-sticky-content">{renderContent(card.content)}</p>
+                            <span className="retro-theme-name">{theme.name}</span>
                           )}
-
-                          <div className="retro-sticky-footer">
-                            <span className="retro-sticky-author">— {card.author}</span>
-                            <div className="retro-sticky-actions">
-                              <div className="retro-reaction-picker-wrap">
-                                {Object.entries(reactionCountsFor(card.id)).map(([emoji, count]) => (
-                                  <button
-                                    key={emoji}
-                                    className={`retro-reaction-badge${hasReacted(card.id, emoji) ? " retro-reaction-badge-active" : ""}`}
-                                    onClick={() => !session.is_ended && handleReact(card.id, emoji)}
-                                    title={hasReacted(card.id, emoji) ? "Remove your reaction" : "React"}
-                                  >
-                                    {emoji}<span className="retro-reaction-count">{count}</span>
-                                  </button>
-                                ))}
-                                {!session.is_ended && !card.id.toString().startsWith("temp_") && (
-                                  <button
-                                    className="retro-reaction-add-btn"
-                                    onClick={() => setReactionPickerFor(reactionPickerFor === card.id ? null : card.id)}
-                                    title="Add reaction"
-                                  >
-                                    +😀
-                                  </button>
-                                )}
-                                {reactionPickerFor === card.id && (
-                                  <div className="retro-reaction-popover">
-                                    {REACTION_EMOJIS.map(emoji => (
-                                      <button
-                                        key={emoji}
-                                        className={`retro-reaction-option${hasReacted(card.id, emoji) ? " retro-reaction-option-active" : ""}`}
-                                        onClick={() => { handleReact(card.id, emoji); setReactionPickerFor(null); }}
-                                      >
-                                        {emoji}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-
-                              {!session.is_ended && isMine && !card.id.toString().startsWith("temp_") && !isEditing && (
-                                <button className="retro-sticky-edit" onClick={() => {
-                                  setEditingCardId(card.id);
-                                  setEditText(card.content);
-                                  setSavingEdit(false);
-                                }} title="Edit">✏️</button>
-                              )}
-                              {(card.author === participantName || isHost) && !session.is_ended && !isEditing && (
-                                <button className="retro-sticky-delete" onClick={() => handleDelete(card.id)} title="Remove">✕</button>
-                              )}
-                            </div>
-                          </div>
+                          <span className="retro-theme-meta">
+                            {theme.cards.length} {theme.cards.length === 1 ? "card" : "cards"} · {theme.reactions} {theme.reactions === 1 ? "reaction" : "reactions"}
+                          </span>
                         </div>
-                      );
-                    })}
+                        {theme.cards.map(renderCard)}
+                      </section>
+                    ))}
+                    {arranged.themes.length > 0 && arranged.loose.length > 0 && (
+                      <div className="retro-theme-loose-label">Not in a theme</div>
+                    )}
+                    {arranged.loose.map(renderCard)}
 
                   </div>
                     </>
@@ -1066,19 +1267,39 @@ export default function RetrospectivePage() {
               );
             })}
           </div>
+
+          <RetroKudos
+            session={session}
+            kudos={kudos}
+            kudosReactions={kudosReactions}
+            members={members}
+            participantName={participantName}
+            isFacilitator={isHost}
+            reactionEmojis={REACTION_EMOJIS}
+            onChanged={() => fetchBoard(session.id)}
+          />
         </div>
       )}
 
       {/* ── ACTION ITEMS BOARD ── */}
       {view === "actions" && session && (
         <div className="retro-actions-view">
+          {error && (
+            <div className="poker-error" role="alert">
+              {error}
+              <button onClick={() => setError("")} aria-label="Dismiss error" style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', float: 'right', marginLeft: '10px' }}>✕</button>
+            </div>
+          )}
           <div className="retro-actions-header">
-            <h2 className="retro-actions-title">📋 Action Items — {session.title}</h2>
-            <p className="retro-actions-sub">Cards ranked by team votes. Highest voted = most important to act on.</p>
+            <h2 className="retro-actions-title">🗳️ Top Voted — {session.title}</h2>
+            <p className="retro-actions-sub">
+              Cards ranked by team votes. Highest voted = most important to act on.
+              {canManageActions && !session.is_ended && " Tick the ones the team will act on — they carry into the project's next retros."}
+            </p>
           </div>
 
           {allCardsSorted.length === 0 ? (
-            <div className="retro-actions-empty">No voted cards yet — top-voted cards will appear here as action items.</div>
+            <div className="retro-actions-empty">No reactions yet — cards people react to will be ranked here.</div>
           ) : (
             <div className="retro-actions-list">
               {allCardsSorted.map((card, idx) => {
@@ -1086,7 +1307,7 @@ export default function RetrospectivePage() {
                 const col    = currentColumns.find(c => c.key === card.column_type) || currentColumns[0];
                 const tier   = priorityTier(card.id);
                 return (
-                  <div key={card.id} className={`retro-action-item ${tier.cls}`}>
+                  <div key={card.id} className={`retro-action-item ${tier.cls}${actionItemForCard(card.id) ? " retro-action-item-picked" : ""}`}>
                     <div className="retro-action-rank">#{idx + 1}</div>
                     <div className="retro-action-votes">
                       <span className="retro-action-vote-num">{votes}</span>
@@ -1099,6 +1320,26 @@ export default function RetrospectivePage() {
                       </div>
                       <p className="retro-action-content">{card.content}</p>
                       <span className="retro-action-author">— {card.author}</span>
+                      {(() => {
+                        const picked   = !!actionItemForCard(card.id);
+                        const editable = canManageActions && !session.is_ended;
+                        if (!editable && !picked) return null;
+                        const busy = pickingCardIds.includes(card.id);
+                        return (
+                          <label
+                            className={`retro-action-pick${picked ? " retro-action-pick-on" : ""}${!editable || busy ? " retro-action-pick-disabled" : ""}`}
+                            title={editable ? (picked ? "Untick to remove it from the action items" : "Tick to carry this into the next retros") : undefined}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={picked}
+                              disabled={!editable || busy}
+                              onChange={() => handleToggleCardAction(card)}
+                            />
+                            {picked ? "Action item" : "Mark as action item"}
+                          </label>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
