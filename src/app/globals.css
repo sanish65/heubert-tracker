@@ -6922,6 +6922,23 @@ select.poker-input option { background: var(--bg-secondary); color: var(--text-p
 .retro-todo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .retro-todo-error { font-size: 0.85rem; color: var(--accent-red); background: var(--accent-red-soft); border-radius: var(--radius-sm); padding: 8px 12px; }
 
+/* ── Retro kudos ── */
+.retro-kudos-panel { background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; }
+.retro-kudos-sub { margin: -8px 0 0; font-size: 0.85rem; color: var(--text-muted); }
+.retro-kudos-compose { display: flex; flex-direction: column; gap: 8px; }
+.retro-kudos-input { width: 100%; box-sizing: border-box; resize: vertical; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit; font-size: 0.88rem; padding: 8px 10px; }
+.retro-kudos-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.retro-kudos-tag { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-muted); font-family: inherit; font-size: 0.78rem; padding: 3px 10px; cursor: pointer; }
+.retro-kudos-tag:disabled { opacity: 0.5; cursor: not-allowed; }
+.retro-kudos-tag-on { background: var(--accent-indigo); border-color: var(--accent-indigo); color: #fff; }
+.retro-kudos-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.retro-kudos-item { display: flex; flex-direction: column; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); padding: 12px 14px; min-width: 0; }
+.retro-kudos-content { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.retro-kudos-tagged { font-size: 0.8rem; color: var(--text-secondary); }
+.retro-kudos-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.78rem; color: var(--text-muted); }
+.retro-kudos-actions { display: flex; gap: 4px; }
+.retro-kudos-error { font-size: 0.85rem; color: var(--accent-red); background: var(--accent-red-soft); border-radius: var(--radius-sm); padding: 8px 12px; }
+
 /* ── Project filter tabs on the retro home ── */
 .retro-project-tabs {
   display: flex;
