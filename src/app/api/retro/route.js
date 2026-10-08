@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { selectBoardActionItems } from '@/lib/retroBoardRules';
+import {
+  ACTION_ITEM_MAX,
+  canChangeActionItem,
+  isFacilitator,
+  selectBoardActionItems,
+} from '@/lib/retroBoardRules';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -28,6 +33,154 @@ function missingColumn(message = '') {
 // with a missing-relation error, which must not take the board down with it.
 function missingTable(message = '') {
   return /relation "?[a-z_.]+"? does not exist/i.test(message) || /Could not find the table/i.test(message);
+}
+
+// The board a write is aimed at, plus whether it has ended (a retro_cards row with the
+// __SESSION_ENDED__ signal — the same signal GET uses). session is null when not found.
+async function loadBoard(sessionId) {
+  const { data: session } = await supabase
+    .from('retro_sessions').select('*').eq('id', sessionId).maybeSingle();
+  if (!session) return { session: null, isEnded: false };
+
+  const { data: signals } = await supabase
+    .from('retro_cards').select('id')
+    .eq('session_id', sessionId).eq('content', '__SESSION_ENDED__').limit(1);
+  return { session, isEnded: (signals || []).length > 0 };
+}
+
+// employee_id of everyone on a project; empty when the board has no project.
+async function projectMemberIds(projectId) {
+  if (projectId == null) return [];
+  const { data } = await supabase.from('project_members').select('employee_id').eq('project_id', projectId);
+  return (data || []).map((m) => m.employee_id);
+}
+
+// ilike treats % and _ as wildcards and \ as the escape; an email is a literal.
+const escapeLike = (s) => s.replace(/[\\%_]/g, '\\$&');
+
+// Admin comes only from a verified bearer token mapped to an employee row, never from the
+// request body. No token, a bad token, or an unknown email all mean "not an admin".
+async function callerIsAdmin(request) {
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) return false;
+
+  const { data, error } = await supabase.auth.getUser(token);
+  const email = data?.user?.email;
+  if (error || !email) return false;
+
+  const pattern = escapeLike(email);
+  const [work, personal] = await Promise.all([
+    supabase.from('employees').select('is_admin').ilike('work_email', pattern),
+    supabase.from('employees').select('is_admin').ilike('personal_email', pattern),
+  ]);
+  return [...(work.data || []), ...(personal.data || [])].some((e) => e.is_admin === true);
+}
+
+const fail = (error, status) => NextResponse.json({ error }, { status });
+const MISSING_ACTION_TABLE = 'Action items need scripts/retro-action-items-kudos-schema.sql applied.';
+
+// An item is on a board when it was added there, or on an earlier board of the same
+// project (that is what "carried" means). Without this a facilitator of one project could
+// edit another project's items by id.
+async function itemIsOnBoard(item, session) {
+  if (item.session_id === session.id) return true;
+  if (session.project_id == null) return false;
+  const { data: origin } = await supabase
+    .from('retro_sessions').select('project_id,created_at').eq('id', item.session_id).maybeSingle();
+  return !!origin
+    && origin.project_id === session.project_id
+    && Date.parse(origin.created_at) < Date.parse(session.created_at);
+}
+
+const ACTION_ITEM_OPS = {
+  add_action_item: 'add',
+  update_action_item: 'edit',
+  set_action_item_done: 'tick',
+  delete_action_item: 'delete',
+};
+
+async function handleActionItem(request, body) {
+  const op = ACTION_ITEM_OPS[body.action];
+  const { sessionId, itemId, actorName } = body;
+  const writesContent = op === 'add' || op === 'edit';
+  const needsItem = op !== 'add';
+
+  // 1. Shape
+  if (typeof sessionId !== 'string' || !sessionId || typeof actorName !== 'string' || !actorName.trim()) {
+    return fail('sessionId and actorName required', 400);
+  }
+  if (needsItem && (typeof itemId !== 'string' || !itemId)) return fail('itemId required', 400);
+  let content;
+  let ownerEmployeeId = null;
+  if (writesContent) {
+    content = typeof body.content === 'string' ? body.content.trim() : '';
+    if (!content || content.length > ACTION_ITEM_MAX) {
+      return fail(`content required, up to ${ACTION_ITEM_MAX} characters`, 400);
+    }
+    ownerEmployeeId = body.ownerEmployeeId ?? null;
+    if (ownerEmployeeId !== null && !Number.isInteger(ownerEmployeeId)) {
+      return fail('ownerEmployeeId must be a number or null', 400);
+    }
+  }
+  if (op === 'tick' && typeof body.done !== 'boolean') return fail('done must be true or false', 400);
+
+  // 2. Board
+  const { session, isEnded } = await loadBoard(sessionId);
+  if (!session) return fail('Session not found', 404);
+
+  // 3. Facilitator or admin
+  const facilitator = isFacilitator(session, actorName);
+  const isAdmin = facilitator ? false : await callerIsAdmin(request);
+  if (!facilitator && !isAdmin) return fail('Only the facilitator or an admin can change action items.', 403);
+
+  // 4. Ended board
+  if (!canChangeActionItem({ op, isEnded, isFacilitator: facilitator, isAdmin })) {
+    return fail('This retro has ended — action items can only be ticked.', 409);
+  }
+
+  // 5. Item exists and belongs to this board's project history
+  if (needsItem) {
+    const { data: item, error } = await supabase
+      .from('retro_action_items').select('id,session_id').eq('id', itemId).maybeSingle();
+    if (error) {
+      if (missingTable(error.message)) return fail(MISSING_ACTION_TABLE, 503);
+      console.warn('Retro action item lookup failed:', error.message);
+      return fail('Could not load the action item.', 500);
+    }
+    if (!item) return fail('Action item not found', 404);
+    if (!(await itemIsOnBoard(item, session))) return fail('That action item belongs to another board.', 403);
+  }
+
+  // 6. Owner must be on the board's project
+  if (writesContent && ownerEmployeeId !== null) {
+    const memberIds = await projectMemberIds(session.project_id);
+    if (!memberIds.includes(ownerEmployeeId)) return fail("Owner must be a member of this board's project.", 400);
+  }
+
+  let query;
+  if (op === 'add') {
+    query = supabase.from('retro_action_items')
+      .insert({ session_id: sessionId, content, owner_employee_id: ownerEmployeeId, created_by: actorName.trim() })
+      .select().single();
+  } else if (op === 'edit') {
+    query = supabase.from('retro_action_items')
+      .update({ content, owner_employee_id: ownerEmployeeId }).eq('id', itemId).select().single();
+  } else if (op === 'tick') {
+    const stamp = body.done
+      ? { done_at: new Date().toISOString(), done_by: actorName.trim() }
+      : { done_at: null, done_by: null };
+    query = supabase.from('retro_action_items').update(stamp).eq('id', itemId).select().single();
+  } else {
+    query = supabase.from('retro_action_items').delete().eq('id', itemId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (missingTable(error.message)) return fail(MISSING_ACTION_TABLE, 503);
+    console.warn('Retro action item write failed:', error.message);
+    return fail('Could not save the action item.', 500);
+  }
+  return NextResponse.json(op === 'delete' ? { ok: true } : { item: data });
 }
 
 // Everything the board shows beyond cards: action items (carried from earlier boards of
@@ -490,6 +643,8 @@ export async function POST(request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
+
+  if (Object.hasOwn(ACTION_ITEM_OPS, body.action)) return handleActionItem(request, body);
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }
