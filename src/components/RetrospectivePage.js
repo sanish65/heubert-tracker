@@ -1138,6 +1138,12 @@ export default function RetrospectivePage() {
       {/* ── ACTION ITEMS BOARD ── */}
       {view === "actions" && session && (
         <div className="retro-actions-view">
+          {error && (
+            <div className="poker-error" role="alert">
+              {error}
+              <button onClick={() => setError("")} aria-label="Dismiss error" style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', float: 'right', marginLeft: '10px' }}>✕</button>
+            </div>
+          )}
           <div className="retro-actions-header">
             <h2 className="retro-actions-title">🗳️ Top Voted — {session.title}</h2>
             <p className="retro-actions-sub">Cards ranked by team votes. Highest voted = most important to act on.</p>

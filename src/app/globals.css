@@ -6652,6 +6652,21 @@ select.poker-input option { background: var(--bg-secondary); color: var(--text-p
   margin: 0; word-break: break-word;
 }
 .retro-action-author { font-size: 0.72rem; color: var(--text-muted); font-style: italic; }
+.retro-action-promote-btn {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.retro-action-promote-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: var(--text-muted); }
+.retro-action-promote-btn:disabled { color: var(--text-muted); cursor: default; opacity: 0.7; }
 
 @keyframes pulseOpacity {
   0%, 100% { opacity: 0.5; }
