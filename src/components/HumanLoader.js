@@ -189,7 +189,7 @@ export default function HumanLoader({ exiting = false }) {
   else if (nameKey === "prativa") displayGreeting = "Data is my game";
   else if (nameKey === "merisha") displayGreeting = "Merisha_breezy ForEver!!";
   else if (nameKey === "amogh") displayGreeting = "Am I audible!";
-  else if (nameKey === "ankit") displayGreeting = "Bikesh dai is my favourite!";
+  else if (nameKey === "ankit") displayGreeting = "Namastey!";
   else if (nameKey === "bipin") displayGreeting = "Greetings!";
   else if (nameKey === "nebula") displayGreeting = "Hi!";
   else if (nameKey === "nikesh") displayGreeting = "Namastey!";

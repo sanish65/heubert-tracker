@@ -10,6 +10,8 @@ import EditWordModal from "@/components/EditWordModal";
 import EditLeaveModal from "@/components/EditLeaveModal";
 import { useSplashExit } from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
+import ArcheryBanner from "@/components/ArcheryBanner";
+import MeetingShoutouts from "@/components/MeetingShoutouts";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
 import DashainBanner from "@/components/DashainBanner";
 import { computeLeaveBalances, parseHalfDaySegment, findExistingLateFine } from "@/lib/utils";
@@ -475,6 +477,7 @@ export default function MeetingPage() {
     {splash}
     <div className="meeting-layout">
       <EventBanner />
+      <ArcheryBanner />
       <NewFiscalYearBanner />
       <DashainBanner />
       <header className="meeting-header">
@@ -834,6 +837,9 @@ export default function MeetingPage() {
             </div>
           )}
         </section>
+
+        {/* SHOUTOUTS & KUDOS */}
+        <MeetingShoutouts today={today} />
       </div>
 
       {/* QUICK MODALS - REUSING LOGIC AND CLASSES */}
