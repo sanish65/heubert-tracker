@@ -7,6 +7,8 @@ import { useDialog } from "@/context/DialogContext";
 import RetroTimer from "@/components/RetroTimer";
 import SailboatScene from "@/components/SailboatScene";
 import SpaceScene    from "@/components/SpaceScene";
+import RetroActionItems from "@/components/RetroActionItems";
+import RetroKudos from "@/components/RetroKudos";
 
 const RETRO_TEMPLATES = {
   // Left to right: what we are taking forward, then what to fix, then what went well.
@@ -36,17 +38,22 @@ const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "🎉", "💡"];
 
 export default function RetroSessionPage() {
   const { sessionId } = useParams();
-  const { user, currentEmployee } = useApp();
+  const { user, currentEmployee, isAdmin } = useApp();
   const { confirmDialog } = useDialog();
 
   // ── Core state ──────────────────────────────────────────
   const [session, setSession]       = useState(null);
   const [cards, setCards]           = useState([]);
   const [cardReactions, setCardReactions] = useState([]); // [{card_id, participant_name, emoji}] — includes the 👍 "like" reaction
+  const [actionItems, setActionItems] = useState({ carried: [], own: [] });
+  const [members, setMembers]       = useState([]);
+  const [kudos, setKudos]           = useState([]);
+  const [kudosReactions, setKudosReactions] = useState([]);
   const [activity, setActivity]     = useState([]); // [{participant_name, column_type}]
   const [participantName, setParticipantName] = useState("");
   const [nameEntered, setNameEntered] = useState(false);
   const [isHost, setIsHost]           = useState(false);
+  const canManageActions = isHost || !!isAdmin;
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
   const [timerState, setTimerState] = useState(null);
@@ -84,6 +91,10 @@ export default function RetroSessionPage() {
       setSession(data.session);
       setCards(data.cards || []);
       setCardReactions(data.cardReactions || []);
+      setActionItems(data.actionItems || { carried: [], own: [] });
+      setMembers(data.members || []);
+      setKudos(data.kudos || []);
+      setKudosReactions(data.kudosReactions || []);
       setActivity(data.activity || []);
       setTimerState(data.timerState);
 
@@ -459,6 +470,15 @@ export default function RetroSessionPage() {
           </div>
         ) : (
           <>
+            <RetroActionItems
+              session={session}
+              actionItems={actionItems}
+              members={members}
+              participantName={participantName}
+              canManage={canManageActions}
+              onChanged={fetchBoard}
+            />
+
             {/* ── Card Stacks tray (draggable) ── */}
             <div className="retro-stack-tray">
               <p className="retro-stack-tray-label">
@@ -729,6 +749,17 @@ export default function RetroSessionPage() {
                 );
               })}
             </div>
+
+            <RetroKudos
+              session={session}
+              kudos={kudos}
+              kudosReactions={kudosReactions}
+              members={members}
+              participantName={participantName}
+              isFacilitator={isHost}
+              reactionEmojis={REACTION_EMOJIS}
+              onChanged={fetchBoard}
+            />
           </>
         )}
       </main>
