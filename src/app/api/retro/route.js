@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { selectBoardActionItems } from '@/lib/retroBoardRules';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -20,6 +21,91 @@ function missingColumn(message = '') {
     message.match(/column "?([a-z_]+)"? .*does not exist/i) ||
     message.match(/Could not find the '([a-z_]+)' column/i);
   return match ? match[1] : null;
+}
+
+// retro_action_items, retro_kudos and retro_kudos_reactions come from
+// scripts/retro-action-items-kudos-schema.sql, applied by hand. Until then reads fail
+// with a missing-relation error, which must not take the board down with it.
+function missingTable(message = '') {
+  return /relation "?[a-z_.]+"? does not exist/i.test(message) || /Could not find the table/i.test(message);
+}
+
+// Everything the board shows beyond cards: action items (carried from earlier boards of
+// the project plus this board's own), the project's members, kudos and their reactions.
+// Every read here degrades to an empty list on error — these are extras, and a board that
+// can load its cards must never 500 because of them. The independent reads run together
+// because every viewer polls this route every 2.5 s.
+async function loadBoardExtras(session) {
+  const hasProject = session.project_id != null;
+  let warnedMissing = false;
+
+  const safe = async (query) => {
+    const { data, error } = await query;
+    if (!error) return data || [];
+    if (missingTable(error.message)) {
+      if (!warnedMissing) {
+        warnedMissing = true;
+        console.warn('Retro action items / kudos tables are missing — apply scripts/retro-action-items-kudos-schema.sql.');
+      }
+    } else {
+      console.warn('Retro board extras read failed:', error.message);
+    }
+    return [];
+  };
+
+  const [projectBoardRows, memberRows, kudosRows, reactionRows] = await Promise.all([
+    hasProject
+      ? safe(supabase.from('retro_sessions').select('id,title,created_at').eq('project_id', session.project_id))
+      : [],
+    hasProject
+      ? safe(supabase.from('project_members').select('employee_id').eq('project_id', session.project_id))
+      : [],
+    safe(supabase.from('retro_kudos').select('*').eq('session_id', session.id).order('created_at', { ascending: true })),
+    safe(supabase.from('retro_kudos_reactions').select('kudos_id, participant_name, emoji').eq('session_id', session.id)),
+  ]);
+
+  const projectBoards = projectBoardRows.map((b) => ({
+    ...b,
+    title: (b.title || '').replace(/\s\[(\w+)\]$/, ''),
+  }));
+
+  const boardIds = [...new Set([session.id, ...projectBoards.map((b) => b.id)])];
+  const itemRows = await safe(supabase.from('retro_action_items').select('*').in('session_id', boardIds));
+
+  const { carried, own } = selectBoardActionItems({ board: session, projectBoards, items: itemRows });
+
+  const employeeIds = [
+    ...new Set([
+      ...memberRows.map((m) => m.employee_id),
+      ...carried.map((i) => i.owner_employee_id),
+      ...own.map((i) => i.owner_employee_id),
+      ...kudosRows.flatMap((k) => k.tagged_employee_ids || []),
+    ].filter((id) => id != null)),
+  ];
+
+  const names = new Map();
+  if (employeeIds.length) {
+    const { data: employees, error } = await supabase.from('employees').select('id,name').in('id', employeeIds);
+    if (error) console.warn('Retro board extras: employee names unavailable:', error.message);
+    (employees || []).forEach((e) => names.set(e.id, e.name));
+  }
+
+  const withOwner = (i) => ({ ...i, owner_name: names.get(i.owner_employee_id) ?? null });
+
+  const members = memberRows
+    .filter((m) => names.has(m.employee_id))
+    .map((m) => ({ id: m.employee_id, name: names.get(m.employee_id) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    actionItems: { carried: carried.map(withOwner), own: own.map(withOwner) },
+    members,
+    kudos: kudosRows.map((k) => ({
+      ...k,
+      tagged_names: (k.tagged_employee_ids || []).map((id) => names.get(id)).filter(Boolean),
+    })),
+    kudosReactions: reactionRows,
+  };
 }
 
 // Boards created before the project picker have no project_id; the UI shows them as
@@ -146,13 +232,15 @@ export async function GET(request) {
   });
 
   const [sessionWithProject] = await attachProjects([session]);
+  const extras = await loadBoardExtras(session);
 
   return NextResponse.json({
     session: { ...sessionWithProject, is_ended: isEnded },
     cards: actualCards,
     cardReactions: cardReactions || [],
     activity,
-    timerState
+    timerState,
+    ...extras
   });
 }
 
