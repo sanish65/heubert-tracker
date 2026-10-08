@@ -6392,6 +6392,13 @@ select.poker-input { cursor: pointer; }
 .retro-column-cards  { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
 .retro-column-empty  { font-size: 0.82rem; color: var(--text-muted); font-style: italic; text-align: center; padding: 24px 8px; }
 
+/* ── Themes (grouped cards inside a column) ── */
+.retro-theme { display: flex; flex-direction: column; gap: 14px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: rgba(127,127,127,0.06); }
+.retro-theme-header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.retro-theme-name { font-size: 0.85rem; font-weight: 700; word-break: break-word; }
+.retro-theme-meta { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; }
+.retro-theme-loose-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+
 /* ── Sticky cards (pinned) ── */
 .retro-sticky { border-radius: 10px; padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 10px; position: relative; transform: rotate(var(--card-rotate, 0deg)); transition: transform 0.2s, box-shadow 0.2s; box-shadow: 2px 3px 10px rgba(0,0,0,0.25); }
 .retro-sticky:hover { transform: rotate(0deg) scale(1.02); box-shadow: 4px 6px 20px rgba(0,0,0,0.35); z-index: 2; }
