@@ -1466,11 +1466,19 @@ body {
 .form-group-interactive textarea {
   padding: 10px 14px;
   border: 1.5px solid var(--border-color);
-  background: white;
+  /* Theme colours, not white: with color-scheme set, controls default to the theme's
+     text colour, so a hard-coded white box hid light text in the dark theme. */
+  background: var(--bg-input);
+  color: var(--text-primary);
   border-radius: 10px;
   font-size: 0.95rem;
   transition: all 0.2s ease;
   width: 100%;
+}
+
+.form-group-interactive input::placeholder,
+.form-group-interactive textarea::placeholder {
+  color: var(--text-muted);
 }
 
 .form-group-interactive input:focus,
