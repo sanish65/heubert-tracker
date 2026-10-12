@@ -38,7 +38,8 @@ export default function EventBanner() {
     // 2. Process Public Holidays
     publicHolidays.forEach((h) => {
       const diff = getDiffDays(h.date);
-      if (diff >= 0 && diff <= 7) {
+      // Holidays announce themselves only in the last 2 days before (and on the day).
+      if (diff >= 0 && diff <= 2) {
         banners.push({
           id: `hol-${h.id}`,
           diff,
@@ -98,8 +99,18 @@ export default function EventBanner() {
     // Sort by most imminent
     banners.sort((a, b) => a.diff - b.diff);
 
+    // A multi-day break (e.g. "Dashain Bida") is stored as one holiday per day; show it
+    // once, counting down to its nearest day, rather than one banner per date.
+    const seen = new Set();
+    const unique = banners.filter((b) => {
+      const key = `${b.type}:${b.title.trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     // Limit to top 3 upcoming to avoid screen clutter
-    return banners.slice(0, 3);
+    return unique.slice(0, 3);
   }, [publicHolidays, companyEvents, employees]);
 
   if (activeBanners.length === 0) return null;
