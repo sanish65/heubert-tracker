@@ -4,6 +4,7 @@ import { useState } from "react";
 import { postRetro } from "@/lib/retroApi";
 import { KUDOS_MAX, canChangeKudos } from "@/lib/retroBoardRules";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
 
 export default function RetroKudos({
   session,
@@ -96,26 +97,30 @@ export default function RetroKudos({
 
   const tagChips = (ids, onToggle) =>
     members.length > 0 && (
-      <div className="retro-kudos-tags">
-        {members.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className={`retro-kudos-tag${ids.includes(m.id) ? " retro-kudos-tag-on" : ""}`}
-            aria-pressed={ids.includes(m.id)}
-            disabled={saving}
-            onClick={() => onToggle(m.id)}
-          >
-            {m.name}
-          </button>
-        ))}
+      <div className="retro-tags" role="group" aria-label="Tag teammates">
+        {members.map((m) => {
+          const on = ids.includes(m.id);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              className={`retro-tag${on ? " is-on" : ""}`}
+              aria-pressed={on}
+              disabled={saving}
+              onClick={() => onToggle(m.id)}
+            >
+              {on && <Icon name="check" size={12} strokeWidth={2.4} />}
+              {m.name}
+            </button>
+          );
+        })}
       </div>
     );
 
   const renderItem = (item) => {
     if (editingId === item.id) {
       return (
-        <li key={item.id} className="retro-kudos-item retro-kudos-item-editing">
+        <article key={item.id} className="retro-kudo is-editing">
           <textarea
             className="retro-kudos-input"
             value={editText}
@@ -130,62 +135,75 @@ export default function RetroKudos({
             }}
           />
           {tagChips(editTagIds, (id) => setEditTagIds((ids) => toggleId(ids, id)))}
-          <div className="retro-kudos-actions">
-            <button type="button" className="retro-todo-btn retro-todo-btn-primary" onClick={() => handleSaveEdit(item)} disabled={saving || !editText.trim()}>Save</button>
-            <button type="button" className="retro-todo-btn" onClick={cancelEdit}>Cancel</button>
+          <div className="retro-kudo-edit-actions">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => handleSaveEdit(item)} disabled={saving || !editText.trim()}>Save</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={cancelEdit}>Cancel</button>
           </div>
-        </li>
+        </article>
       );
     }
 
     const tagged = Array.isArray(item.tagged_names) ? item.tagged_names : [];
     const counts = countsFor(item.id);
     const canReact = can("react", item);
+    const canEdit = can("edit", item);
+    const canDelete = can("delete", item);
 
     return (
-      <li key={item.id} className="retro-kudos-item">
-        <p className="retro-kudos-content">{item.content}</p>
-        {tagged.length > 0 && <div className="retro-kudos-tagged">🙌 {tagged.join(", ")}</div>}
-        <div className="retro-kudos-footer">
-          <span className="retro-kudos-author">— {item.author}</span>
-          <span className="retro-kudos-actions">
-            {can("edit", item) && (
-              <button type="button" className="retro-todo-icon-btn" onClick={() => startEdit(item)} disabled={saving} aria-label="Edit kudos" title="Edit">✏️</button>
-            )}
-            {can("delete", item) && (
-              <button type="button" className="retro-todo-icon-btn" onClick={() => handleDelete(item)} disabled={saving} aria-label="Delete kudos" title="Delete">✕</button>
-            )}
-          </span>
+      <article key={item.id} className="retro-kudo">
+        {tagged.length > 0 && <span className="retro-kudo-for">For {tagged.join(", ")}</span>}
+        <p className="retro-kudo-text">{item.content}</p>
+        <div className="retro-kudo-foot">
+          <span className="retro-kudo-from">From {item.author}</span>
+          {(canEdit || canDelete) && (
+            <span className="retro-kudo-tools">
+              {canEdit && (
+                <button type="button" className="retro-icon-btn" onClick={() => startEdit(item)} disabled={saving} aria-label="Edit kudos" title="Edit">
+                  <Icon name="edit" size={14} strokeWidth={2} />
+                </button>
+              )}
+              {canDelete && (
+                <button type="button" className="retro-icon-btn retro-icon-btn-danger" onClick={() => handleDelete(item)} disabled={saving} aria-label="Delete kudos" title="Delete">
+                  <Icon name="trash" size={14} strokeWidth={2} />
+                </button>
+              )}
+            </span>
+          )}
         </div>
-        <div className="retro-reaction-picker-wrap">
+        <div className="retro-reactions retro-reaction-picker-wrap">
           {Object.entries(counts).map(([emoji, count]) => (
             <button
               key={emoji}
               type="button"
-              className={`retro-reaction-badge${hasReacted(item.id, emoji) ? " retro-reaction-badge-active" : ""}`}
+              className={`retro-reaction${hasReacted(item.id, emoji) ? " is-mine" : ""}`}
+              aria-pressed={hasReacted(item.id, emoji)}
               onClick={() => handleReact(item, emoji)}
               title={hasReacted(item.id, emoji) ? "Remove your reaction" : "React"}
             >
-              {emoji}<span className="retro-reaction-count">{count}</span>
+              <span className="retro-reaction-emoji">{emoji}</span>
+              <span className="mono">{count}</span>
             </button>
           ))}
           {canReact && (
             <button
               type="button"
-              className="retro-reaction-add-btn"
+              className="btn-icon btn-sm retro-react-add"
               onClick={() => setPickerFor(pickerFor === item.id ? null : item.id)}
               title="Add reaction"
+              aria-label="Add reaction"
+              aria-expanded={pickerFor === item.id}
             >
-              +😀
+              <Icon name="smile" size={16} />
             </button>
           )}
           {canReact && pickerFor === item.id && (
-            <div className="retro-reaction-popover">
+            <div className="retro-reaction-popover" role="group" aria-label="Reactions">
               {reactionEmojis.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
-                  className={`retro-reaction-option${hasReacted(item.id, emoji) ? " retro-reaction-option-active" : ""}`}
+                  className={`retro-reaction-option${hasReacted(item.id, emoji) ? " is-mine" : ""}`}
+                  aria-pressed={hasReacted(item.id, emoji)}
                   onClick={() => { handleReact(item, emoji); setPickerFor(null); }}
                 >
                   {emoji}
@@ -194,40 +212,54 @@ export default function RetroKudos({
             </div>
           )}
         </div>
-      </li>
+      </article>
     );
   };
 
+  const canAdd = can("add");
+
+  // Kudos strip (Retro.dc.html): orange-edged glass, one tile per kudos, the composer last.
   return (
-    <section className="retro-kudos-panel">
-      <h3 className="retro-todo-title">🏆 Kudos</h3>
-      <p className="retro-kudos-sub">Shout out a teammate or celebrate a win.</p>
+    <section className="glass retro-kudos" aria-labelledby="retro-kudos-title">
+      <div className="retro-kudos-head">
+        <span className="retro-kudos-icon"><Icon name="award" size={18} strokeWidth={2} /></span>
+        <div className="retro-kudos-head-text">
+          <h2 id="retro-kudos-title" className="retro-section-title">Kudos</h2>
+          <p className="retro-kudos-sub">Shout out a teammate or celebrate a win.</p>
+        </div>
+      </div>
 
-      {error && <div className="retro-kudos-error" role="alert">{error}</div>}
-
-      {can("add") && (
-        <div className="retro-kudos-compose">
-          <textarea
-            className="retro-kudos-input"
-            value={text}
-            maxLength={KUDOS_MAX}
-            rows={2}
-            placeholder="Who deserves a shoutout, and for what?"
-            aria-label="New kudos"
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleAdd(); }}
-          />
-          {tagChips(tagIds, (id) => setTagIds((ids) => toggleId(ids, id)))}
-          <div>
-            <button type="button" className="retro-todo-btn retro-todo-btn-primary" onClick={handleAdd} disabled={saving || !text.trim()}>🎉 Send kudos</button>
-          </div>
+      {error && (
+        <div className="form-error retro-error" role="alert">
+          <Icon name="alert" size={16} />
+          <span className="retro-error-text">{error}</span>
         </div>
       )}
 
-      {ordered.length === 0 ? (
-        <div className="retro-todo-empty">No kudos yet — be the first.</div>
-      ) : (
-        <ul className="retro-kudos-list">{ordered.map(renderItem)}</ul>
+      {ordered.length === 0 && <p className="empty-msg">No kudos yet — be the first.</p>}
+
+      {(ordered.length > 0 || canAdd) && (
+        <div className="retro-kudos-grid">
+          {ordered.map(renderItem)}
+          {canAdd && (
+            <div className="retro-kudos-compose">
+              <label className="retro-kudos-compose-label">
+                <span>New kudos</span>
+                <textarea
+                  className="retro-kudos-input"
+                  value={text}
+                  maxLength={KUDOS_MAX}
+                  rows={3}
+                  placeholder="Who deserves a shoutout, and for what?"
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleAdd(); }}
+                />
+              </label>
+              {tagChips(tagIds, (id) => setTagIds((ids) => toggleId(ids, id)))}
+              <button type="button" className="btn btn-orange btn-sm retro-kudos-send" onClick={handleAdd} disabled={saving || !text.trim()}>Send kudos</button>
+            </div>
+          )}
+        </div>
       )}
     </section>
   );

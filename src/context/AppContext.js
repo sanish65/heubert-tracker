@@ -92,6 +92,33 @@ function parseLocalDate(str) {
   return new Date(y, m - 1, d, 0, 0, 0, 0);
 }
 
+// No one's photo: the value until the photos load, when they fail and when signed out.
+// One frozen object, so consumers never see a "new" empty map.
+const NO_PHOTOS = Object.freeze({});
+
+// Everyone's Google photo by employee name, from /api/avatars: other people's photos live
+// in Supabase Auth, which only the server can read. Never throws; on any failure the
+// avatars keep their initials.
+async function fetchEmployeePhotos(signal) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return NO_PHOTOS;
+    const res = await fetch("/api/avatars", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      signal,
+    });
+    if (!res.ok) {
+      console.warn(`Profile photos were not loaded (HTTP ${res.status}).`);
+      return NO_PHOTOS;
+    }
+    const { photos } = await res.json();
+    return photos && typeof photos === "object" && !Array.isArray(photos) ? photos : NO_PHOTOS;
+  } catch (err) {
+    if (!signal?.aborted) console.warn("Profile photos could not be loaded:", err?.message || err);
+    return NO_PHOTOS;
+  }
+}
+
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
@@ -118,6 +145,8 @@ export function AppProvider({ children }) {
   const [isOffline, setIsOffline] = useState(false);
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  // Everyone's photo and the user it was loaded for: see the effect after the auth one.
+  const [photoLoad, setPhotoLoad] = useState({ userId: null, photos: NO_PHOTOS });
   const [currentEmployee, setCurrentEmployee] = useState(null);
   const [standupSubmissions, setStandupSubmissions] = useState([]);
   const [standupQuestions, setStandupQuestions] = useState([]);
@@ -282,6 +311,25 @@ export function AppProvider({ children }) {
 
     return () => subscription.unsubscribe();
   }, [fetchData]);
+
+  // Everyone's photo, loaded once per signed-in user. It is held with the id it was loaded
+  // for, so a sign-out or a change of account drops it at once with no reset in the
+  // effect, and leaving cancels a load still in flight.
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    if (!userId) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS);
+    fetchEmployeePhotos(controller.signal).then((photos) => {
+      clearTimeout(timer);
+      if (!controller.signal.aborted) setPhotoLoad({ userId, photos });
+    });
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [userId]);
+  const employeePhotos = userId && photoLoad.userId === userId ? photoLoad.photos : NO_PHOTOS;
 
   // The browser's own view of connectivity. Not authoritative (online can still mean
   // "captive portal"), but offline is a definite answer worth saying out loud.
@@ -920,6 +968,21 @@ export function AppProvider({ children }) {
     return { error };
   };
 
+  // The HTT in HTT-12. Kept out of projectPayload on purpose: the Projects form saves
+  // every field, and an issue key is set once from the Tasks tab, not retyped on edits.
+  const setProjectIssueKey = async (id, issueKey) => {
+    if (!isAdmin) return denied("set a project's issue key");
+    const { data, error } = await supabase
+      .from("projects")
+      .update({ issue_key: issueKey, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select();
+    if (!error && data?.[0]) {
+      setProjects(prev => prev.map(p => (p.id === id ? data[0] : p)).sort(sortProjectsByName));
+    }
+    return { data: data?.[0], error };
+  };
+
   const addStandupFine = async (record) => {
     if (!canManageFines) return denied("record a standup fine");
 
@@ -1532,6 +1595,7 @@ export function AppProvider({ children }) {
         resetData,
         user,
         isAuthReady,
+        employeePhotos,
         signOut,
         currentEmployee,
         isAdmin,
@@ -1566,6 +1630,7 @@ export function AppProvider({ children }) {
         addProject,
         updateProject,
         deleteProject,
+        setProjectIssueKey,
       }}
     >
       {children}

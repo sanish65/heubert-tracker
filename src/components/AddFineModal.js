@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { findExistingLateFine, fineToday } from "@/lib/utils";
+import Icon from "@/components/Icon";
 
 export default function AddFineModal({ isOpen, onClose }) {
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
@@ -16,6 +17,7 @@ export default function AddFineModal({ isOpen, onClose }) {
   const currentSeasonId = (fineSeasons || []).length
     ? [...fineSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id
     : null;
+  const currentSeasonTitle = (fineSeasons || []).find((season) => season.id === currentSeasonId)?.title;
   const [form, setForm] = useState({
     name: "",
     date: today,
@@ -69,12 +71,16 @@ export default function AddFineModal({ isOpen, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Record a Fine</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="wallet" size={20} /></span>
+          <div className="modal-title-group">
+            {currentSeasonTitle && <span className="modal-eyebrow">{currentSeasonTitle}</span>}
+            <h2>Record a fine</h2>
+          </div>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-section">
-            <div className="form-section-title">💸 Fine Details</div>
+            <div className="form-section-title">Fine details</div>
             <div className="form-grid-horizontal">
               <div className="form-group-interactive">
                 <label htmlFor="fine-employee">Employee</label>
@@ -110,7 +116,7 @@ export default function AddFineModal({ isOpen, onClose }) {
                         name="fineAmount"
                         value={val}
                         checked={form.amount == val}
-                        onChange={() => { setForm(prev => ({ ...prev, amount: val })); setDuplicateWarning(false); }}
+                        onChange={() => setForm(prev => ({ ...prev, amount: val }))}
                       />
                       <span>RS {val}</span>
                     </label>
@@ -131,11 +137,11 @@ export default function AddFineModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
 
           {isFutureDate && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">🚫</span>
+              <span className="duplicate-warning-icon"><Icon name="alert" size={18} /></span>
               <div className="duplicate-warning-text">
                 <strong>That day hasn&apos;t happened yet</strong>
                 <p>
@@ -148,7 +154,7 @@ export default function AddFineModal({ isOpen, onClose }) {
 
           {existingFine && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">🚫</span>
+              <span className="duplicate-warning-icon"><Icon name="alert" size={18} /></span>
               <div className="duplicate-warning-text">
                 <strong>Already fined for this day</strong>
                 <p>
@@ -161,7 +167,7 @@ export default function AddFineModal({ isOpen, onClose }) {
           )}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={!!existingFine || isFutureDate}>

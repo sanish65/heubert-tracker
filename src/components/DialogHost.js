@@ -2,9 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import Modal from "@/components/Modal";
+import Icon from "@/components/Icon";
 import { useDialogState } from "@/context/DialogContext";
 
-const TONE_ICON = { success: "✅", error: "❌", warning: "⚠️", info: "ℹ️" };
+// The header's icon tile: which icon, on which pill pair.
+function toneTile(kind, tone, danger) {
+  if (tone === "success") return { icon: "check", className: "modal-icon-green" };
+  if (tone === "error" || danger) return { icon: "alert", className: "modal-icon-red" };
+  if (tone === "warning") return { icon: "alert", className: "modal-icon-amber" };
+  if (kind === "prompt") return { icon: "edit", className: "" };
+  return { icon: "alert", className: "" };
+}
 const DEFAULT_TITLE = { confirm: "Are you sure?", alert: "Notice", prompt: "Enter a value" };
 
 export default function DialogHost() {
@@ -31,14 +39,19 @@ export default function DialogHost() {
   const handleCancel = () => resolveDialog(kind === "prompt" ? null : false);
   const handleConfirm = () => resolveDialog(kind === "prompt" ? value : true);
 
-  const icon = TONE_ICON[tone] || (danger ? "⚠️" : kind === "prompt" ? "✏️" : "❓");
+  const tile = toneTile(kind, tone, danger);
 
   return (
     <Modal isOpen={isOpen} onClose={handleCancel} size="confirm-dialog" overlayClassName="dialog-host-overlay">
-      <div className={`confirm-dialog-icon ${danger || tone === "error" ? "is-danger" : ""}`}>
-        {icon}
+      <div className="modal-header">
+        <span className={`modal-icon ${tile.className}`.trim()}>
+          <Icon name={tile.icon} size={20} />
+        </span>
+        <h2>{title || DEFAULT_TITLE[kind]}</h2>
+        <button type="button" className="modal-close" onClick={handleCancel} aria-label="Close">
+          <Icon name="x" size={18} />
+        </button>
       </div>
-      <h3 className="confirm-dialog-title">{title || DEFAULT_TITLE[kind]}</h3>
       {message && <p className="confirm-dialog-message">{message}</p>}
       {kind === "prompt" && (
         <input
@@ -54,7 +67,7 @@ export default function DialogHost() {
           }}
         />
       )}
-      <div className="confirm-dialog-actions">
+      <div className="modal-actions">
         {kind !== "alert" && (
           <button type="button" className="btn btn-secondary" onClick={handleCancel}>
             {cancelText || "Cancel"}

@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Select, Button } from "./ui";
+import { FormModal } from "./ui";
+import { EmployeePicker, ChoiceGroup, SheetActions } from "./SheetParts";
+import { FINE_AMOUNTS, LATE_FINE_STATUSES } from "../lib/options";
 
+// The late fine's edit sheet, in the record sheet's look (MobileRecordFine.dc.html): the person is
+// fixed; the amount and the status change.
 export default function EditFineModal({ isOpen, onClose, fine }) {
   const { updateFine } = useApp();
   const [amount, setAmount] = useState(25);
@@ -28,11 +32,11 @@ export default function EditFineModal({ isOpen, onClose, fine }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="💰 Edit Late Fine">
-      <TextField label="Employee" value={fine.employee_name} editable={false} />
-      <Select label="Amount (Rs.)" value={amount} onSelect={setAmount} options={[{ value: 25, label: "Rs 25" }, { value: 50, label: "Rs 50" }]} />
-      <Select label="Status" value={status} onSelect={setStatus} options={[{ value: "unpaid", label: "Unpaid" }, { value: "paid", label: "Paid" }]} />
-      <Button title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} />
+    <FormModal visible={isOpen} onClose={onClose} title="Edit Late Fine">
+      <EmployeePicker value={fine.employee_name} />
+      <ChoiceGroup label="Amount (Rs.)" mono value={amount} options={FINE_AMOUNTS} onChange={setAmount} />
+      <ChoiceGroup label="Status" value={status} options={LATE_FINE_STATUSES} onChange={setStatus} />
+      <SheetActions title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} onCancel={onClose} />
     </FormModal>
   );
 }

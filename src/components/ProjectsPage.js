@@ -1,36 +1,42 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import Modal from "@/components/Modal";
+import Icon from "@/components/Icon";
 import { useDialog } from "@/context/DialogContext";
+import Avatar from "@/components/Avatar";
 
+// Project statuses, each with its pill colour.
 const STATUSES = [
-  { value: "planning", label: "Planning" },
-  { value: "active", label: "Active" },
-  { value: "on-hold", label: "On Hold" },
-  { value: "completed", label: "Completed" },
-  { value: "archived", label: "Archived" },
+  { value: "planning", label: "Planning", pill: "pill-blue" },
+  { value: "active", label: "Active", pill: "pill-green" },
+  { value: "on-hold", label: "On Hold", pill: "pill-amber" },
+  { value: "completed", label: "Completed", pill: "pill-violet" },
+  { value: "archived", label: "Archived", pill: "pill-gray" },
 ];
 
+const STATUS_FILTERS = [{ value: "all", label: "All" }, ...STATUSES];
+
 const LINK_CATEGORIES = [
-  { value: "repo", label: "Repository", icon: "🧑‍💻" },
-  { value: "board", label: "Board / Tickets", icon: "🗂️" },
-  { value: "design", label: "Design", icon: "🎨" },
-  { value: "docs", label: "Docs", icon: "📄" },
-  { value: "other", label: "Other", icon: "🔗" },
+  { value: "repo", label: "Repository", icon: "folder" },
+  { value: "board", label: "Board / Tickets", icon: "kanban" },
+  { value: "design", label: "Design", icon: "image" },
+  { value: "docs", label: "Docs", icon: "book" },
+  { value: "other", label: "Other", icon: "link" },
 ];
 
 // Suggested environment names. Free text, so a project can add QA, UAT, demo, ...
 const ENV_SUGGESTIONS = ["Development", "Staging", "Production", "QA", "UAT"];
 
-const statusLabel = (value) =>
-  STATUSES.find((s) => s.value === value)?.label || value || "—";
+// No status means active, as the status filter counts it.
+const statusOf = (value) =>
+  STATUSES.find((s) => s.value === (value || "active")) || { label: value, pill: "pill-gray" };
 
-const categoryIcon = (value) =>
-  LINK_CATEGORIES.find((c) => c.value === value)?.icon || "🔗";
+const categoryOf = (value) =>
+  LINK_CATEGORIES.find((c) => c.value === value) || LINK_CATEGORIES[LINK_CATEGORIES.length - 1];
 
-// An environment slug drives its badge colour: prod is the one you don't want to
+// An environment slug drives its pill colour: prod is the one you don't want to
 // misread at a glance.
 function envTone(name) {
   const n = (name || "").toLowerCase();
@@ -40,7 +46,10 @@ function envTone(name) {
   return "other";
 }
 
-// Admins paste hosts as often as full URLs; keep the stored value clickable.
+const ENV_TONE_PILL = { prod: "pill-red", stage: "pill-amber", dev: "pill-blue", other: "pill-gray" };
+
+// Admins paste hosts as often as full URLs; keep the stored value clickable. Links are
+// rendered through it too, so an href is only ever http(s).
 function normalizeUrl(url) {
   const trimmed = (url || "").trim();
   if (!trimmed) return "";
@@ -60,6 +69,14 @@ function formatDate(value) {
     year: "numeric",
   });
 }
+
+const techList = (stack) =>
+  (stack || "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 let rowKeySeed = 0;
 const newRowKey = () => `row-${++rowKeySeed}`;
@@ -207,15 +224,19 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="modal-content-wide">
       <div className="modal-header">
-        <h2>{editing ? "Edit Project" : "New Project"}</h2>
-        <button className="close-btn" onClick={onClose}>&times;</button>
+        <span className="modal-icon"><Icon name="folder" size={20} /></span>
+        <h2>{editing ? "Edit project" : "New project"}</h2>
+        <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+          <Icon name="x" size={18} />
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="premium-form project-form">
         <div className="project-form-grid">
           <div className="form-group-interactive">
-            <label>Project Name</label>
+            <label htmlFor="project-name">Project Name</label>
             <input
+              id="project-name"
               type="text"
               placeholder="e.g. Acme Portal"
               value={form.name}
@@ -225,8 +246,9 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
             />
           </div>
           <div className="form-group-interactive">
-            <label>Client</label>
+            <label htmlFor="project-client">Client</label>
             <input
+              id="project-client"
               type="text"
               placeholder="e.g. Acme Inc."
               value={form.client}
@@ -234,16 +256,17 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
             />
           </div>
           <div className="form-group-interactive">
-            <label>Status</label>
-            <select value={form.status} onChange={(e) => setField("status", e.target.value)}>
+            <label htmlFor="project-status">Status</label>
+            <select id="project-status" value={form.status} onChange={(e) => setField("status", e.target.value)}>
               {STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
           </div>
           <div className="form-group-interactive">
-            <label>Tech Stack</label>
+            <label htmlFor="project-tech">Tech Stack</label>
             <input
+              id="project-tech"
               type="text"
               placeholder="e.g. Next.js, Supabase, Expo"
               value={form.techStack}
@@ -251,16 +274,18 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
             />
           </div>
           <div className="form-group-interactive">
-            <label>Start Date</label>
+            <label htmlFor="project-start">Start Date</label>
             <input
+              id="project-start"
               type="date"
               value={form.startDate}
               onChange={(e) => setField("startDate", e.target.value)}
             />
           </div>
           <div className="form-group-interactive">
-            <label>Target End Date</label>
+            <label htmlFor="project-end">Target End Date</label>
             <input
+              id="project-end"
               type="date"
               value={form.endDate}
               onChange={(e) => setField("endDate", e.target.value)}
@@ -269,8 +294,9 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
         </div>
 
         <div className="form-group-interactive">
-          <label>Description</label>
+          <label htmlFor="project-description">Description</label>
           <textarea
+            id="project-description"
             rows={3}
             placeholder="What this project is, who it's for, anything the team should know."
             value={form.description}
@@ -279,28 +305,31 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
         </div>
 
         {/* Team Members */}
-        <div className="project-form-section">
+        <div className="project-form-section" role="group" aria-labelledby="project-members-title">
           <div className="project-form-section-head">
-            <h3>Team Members</h3>
-            <span className="project-form-hint">{form.members.length} selected</span>
+            <h3 id="project-members-title">Team Members</h3>
+            <span className="project-form-count mono">{form.members.length} selected</span>
           </div>
           {staffableEmployees.length === 0 ? (
             <p className="empty-msg">No employees to add yet.</p>
           ) : (
             <div className="project-member-picker">
-              {staffableEmployees.map((emp) => (
-                <label
-                  key={emp.id}
-                  className={`project-member-chip ${form.members.includes(emp.id) ? "active" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.members.includes(emp.id)}
-                    onChange={() => toggleMember(emp.id)}
-                  />
-                  <span>{emp.name}</span>
-                </label>
-              ))}
+              {staffableEmployees.map((emp) => {
+                const selected = form.members.includes(emp.id);
+                return (
+                  <label key={emp.id} className={`project-member-chip ${selected ? "active" : ""}`}>
+                    <input type="checkbox" checked={selected} onChange={() => toggleMember(emp.id)} />
+                    {selected ? (
+                      <span className="project-member-mark" aria-hidden="true">
+                        <Icon name="check" size={12} strokeWidth={2.6} />
+                      </span>
+                    ) : (
+                      <Avatar name={emp.name} className="avatar project-chip-avatar" aria-hidden="true" />
+                    )}
+                    <span>{emp.name}</span>
+                  </label>
+                );
+              })}
             </div>
           )}
         </div>
@@ -311,10 +340,11 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
             <h3>Environments</h3>
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm project-form-add"
               onClick={() => addRow("environments", emptyEnvRow())}
             >
-              + Add Environment
+              <Icon name="plus" size={14} strokeWidth={2.2} />
+              Add Environment
             </button>
           </div>
           <datalist id="project-env-suggestions">
@@ -332,20 +362,23 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
                   className="project-row-input"
                   list="project-env-suggestions"
                   placeholder="Environment (Development)"
+                  aria-label="Environment name"
                   value={env.name}
                   onChange={(e) => setRow("environments", env._key, "name", e.target.value)}
                 />
                 <input
                   type="text"
-                  className="project-row-input project-row-input-wide"
+                  className="project-row-input project-row-input-wide mono"
                   placeholder="URL (stage.acme.com)"
+                  aria-label="Environment URL"
                   value={env.url}
                   onChange={(e) => setRow("environments", env._key, "url", e.target.value)}
                 />
                 <input
                   type="text"
-                  className="project-row-input project-row-input-sm"
+                  className="project-row-input project-row-input-sm mono"
                   placeholder="Branch"
+                  aria-label="Branch"
                   value={env.branch}
                   onChange={(e) => setRow("environments", env._key, "branch", e.target.value)}
                 />
@@ -353,21 +386,24 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
                   type="text"
                   className="project-row-input"
                   placeholder="Notes (no credentials)"
+                  aria-label="Notes"
                   value={env.notes}
                   onChange={(e) => setRow("environments", env._key, "notes", e.target.value)}
                 />
                 <button
                   type="button"
-                  className="project-row-remove"
+                  className="btn-icon btn-sm project-row-remove"
                   onClick={() => removeRow("environments", env._key)}
+                  aria-label="Remove environment"
                   title="Remove environment"
                 >
-                  ✕
+                  <Icon name="x" size={16} />
                 </button>
               </div>
             ))
           )}
-          <p className="project-form-hint">
+          <p className="project-form-warning">
+            <Icon name="alert" size={14} strokeWidth={2} />
             Environment rows are visible to everyone in the tracker — link the environment, never paste credentials.
           </p>
         </div>
@@ -378,10 +414,11 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
             <h3>Links</h3>
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm project-form-add"
               onClick={() => addRow("links", emptyLinkRow())}
             >
-              + Add Link
+              <Icon name="plus" size={14} strokeWidth={2.2} />
+              Add Link
             </button>
           </div>
           {form.links.length === 0 ? (
@@ -391,6 +428,7 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
               <div key={link._key} className="project-row-editor">
                 <select
                   className="project-row-input project-row-input-sm"
+                  aria-label="Link category"
                   value={link.category}
                   onChange={(e) => setRow("links", link._key, "category", e.target.value)}
                 >
@@ -402,33 +440,41 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
                   type="text"
                   className="project-row-input"
                   placeholder="Label (GitHub repo)"
+                  aria-label="Link label"
                   value={link.label}
                   onChange={(e) => setRow("links", link._key, "label", e.target.value)}
                 />
                 <input
                   type="text"
-                  className="project-row-input project-row-input-wide"
+                  className="project-row-input project-row-input-wide mono"
                   placeholder="URL (github.com/heubert/acme)"
+                  aria-label="Link URL"
                   value={link.url}
                   onChange={(e) => setRow("links", link._key, "url", e.target.value)}
                 />
                 <button
                   type="button"
-                  className="project-row-remove"
+                  className="btn-icon btn-sm project-row-remove"
                   onClick={() => removeRow("links", link._key)}
+                  aria-label="Remove link"
                   title="Remove link"
                 >
-                  ✕
+                  <Icon name="x" size={16} />
                 </button>
               </div>
             ))
           )}
         </div>
 
-        {error && <span className="form-error">{error}</span>}
+        {error && (
+          <div className="form-error" role="alert">
+            <Icon name="alert" size={16} />
+            {error}
+          </div>
+        )}
 
         <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={isSaving}>
+          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isSaving}>
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={isSaving}>
@@ -440,127 +486,236 @@ function ProjectFormModal({ isOpen, onClose, editing, links, environments, membe
   );
 }
 
-function ProjectCard({ project, links, environments, members, isAdmin, onEdit, onDelete }) {
+// Compact card (Projects.dc.html). Clicking it shows its details in the panel beside
+// the grid.
+function ProjectCard({ project, links, environments, members, selected, lift, onSelect }) {
   const start = formatDate(project.start_date);
   const end = formatDate(project.end_date);
-  const techs = (project.tech_stack || "")
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
+  const techs = techList(project.tech_stack);
+  const status = statusOf(project.status);
+  const shown = members.slice(0, 3);
 
   return (
-    <article className={`project-card status-${project.status || "active"}`}>
-      <header className="project-card-head">
+    <article
+      className={`project-card glass${lift ? " card-lift" : ""}${selected ? " is-selected" : ""}`}
+      onClick={() => onSelect(project.id)}
+    >
+      <div className="project-card-head">
         <div className="project-card-title-group">
-          <h3 className="project-card-name">{project.name}</h3>
+          <h2 className="project-card-name">
+            {/* The card's click selects it; the button is its keyboard stop. */}
+            <button
+              type="button"
+              className="project-card-open"
+              aria-controls="project-detail"
+              aria-current={selected ? "true" : undefined}
+            >
+              {project.name}
+            </button>
+          </h2>
           {project.client && <span className="project-card-client">{project.client}</span>}
         </div>
-        <div className="project-card-head-right">
-          <span className={`project-status-badge status-${project.status || "active"}`}>
-            {statusLabel(project.status)}
-          </span>
-          {isAdmin && (
-            <div className="project-card-actions">
-              <button
-                className="project-icon-btn"
-                onClick={() => onEdit(project)}
-                title="Edit project"
-              >
-                ✏️
-              </button>
-              <button
-                className="project-icon-btn project-icon-btn-danger"
-                onClick={() => onDelete(project)}
-                title="Delete project"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+        <span className={`pill ${status.pill}`}>{status.label}</span>
+      </div>
 
       {project.description && <p className="project-card-desc">{project.description}</p>}
 
       {(start || end) && (
-        <p className="project-card-dates">
-          🗓️ {start || "—"} → {end || "ongoing"}
-        </p>
+        <span className="project-card-dates mono">
+          <Icon name="calendar" size={14} strokeWidth={2} />
+          {start || "—"} → {end || "ongoing"}
+        </span>
       )}
 
       {techs.length > 0 && (
         <div className="project-tech-row">
-          {techs.map((tech) => (
-            <span key={tech} className="project-tech-chip">{tech}</span>
+          {techs.map((tech, i) => (
+            <span key={`${i}-${tech}`} className="pill pill-gray mono project-tech-chip">{tech}</span>
           ))}
         </div>
       )}
 
-      <div className="project-card-block">
-        <span className="project-block-label">Team</span>
+      <div className="project-card-foot">
         {members.length === 0 ? (
-          <p className="project-block-empty">No one staffed yet.</p>
+          <span className="project-card-empty">No one staffed yet.</span>
         ) : (
-          <div className="project-tech-row">
-            {members.map((emp) => (
-              <span key={emp.id} className="project-member-badge">{emp.name}</span>
+          <span className="project-avatars" role="img" aria-label={`Team: ${members.map((m) => m.name).join(", ")}`}>
+            {shown.map((emp) => (
+              <Avatar key={emp.id} name={emp.name} className="avatar project-avatar" />
             ))}
-          </div>
+            {members.length > shown.length && (
+              <span className="avatar project-avatar project-avatar-more mono">+{members.length - shown.length}</span>
+            )}
+          </span>
         )}
-      </div>
-
-      <div className="project-card-block">
-        <span className="project-block-label">Environments</span>
-        {environments.length === 0 ? (
-          <p className="project-block-empty">No environments recorded.</p>
-        ) : (
-          <ul className="project-env-list">
-            {environments.map((env) => (
-              <li key={env.id} className={`project-env-item env-${envTone(env.name)}`}>
-                <span className={`project-env-badge env-${envTone(env.name)}`}>{env.name}</span>
-                {env.url ? (
-                  <a
-                    className="project-env-url"
-                    href={env.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {prettyUrl(env.url)}
-                  </a>
-                ) : (
-                  <span className="project-env-url project-env-url-missing">No URL yet</span>
-                )}
-                {env.branch && <span className="project-env-branch">⌥ {env.branch}</span>}
-                {env.notes && <span className="project-env-notes">{env.notes}</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="project-card-block">
-        <span className="project-block-label">Links</span>
-        {links.length === 0 ? (
-          <p className="project-block-empty">No links recorded.</p>
-        ) : (
-          <div className="project-link-row">
-            {links.map((link) => (
-              <a
-                key={link.id}
-                className="project-link-chip"
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={link.url}
-              >
-                <span>{categoryIcon(link.category)}</span>
-                {link.label}
-              </a>
-            ))}
-          </div>
-        )}
+        <span className="project-card-counts">
+          <span className="project-card-count" title="Environments">
+            <Icon name="layers" size={14} strokeWidth={2} />
+            {plural(environments.length, "env")}
+          </span>
+          <span className="project-card-count" title="Links">
+            <Icon name="link" size={14} strokeWidth={2} />
+            {plural(links.length, "link")}
+          </span>
+        </span>
       </div>
     </article>
+  );
+}
+
+// "Project details" (Projects.dc.html): what the card leaves out — dates, stack,
+// environments, links and the team — with the admin edit and delete.
+function ProjectDetail({ project, links, environments, members, isAdmin, onEdit, onDelete, panelRef }) {
+  const start = formatDate(project.start_date);
+  const end = formatDate(project.end_date);
+  const techs = techList(project.tech_stack);
+  const status = statusOf(project.status);
+
+  return (
+    <aside id="project-detail" ref={panelRef} className="project-detail glass" aria-labelledby="project-detail-name">
+      <div className="project-detail-head">
+        <span className="modal-icon" aria-hidden="true">
+          <Icon name="folder" size={22} />
+        </span>
+        <div className="project-detail-heading">
+          <span className="modal-eyebrow">Project details</span>
+          <h2 id="project-detail-name" className="project-detail-name">{project.name}</h2>
+          <div className="project-detail-meta">
+            {project.client && <span>{project.client}</span>}
+            <span className={`pill ${status.pill}`}>{status.label}</span>
+          </div>
+        </div>
+        {isAdmin && (
+          <div className="project-detail-actions">
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={() => onEdit(project)}
+              aria-label={`Edit ${project.name}`}
+              title="Edit project"
+            >
+              <Icon name="edit" size={16} />
+            </button>
+            <button
+              type="button"
+              className="btn-icon project-delete"
+              onClick={() => onDelete(project)}
+              aria-label={`Delete ${project.name}`}
+              title="Delete project"
+            >
+              <Icon name="trash" size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {project.description && <p className="project-detail-desc">{project.description}</p>}
+
+      <dl className="project-facts">
+        <div className="project-fact">
+          <dt>Start Date</dt>
+          <dd className="mono">{start || "—"}</dd>
+        </div>
+        <div className="project-fact">
+          <dt>Target End Date</dt>
+          <dd className="mono">{end || "—"}</dd>
+        </div>
+        {techs.length > 0 && (
+          <div className="project-fact project-fact-wide">
+            <dt>Tech Stack</dt>
+            <dd className="project-tech-row">
+              {techs.map((tech, i) => (
+                <span key={`${i}-${tech}`} className="pill pill-gray mono project-tech-chip">{tech}</span>
+              ))}
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <section className="project-detail-section" aria-labelledby="project-detail-envs">
+        <h3 id="project-detail-envs" className="project-detail-title">Environments</h3>
+        {environments.length === 0 ? (
+          <p className="project-empty">No environments recorded.</p>
+        ) : (
+          <ul className="project-env-list">
+            {environments.map((env) => {
+              const tone = envTone(env.name);
+              return (
+                <li key={env.id} className={`project-env tone-${tone}`}>
+                  <div className="project-env-top">
+                    <span className={`pill ${ENV_TONE_PILL[tone]}`}>{env.name}</span>
+                    {env.url ? (
+                      <a
+                        className="project-env-url mono"
+                        href={normalizeUrl(env.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {prettyUrl(env.url)}
+                      </a>
+                    ) : (
+                      <span className="project-env-url is-missing">No URL yet</span>
+                    )}
+                    {env.branch && (
+                      <span className="project-env-branch">
+                        branch <span className="mono">{env.branch}</span>
+                      </span>
+                    )}
+                  </div>
+                  {env.notes && <p className="project-env-notes">{env.notes}</p>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="project-detail-section" aria-labelledby="project-detail-links">
+        <h3 id="project-detail-links" className="project-detail-title">Links</h3>
+        {links.length === 0 ? (
+          <p className="project-empty">No links recorded.</p>
+        ) : (
+          <ul className="project-link-list">
+            {links.map((link) => {
+              const category = categoryOf(link.category);
+              return (
+                <li key={link.id}>
+                  <a className="project-link" href={normalizeUrl(link.url)} target="_blank" rel="noopener noreferrer">
+                    <span className="project-link-icon" aria-hidden="true">
+                      <Icon name={category.icon} size={16} />
+                    </span>
+                    <span className="project-link-text">
+                      <span className="project-link-label">{link.label}</span>
+                      <span className="project-link-url mono">{prettyUrl(link.url)}</span>
+                    </span>
+                    <span className="project-link-category">{category.label}</span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="project-detail-section" aria-labelledby="project-detail-team">
+        <div className="project-detail-title-row">
+          <h3 id="project-detail-team" className="project-detail-title">Team Members</h3>
+          <span className="project-detail-count mono">{members.length}</span>
+        </div>
+        {members.length === 0 ? (
+          <p className="project-empty">No one staffed yet.</p>
+        ) : (
+          <div className="project-team">
+            {members.map((emp) => (
+              <span key={emp.id} className="project-team-chip">
+                <Avatar name={emp.name} className="avatar project-chip-avatar" aria-hidden="true" />
+                {emp.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
+    </aside>
   );
 }
 
@@ -573,12 +728,15 @@ export default function ProjectsPage() {
     employees,
     deleteProject,
     isAdmin,
+    animationsEnabled,
   } = useApp();
   const { confirmDialog, alertDialog } = useDialog();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [formKey, setFormKey] = useState(0);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedId, setSelectedId] = useState(null);
+  const detailRef = useRef(null);
 
   const linksByProject = useMemo(() => {
     const map = new Map();
@@ -622,6 +780,28 @@ export default function ProjectsPage() {
     [projects, statusFilter]
   );
 
+  const statusCounts = useMemo(() => {
+    const counts = { all: projects.length };
+    for (const p of projects) {
+      const status = p.status || "active";
+      counts[status] = (counts[status] || 0) + 1;
+    }
+    return counts;
+  }, [projects]);
+
+  // The panel shows the chosen project, or the first card once that one is filtered out.
+  const selected = visibleProjects.find((p) => p.id === selectedId) || visibleProjects[0] || null;
+
+  const selectProject = (id) => {
+    setSelectedId(id);
+    // Beside the grid the panel is always in view. On narrow screens it sits under
+    // every card, so bring it up.
+    const panel = detailRef.current;
+    if (panel && panel.getBoundingClientRect().top > window.innerHeight) {
+      panel.scrollIntoView({ block: "start" });
+    }
+  };
+
   const openAdd = () => {
     setEditing(null);
     setFormKey((k) => k + 1);
@@ -637,7 +817,7 @@ export default function ProjectsPage() {
   const handleDelete = async (project) => {
     if (
       !(await confirmDialog(
-        `Delete project "${project.name}"? Its links and environments are deleted with it.`,
+        `Delete project "${project.name}"? Its links, environments and all of its issues on the Tasks tab are deleted with it.`,
         { danger: true }
       ))
     ) {
@@ -657,41 +837,27 @@ export default function ProjectsPage() {
     : [];
 
   return (
-    <section className="projects-page fade-in">
-      <div className="section-header">
-        <div className="directory-title">
-          <h2 className="section-title">🚀 Projects</h2>
-          <span className="directory-count">
-            {projects.length} {projects.length === 1 ? "project" : "projects"}
-          </span>
-        </div>
-        {isAdmin && (
-          <button className="btn btn-primary" onClick={openAdd}>
-            <span>+</span> New Project
-          </button>
-        )}
-      </div>
-
-      <div className="project-filter-chips">
-        <button
-          className={`project-filter-chip ${statusFilter === "all" ? "active" : ""}`}
-          onClick={() => setStatusFilter("all")}
-        >
-          All
-        </button>
-        {STATUSES.map((s) => {
-          const count = projects.filter((p) => (p.status || "active") === s.value).length;
-          return (
+    <section className="projects-page">
+      <div className="projects-toolbar">
+        <div className="project-filter-chips" role="group" aria-label="Filter by status">
+          {STATUS_FILTERS.map((s) => (
             <button
               key={s.value}
+              type="button"
               className={`project-filter-chip ${statusFilter === s.value ? "active" : ""}`}
+              aria-pressed={statusFilter === s.value}
               onClick={() => setStatusFilter(s.value)}
             >
               {s.label}
-              <span className="chip-badge">{count}</span>
+              <span className="project-filter-count mono">{statusCounts[s.value] || 0}</span>
             </button>
-          );
-        })}
+          ))}
+        </div>
+        {isAdmin && (
+          <button type="button" className="btn btn-primary" onClick={openAdd}>
+            <Icon name="plus" size={16} strokeWidth={2.2} /> New Project
+          </button>
+        )}
       </div>
 
       {visibleProjects.length === 0 ? (
@@ -703,19 +869,33 @@ export default function ProjectsPage() {
             : "No projects with this status."}
         </p>
       ) : (
-        <div className="projects-grid">
-          {visibleProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              links={linksByProject.get(project.id) || []}
-              environments={envsByProject.get(project.id) || []}
-              members={membersByProject.get(project.id) || []}
+        <div className="projects-layout">
+          <section className="projects-grid" aria-label="Project list">
+            {visibleProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                links={linksByProject.get(project.id) || []}
+                environments={envsByProject.get(project.id) || []}
+                members={membersByProject.get(project.id) || []}
+                selected={project.id === selected?.id}
+                lift={animationsEnabled !== false}
+                onSelect={selectProject}
+              />
+            ))}
+          </section>
+          {selected && (
+            <ProjectDetail
+              project={selected}
+              links={linksByProject.get(selected.id) || []}
+              environments={envsByProject.get(selected.id) || []}
+              members={membersByProject.get(selected.id) || []}
               isAdmin={isAdmin}
               onEdit={openEdit}
               onDelete={handleDelete}
+              panelRef={detailRef}
             />
-          ))}
+          )}
         </div>
       )}
 

@@ -5,6 +5,7 @@ import { GROUPING_MIN_CARDS, arrangeColumn, buildThemes, nameFromTexts, placeCar
 import { loadGroupingModel, embedTexts } from "@/lib/retroEmbeddings";
 import { postRetro } from "@/lib/retroApi";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
 
 const MODEL_ERROR = "Couldn't load the grouping model. You can still make themes by hand: tick cards, then New theme.";
 const LATE_MODEL_ERROR = "Couldn't load the grouping model, so new cards stay outside themes. Move them with Move to…";
@@ -247,30 +248,41 @@ export default function RetroThemeTools({
     }
   };
 
+  // The AI theme bar (Retro.dc.html): what grouping does, its progress, then the actions.
   return (
-    <div className="retro-theme-tools">
-      {themes.length === 0 && (
-        <button type="button" className="retro-theme-tools-btn" onClick={handleGroup} disabled={busy}>
-          ✨ Group similar cards
-        </button>
-      )}
-      {themes.length > 0 && (
-        <button type="button" className="retro-theme-tools-btn" onClick={handleUngroup} disabled={busy}>
-          Ungroup all
-        </button>
-      )}
-      {selectedCards.length > 0 && (
-        <button
-          type="button"
-          className="retro-theme-tools-btn"
-          onClick={handleNewTheme}
-          disabled={busy || spansColumns}
-          title={spansColumns ? "Selected cards must all be in one column" : undefined}
-        >
-          New theme from {selectedCards.length} selected
-        </button>
-      )}
-      {status && <span className="retro-theme-tools-status" role="status">{status}</span>}
-    </div>
+    <section className="glass retro-theme-bar" aria-label="Theme grouping">
+      <span className="retro-theme-bar-icon"><Icon name="sparkles" size={18} /></span>
+      <div className="retro-theme-bar-text">
+        <span className="retro-theme-bar-title">AI theme grouping</span>
+        <span className="retro-theme-bar-sub">
+          Clusters cards with similar meaning inside each column. Runs in your browser — tick cards to make a theme by hand.
+        </span>
+      </div>
+      {status && <span className="retro-theme-bar-status" role="status">{status}</span>}
+      <div className="retro-theme-bar-actions">
+        {selectedCards.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleNewTheme}
+            disabled={busy || spansColumns}
+            title={spansColumns ? "Selected cards must all be in one column" : undefined}
+          >
+            New theme from {selectedCards.length} selected
+          </button>
+        )}
+        {themes.length > 0 && (
+          <button type="button" className="btn btn-secondary" onClick={handleUngroup} disabled={busy}>
+            Ungroup all
+          </button>
+        )}
+        {themes.length === 0 && (
+          <button type="button" className="btn btn-primary" onClick={handleGroup} disabled={busy}>
+            <Icon name="sparkles" size={15} strokeWidth={2} />
+            Group similar cards
+          </button>
+        )}
+      </div>
+    </section>
   );
 }

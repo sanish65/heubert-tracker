@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily Sync</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.78);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:24px 24px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.82);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.34),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.26),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(45,212,239,.16),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.11),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.2),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.16),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(6,182,212,.14),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht .row-h:hover,.ht .nav-a:hover,.ht .btn-s:hover,.ht .btn-i:hover{background:var(--raised)}
+.ht .btn-p:hover{background:var(--primary-hover);color:#FFFFFF}
+.ht .btn-o:hover{background:var(--orange-hover);color:#0A0E17}
+.ht .card-h{transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease}
+.ht .card-h:hover{box-shadow:var(--glass-hi),var(--shadow-lift);border-color:var(--line-strong);transform:translateY(-2px)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.ht .card-h:hover{transform:none}}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="min-height: 100vh; display: flex; flex-direction: column;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <!-- Slim top bar -->
+  <header class="glass" style="min-height: 76px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 12px 32px; border-bottom: 1px solid var(--line); background: var(--surface);">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <img src="/_blob/2361260a942726892d672ff0d59d40d6" alt="Heubert" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+      <h1 style="margin: 0; font-family: var(--f-display); font-size: 24px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-1);">Daily Sync</h1>
+      <span style="height: 24px; padding: 0 10px; border-radius: 9999px; background: var(--orange-soft); color: var(--orange); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+        <span style="width: 7px; height: 7px; border-radius: 9999px; background: var(--orange); box-shadow: 0 0 8px rgba(255,106,31,.8);" aria-hidden="true"></span>
+        Live
+      </span>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding-left: 20px; border-left: 1px solid var(--line);">
+      <time role="timer" aria-label="Current time" style="font-family: var(--f-mono); font-size: 30px; font-weight: 500; color: var(--text-1); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">09:42:17</time>
+      <div style="display: flex; flex-direction: column; line-height: 1.3;">
+        <span style="font-size: 15px; font-weight: 600; color: var(--text-1);">Monday, Oct 19 2026</span>
+        <span style="font-family: var(--f-mono); font-size: 13px; color: var(--cyan-text);">3 Kartik 2083 BS</span>
+      </div>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 9999px; background: var(--raised); border: 1px solid var(--line); font-size: 13px; color: var(--text-3);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2"></path></svg>
+        In meeting <span style="font-family: var(--f-mono); color: var(--text-1);">06:12</span>
+      </span>
+    </div>
+    <div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+      <a class="btn-s glass" href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; box-sizing: border-box; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--text-1); font-size: 14px; font-weight: 600; text-decoration: none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19l-7-7 7-7M19 12H5"></path></svg>
+        Back to Dashboard
+      </a>
+      <a class="btn-s glass" href="#" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; box-sizing: border-box; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--text-1); font-size: 14px; font-weight: 600; text-decoration: none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+        Meeting Link
+      </a>
+      <a class="btn-o" href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; box-sizing: border-box; border-radius: 9999px; background: var(--orange); color: #0A0E17; font-size: 14px; font-weight: 600; text-decoration: none; box-shadow: 0 6px 20px rgba(255,106,31,.3);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91M22 2 2 22"></path></svg>
+        End Meeting
+      </a>
+    </div>
+  </header>
+
+  <main style="box-sizing: border-box; width: 100%; padding: 32px; display: flex; flex-direction: column; gap: 24px;">
+    <!-- Figures + quick actions -->
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch;">
+      <section aria-label="Today at a glance" style="flex: 999 1 640px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+        <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+          <div class="glass" style="display: flex; flex-direction: column; gap: 8px; padding: 18px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-family: var(--f-mono); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">{{k.label}}</span>
+              <span style="margin-left: auto; width: 9px; height: 9px; border-radius: 2px; background: {{k.dot}}; box-shadow: 0 0 10px {{k.dot}};" aria-hidden="true"></span>
+            </div>
+            <span style="font-family: var(--f-display); font-size: 40px; line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; color: var(--text-1); font-variant-numeric: tabular-nums;">{{k.value}}</span>
+            <span style="font-size: 15px; color: var(--text-3);">{{k.sub}}</span>
+          </div>
+        </sc-for>
+      </section>
+      <section class="glass" aria-label="Quick add" style="flex: 1 1 260px; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface);">
+        <span style="font-family: var(--f-mono); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Quick add</span>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+          <button class="btn-s" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: transparent; color: var(--text-1); font-size: 15px; font-weight: 600; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            Late Fine
+          </button>
+          <button class="btn-s" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: transparent; color: var(--text-1); font-size: 15px; font-weight: 600; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            Standup Fine
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+      <!-- Standup submissions -->
+      <section class="glass" aria-labelledby="subs-h" style="flex: 2 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 18px; padding: 24px 28px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface);">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+          <h2 id="subs-h" style="margin: 0; font-family: var(--f-display); font-size: 26px; font-weight: 700; color: var(--text-1);">Standup submissions</h2>
+          <span style="height: 28px; padding: 0 12px; border-radius: 9999px; background: var(--pb-green); color: var(--pf-green); font-size: 14px; font-weight: 600; display: inline-flex; align-items: center;">6 / 8 submitted</span>
+          <div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <label style="display: flex; align-items: center; gap: 8px; width: 200px; height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-3);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM21 21l-4.3-4.3"></path></svg>
+              <input type="search" aria-label="Search name" placeholder="Search name…" style="flex-grow: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 15px; color: var(--text-1);">
+            </label>
+            <div role="group" aria-label="Date" style="display: inline-flex; align-items: center; height: 40px; border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden;">
+              <button class="btn-i" aria-label="Previous day" style="width: 38px; height: 100%; border: 0; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+              </button>
+              <span style="padding: 0 10px; font-size: 15px; font-weight: 600; color: var(--text-1);">Today</span>
+              <button class="btn-i" aria-label="Next day" disabled style="width: 38px; height: 100%; border: 0; background: transparent; color: var(--text-3); opacity: .5; display: inline-flex; align-items: center; justify-content: center; cursor: not-allowed;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+              </button>
+            </div>
+            <button class="btn-s" title="Showing: last submitted first" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: transparent; color: var(--text-1); font-size: 14px; font-weight: 600; cursor: pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4"></path></svg>
+              Latest first
+            </button>
+            <button class="btn-i" aria-label="Enlarge submissions" style="width: 40px; height: 40px; border: 1px solid var(--line-strong); border-radius: 10px; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <div role="group" aria-label="Filter by project" style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <sc-for list="{{projects}}" as="p" hint-placeholder-count="4">
+            <button aria-pressed="{{p.pressed}}" onClick="{{p.pick}}" style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 9999px; border: 1px solid {{p.border}}; background: {{p.bg}}; color: {{p.fg}}; font-size: 15px; font-weight: 600; cursor: pointer;">
+              {{p.name}}
+              <span style="font-family: var(--f-mono); font-size: 12px; opacity: .8;">{{p.count}}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px;">
+          <sc-for list="{{subs}}" as="s" hint-placeholder-count="6">
+            <article style="display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: 14px; background: var(--raised); border: 1px solid var(--line);">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 9999px; background: {{s.av}}; color: {{s.fg}}; font-family: var(--f-display); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;" aria-hidden="true">{{s.initials}}</span>
+                <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                  <h3 style="margin: 0; font-size: 19px; font-weight: 600; color: var(--text-1);">{{s.name}}</h3>
+                  <span style="font-size: 13px; color: var(--text-3);">{{s.project}}</span>
+                </div>
+                <span style="font-family: var(--f-mono); font-size: 14px; color: var(--cyan-text);">{{s.time}}</span>
+              </div>
+              <dl style="margin: 0; display: flex; flex-direction: column; gap: 12px;">
+                <sc-for list="{{s.qa}}" as="q" hint-placeholder-count="3">
+                  <div style="display: flex; flex-direction: column; gap: 3px;">
+                    <dt style="font-size: 13px; font-weight: 600; color: var(--text-3);">{{q.q}}</dt>
+                    <dd style="margin: 0; font-size: 16px; line-height: 1.5; color: {{q.color}};">{{q.a}}</dd>
+                  </div>
+                </sc-for>
+              </dl>
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line);">
+                <span style="font-size: 13px; font-weight: 600; color: var(--text-3); margin-right: 4px;">Jira</span>
+                <sc-for list="{{s.tickets}}" as="t" hint-placeholder-count="2">
+                  <span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 4px 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface);">
+                    <span style="font-family: var(--f-mono); font-size: 13px; color: var(--cyan-text);">{{t.key}}</span>
+                    <span style="height: 20px; padding: 0 7px; border-radius: 9999px; background: {{t.pb}}; color: {{t.pf}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">{{t.status}}</span>
+                  </span>
+                </sc-for>
+              </div>
+            </article>
+          </sc-for>
+        </div>
+      </section>
+
+      <!-- Right column -->
+      <div style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+        <section class="glass" aria-labelledby="miss-h" style="display: flex; flex-direction: column; gap: 12px; padding: 22px 24px; border: 1px solid rgba(244,63,94,.28); border-radius: 16px; background: var(--surface);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 id="miss-h" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 22px; font-weight: 700; color: var(--text-1);">Missing submissions</h2>
+            <span style="height: 26px; padding: 0 10px; border-radius: 9999px; background: var(--pb-red); color: var(--pf-red); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center;">2 missing</span>
+          </div>
+          <sc-for list="{{missing}}" as="m" hint-placeholder-count="2">
+            <div class="row-h" style="display: flex; align-items: center; gap: 12px; padding: 10px; margin: 0 -10px; border-radius: 12px;">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 9999px; background: {{m.av}}; color: #FFFFFF; font-family: var(--f-display); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;" aria-hidden="true">{{m.initials}}</span>
+              <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 18px; font-weight: 600; color: var(--text-1);">{{m.name}}</span>
+                <span style="font-size: 14px; color: var(--text-3);">{{m.last}}</span>
+              </div>
+              <button class="btn-s" aria-label="{{m.fineLabel}}" style="height: 34px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 9px; background: transparent; color: var(--pf-red); font-size: 13px; font-weight: 600; cursor: pointer;">Add fine</button>
+            </div>
+          </sc-for>
+        </section>
+
+        <section class="glass" aria-labelledby="leave-h" style="display: flex; flex-direction: column; gap: 12px; padding: 22px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 id="leave-h" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 22px; font-weight: 700; color: var(--text-1);">On leave today</h2>
+            <span style="height: 26px; padding: 0 10px; border-radius: 9999px; background: var(--pb-cyan); color: var(--pf-cyan); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center;">2 away</span>
+          </div>
+          <sc-for list="{{leaves}}" as="l" hint-placeholder-count="2">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0;">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 9999px; background: {{l.av}}; color: #FFFFFF; font-family: var(--f-display); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;" aria-hidden="true">{{l.initials}}</span>
+              <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+                <span style="font-size: 18px; font-weight: 600; color: var(--text-1);">{{l.name}}</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                  <span style="height: 24px; padding: 0 9px; border-radius: 9999px; background: var(--pb-cyan); color: var(--pf-cyan); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center;">{{l.duration}}</span>
+                  <span style="height: 24px; padding: 0 9px; border-radius: 9999px; background: var(--pb-gray); color: var(--pf-gray); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center;">{{l.category}}</span>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </section>
+
+        <section class="glass" aria-labelledby="word-h" style="display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--cyan-text);"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+            <h2 id="word-h" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 22px; font-weight: 700; color: var(--text-1);">Word of the day</h2>
+            <button class="btn-i" aria-label="Edit word" style="width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+            </button>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;">
+            <span style="font-family: var(--f-display); font-size: 40px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; color: var(--text-1); text-shadow: 0 0 24px rgba(45,212,239,.3);">Serendipity</span>
+            <span style="font-family: var(--f-mono); font-size: 15px; color: var(--text-3);">/ˌser.ənˈdɪp.ə.ti/</span>
+          </div>
+          <span style="font-size: 16px; color: var(--text-2);">Translation: <span style="font-weight: 600; color: var(--cyan-text);">Sanyog</span></span>
+          <p style="margin: 0; font-size: 17px; line-height: 1.55; color: var(--text-1);">Finding something good or useful by chance, without looking for it.</p>
+          <blockquote style="margin: 0; padding: 12px 16px; border-left: 3px solid var(--cyan); border-radius: 0 10px 10px 0; background: var(--raised); font-size: 16px; line-height: 1.5; font-style: italic; color: var(--text-2);">“Finding the old fix in last sprint’s retro notes was pure serendipity.”</blockquote>
+        </section>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+      <!-- Shoutouts & celebrations -->
+      <section class="glass" aria-labelledby="shout-h" style="flex: 3 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px 28px; border: 1px solid rgba(255,106,31,.3); border-radius: 16px; background: var(--surface);">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px;">
+            <h2 id="shout-h" style="margin: 0; font-family: var(--f-display); font-size: 26px; font-weight: 700; color: var(--text-1);">Shoutouts &amp; celebrations</h2>
+            <span style="font-size: 15px; color: var(--text-3);">Thank a colleague or celebrate a win.</span>
+          </div>
+          <div role="group" aria-label="Shoutout date" style="display: inline-flex; align-items: center; height: 40px; border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden;">
+            <button class="btn-i" aria-label="Previous day" style="width: 38px; height: 100%; border: 0; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+            </button>
+            <span style="padding: 0 10px; font-size: 15px; font-weight: 600; color: var(--text-1);">Today</span>
+            <button class="btn-i" aria-label="Next day" style="width: 38px; height: 100%; border: 0; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px 20px; border-radius: 14px; background: var(--orange-soft); border: 1px solid rgba(255,106,31,.35);">
+          <span style="width: 52px; height: 52px; flex-shrink: 0; border-radius: 9999px; background: var(--orange); color: #0A0E17; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(255,106,31,.45);">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1M2 21h20M7 8v3M12 8v3M17 8v3"></path></svg>
+          </span>
+          <div style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-family: var(--f-display); font-size: 24px; font-weight: 700; color: var(--text-1);">Happy birthday, Anisha Rai</span>
+            <span style="font-size: 15px; color: var(--text-2);">Birthday · Today</span>
+          </div>
+          <button class="btn-o" style="height: 40px; padding: 0 18px; border: 0; border-radius: 9999px; background: var(--orange); color: #0A0E17; font-size: 15px; font-weight: 600; cursor: pointer;">Send Wish</button>
+        </div>
+
+        <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px;">
+          <sc-for list="{{shoutouts}}" as="s" hint-placeholder-count="3">
+            <li style="display: flex; gap: 14px; padding: 14px 16px; border-radius: 14px; background: var(--raised); border: 1px solid var(--line);">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 9999px; background: {{s.av}}; color: #FFFFFF; font-family: var(--f-display); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;" aria-hidden="true">{{s.initials}}</span>
+              <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;">
+                  <span style="font-size: 16px; font-weight: 600; color: var(--text-1);">{{s.from}}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--text-3);"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                  <sc-for list="{{s.to}}" as="t" hint-placeholder-count="1">
+                    <span style="height: 24px; padding: 0 9px; border-radius: 9999px; background: var(--orange-soft); color: var(--orange); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center;">{{t}}</span>
+                  </sc-for>
+                  <span style="margin-left: auto; font-family: var(--f-mono); font-size: 13px; color: var(--text-3);">{{s.time}}</span>
+                </div>
+                <p style="margin: 0; font-size: 17px; line-height: 1.5; color: var(--text-1);">{{s.text}}</p>
+              </div>
+            </li>
+          </sc-for>
+        </ul>
+
+        <form style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 14px; border: 1px dashed var(--line-strong);">
+          <label style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 14px; font-weight: 600; color: var(--text-2);">New shoutout</span>
+            <textarea rows="2" placeholder="Who are you thanking, and for what?" style="resize: vertical; box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-size: 16px; line-height: 1.45;"></textarea>
+          </label>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <select aria-label="Tag a colleague" style="height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-size: 15px;">
+              <option>Tag a colleague</option>
+              <option>Aarav Shrestha</option>
+              <option>Sita Gurung</option>
+              <option>Bikash Thapa</option>
+              <option>Priya Maharjan</option>
+              <option>Rohan KC</option>
+              <option>Kriti Joshi</option>
+              <option>Nabin Tamang</option>
+              <option>Anisha Rai</option>
+            </select>
+            <button class="btn-o" type="button" style="margin-left: auto; height: 40px; padding: 0 20px; border: 0; border-radius: 9999px; background: var(--orange); color: #0A0E17; font-size: 15px; font-weight: 600; cursor: pointer;">Post shoutout</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Quick add leave -->
+      <section class="glass" aria-labelledby="ql-h" style="flex: 2 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px 28px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface);">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <h2 id="ql-h" style="margin: 0; font-family: var(--f-display); font-size: 22px; font-weight: 700; color: var(--text-1);">Quick add leave</h2>
+          <span style="font-size: 15px; color: var(--text-3);">For today, Monday Oct 19 · 3 Kartik 2083 BS</span>
+        </div>
+        <form style="display: flex; flex-direction: column; gap: 16px;">
+          <label style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 14px; font-weight: 600; color: var(--text-2);">Employee</span>
+            <select style="height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-size: 16px;">
+              <option>Select…</option>
+              <option>Aarav Shrestha</option>
+              <option selected>Rohan KC</option>
+              <option>Sita Gurung</option>
+              <option>Bikash Thapa</option>
+              <option>Priya Maharjan</option>
+              <option>Anisha Rai</option>
+            </select>
+          </label>
+          <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px;">
+            <legend style="padding: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--text-2);">Duration</legend>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+              <sc-for list="{{durations}}" as="d" hint-placeholder-count="3">
+                <label style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 42px; padding: 0 8px; border-radius: 10px; border: 1px solid {{d.border}}; background: {{d.bg}}; color: {{d.fg}}; font-size: 15px; font-weight: 600; cursor: pointer;">
+                  <sc-if value="{{d.on}}" hint-placeholder-val="{{false}}"><input type="radio" name="dur" checked style="margin: 0; accent-color: #3D63F0;"></sc-if>
+                  <sc-if value="{{d.off}}" hint-placeholder-val="{{true}}"><input type="radio" name="dur" style="margin: 0; accent-color: #3D63F0;"></sc-if>
+                  {{d.label}}
+                </label>
+              </sc-for>
+            </div>
+          </fieldset>
+          <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px;">
+            <legend style="padding: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--text-2);">Half day segment</legend>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+              <label style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 42px; border-radius: 10px; border: 1px solid var(--primary); background: var(--primary-soft); color: var(--primary-text); font-size: 15px; font-weight: 600; cursor: pointer;">
+                <input type="radio" name="seg" checked style="margin: 0; accent-color: #3D63F0;">
+                First Half
+              </label>
+              <label style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 42px; border-radius: 10px; border: 1px solid var(--line-strong); background: transparent; color: var(--text-2); font-size: 15px; font-weight: 600; cursor: pointer;">
+                <input type="radio" name="seg" style="margin: 0; accent-color: #3D63F0;">
+                Second Half
+              </label>
+            </div>
+          </fieldset>
+          <label style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 14px; font-weight: 600; color: var(--text-2);">Category</span>
+            <select style="height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-size: 16px;">
+              <option>Casual · [days] left</option>
+              <option>Sick · [days] left</option>
+              <option>[Other leave type]</option>
+            </select>
+          </label>
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); cursor: pointer;">
+            <input type="checkbox" style="width: 16px; height: 16px; margin: 0; accent-color: #3D63F0;">
+            Override balance limit
+          </label>
+          <button class="btn-p" type="button" style="height: 44px; border: 0; border-radius: 10px; background: var(--primary); color: #FFFFFF; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(61,99,240,.35);">Save Leave</button>
+        </form>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":2300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const st = this.state || {};
+    const proj = st.proj || 'all';
+    const T = {
+      'To Do': ['var(--pb-gray)', 'var(--pf-gray)'],
+      'In Progress': ['var(--pb-blue)', 'var(--pf-blue)'],
+      'In Review': ['var(--pb-violet)', 'var(--pf-violet)'],
+      'Blocked': ['var(--pb-red)', 'var(--pf-red)'],
+      'Done': ['var(--pb-green)', 'var(--pf-green)']
+    };
+    const tk = (key, status) => ({ key, status, pb: T[status][0], pf: T[status][1] });
+    const Q = ['What did you work on yesterday?', 'What will you work on today?', 'Any blockers?'];
+    const qa = (y, t, b) => [y, t, b].map((a, i) => ({ q: Q[i], a, color: a === 'None' ? 'var(--text-3)' : 'var(--text-1)' }));
+    const allSubs = [
+      { name: 'Anisha Rai', initials: 'AR', av: '#B4471A', fg: '#FFFFFF', pid: 'b', project: '[Project B]', time: '09:38 AM',
+        qa: qa('Answered support tickets about leave balances after the season rollover.', 'Pair with Bikash on the missed check-out reminder email.', 'Need SMTP credentials for staging.'),
+        tickets: [tk('HT-41', 'Blocked')] },
+      { name: 'Sanish', initials: 'S', av: 'var(--orange)', fg: '#0A0E17', pid: 'a', project: '[Project A]', time: '09:31 AM',
+        qa: qa('Design pass on the retro board and the meeting page layout.', 'Review Sprint 42 tickets and run the retrospective at 3 pm.', 'None'),
+        tickets: [tk('HT-47', 'In Review')] },
+      { name: 'Priya Maharjan', initials: 'PM', av: '#B4471A', fg: '#FFFFFF', pid: 'a', project: '[Project A]', time: '09:24 AM',
+        qa: qa('Drag and drop ordering on the task board — order now persists.', 'Edge cases when dropping across columns, then tests.', 'None'),
+        tickets: [tk('HT-44', 'In Progress')] },
+      { name: 'Aarav Shrestha', initials: 'AS', av: '#3D63F0', fg: '#FFFFFF', pid: 'a', project: '[Project A]', time: '09:15 AM',
+        qa: qa('Wrapped up AI grouping for retro cards and fixed review comments.', 'Start copying poker estimates onto task cards.', 'None'),
+        tickets: [tk('HT-52', 'To Do'), tk('HT-38', 'Done')] },
+      { name: 'Sita Gurung', initials: 'SG', av: '#7C5CE0', fg: '#FFFFFF', pid: 'b', project: '[Project B]', time: '09:08 AM',
+        qa: qa('Light theme for retro columns and sticky cards.', 'Kudos and action item panels in the light theme.', 'Waiting on final colour tokens from design.'),
+        tickets: [tk('HT-47', 'In Progress')] },
+      { name: 'Kriti Joshi', initials: 'KJ', av: '#7C5CE0', fg: '#FFFFFF', pid: 'c', project: '[Project C]', time: '08:52 AM',
+        qa: qa('Empty state for the Memories gallery.', 'Reviewing PRs this morning — on leave from the second half.', 'None'),
+        tickets: [tk('HT-55', 'In Review')] }
+    ];
+    const projDefs = [['all', 'All', 8], ['a', '[Project A]', 4], ['b', '[Project B]', 3], ['c', '[Project C]', 1]];
+    return {
+      themeCls: light ? 'light' : '',
+      kpis: [
+        { label: 'Submitted', value: '6 / 8', sub: 'standups in for today', dot: '#22C55E' },
+        { label: 'Missing', value: '2', sub: 'Bikash, Rohan', dot: '#F43F5E' },
+        { label: 'On leave', value: '2', sub: '1 full day · 1 half day', dot: '#2DD4EF' },
+        { label: 'Late today', value: '1', sub: 'Rs. 25 · unpaid', dot: '#F5A524' }
+      ],
+      projects: projDefs.map(([id, name, count]) => {
+        const on = id === proj;
+        return {
+          name, count, pressed: on ? 'true' : 'false',
+          bg: on ? 'var(--primary)' : 'var(--raised)', fg: on ? '#FFFFFF' : 'var(--text-2)',
+          border: on ? 'var(--primary)' : 'var(--line-strong)',
+          pick: () => this.setState({ proj: id })
+        };
+      }),
+      subs: proj === 'all' ? allSubs : allSubs.filter(s => s.pid === proj),
+      missing: [
+        { name: 'Bikash Thapa', initials: 'BT', av: '#0B7F90', last: 'Last submitted Fri, Oct 16', fineLabel: 'Add standup fine for Bikash Thapa' },
+        { name: 'Rohan KC', initials: 'RK', av: '#3D63F0', last: 'Last submitted Thu, Oct 15', fineLabel: 'Add standup fine for Rohan KC' }
+      ],
+      leaves: [
+        { name: 'Nabin Tamang', initials: 'NT', av: '#0B7F90', duration: 'Full Day', category: 'Casual' },
+        { name: 'Kriti Joshi', initials: 'KJ', av: '#7C5CE0', duration: 'Half Day · Second Half', category: 'Sick' }
+      ],
+      shoutouts: [
+        { from: 'Sita Gurung', initials: 'SG', av: '#7C5CE0', to: ['Bikash Thapa'], time: '09:20', text: 'Stayed late on release night to watch the deploy and still made standup on time. Thank you!' },
+        { from: 'Rohan KC', initials: 'RK', av: '#3D63F0', to: ['Priya Maharjan'], time: '09:05', text: 'Her test checklist caught the leave balance bug before anyone else saw it.' },
+        { from: 'Aarav Shrestha', initials: 'AS', av: '#3D63F0', to: ['Kriti Joshi', 'Anisha Rai'], time: 'Fri', text: 'Great teamwork clearing the support queue before Dashain.' }
+      ],
+      durations: [
+        { label: 'Full Day', on: false },
+        { label: 'Half Day', on: true },
+        { label: 'Early Leave', on: false }
+      ].map(d => Object.assign(d, {
+        off: !d.on,
+        bg: d.on ? 'var(--primary-soft)' : 'transparent',
+        fg: d.on ? 'var(--primary-text)' : 'var(--text-2)',
+        border: d.on ? 'var(--primary)' : 'var(--line-strong)'
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

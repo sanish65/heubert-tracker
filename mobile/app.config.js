@@ -18,9 +18,17 @@ module.exports = {
     // delivered to binaries that cannot run them. Under the old "appVersion" policy the
     // date picker was added without touching version 1.0.0, and every update since kept
     // flowing to a build with no RNDateTimePicker compiled in.
-    runtimeVersion: {
-      policy: "fingerprint",
-    },
+    // Development builds load their JavaScript from Metro, never from EAS Update, so they take a
+    // fixed runtime instead of the fingerprint: EAS's server-side fingerprint (taken after prebuild,
+    // with the development environment's variables) never matches the local one. Every other build
+    // keeps the fingerprint. HT_DEV_CLIENT_RUNTIME is an EAS variable of the "development" environment only,
+    // which eas build loads on this machine and on the EAS server alike, so the two sides agree.
+    runtimeVersion:
+      process.env.HT_DEV_CLIENT_RUNTIME === "1"
+        ? "development"
+        : {
+            policy: "fingerprint",
+          },
     updates: {
       url: "https://u.expo.dev/457aa50a-7fe6-4a33-a090-0230caf409b5",
     },

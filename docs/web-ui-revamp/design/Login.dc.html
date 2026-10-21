@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.78);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:24px 24px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.82);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.34),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.26),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(45,212,239,.16),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.11),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.2),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.16),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(6,182,212,.14),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht .row-h:hover,.ht .nav-a:hover,.ht .btn-s:hover,.ht .btn-i:hover{background:var(--raised)}
+.ht .btn-p:hover{background:var(--primary-hover);color:#FFFFFF}
+.ht .btn-o:hover{background:var(--orange-hover);color:#0A0E17}
+.ht .card-h{transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease}
+.ht .card-h:hover{box-shadow:var(--glass-hi),var(--shadow-lift);border-color:var(--line-strong);transform:translateY(-2px)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.ht .card-h:hover{transform:none}}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="min-height: 100vh; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 48px 16px; overflow: hidden;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <div aria-hidden="true" style="position: absolute; inset: 0; z-index: 0; pointer-events: none; font-family: var(--f-mono); font-size: 12px; line-height: 2; color: var(--text-3); opacity: .22; white-space: pre; overflow: hidden;">
+    <div style="position: absolute; top: 56px; left: 48px;">01001000 01010100 ── ┐
+01100110 01101001 │
+01101110 01100101 └─ ●
+01110011 ─────── ┐
+         └─ 0x48 ●</div>
+    <div style="position: absolute; bottom: 64px; right: 56px; text-align: right;">● ── 01110011 01110100
+│ 01100001 01101110
+└──── 01100100 01110101
+       01110000 ── ●</div>
+    <div style="position: absolute; top: 46%; right: 9%;">┌─ 0x10 ─┐
+● 1011 ●
+└─ 0x19 ─┘</div>
+    <div style="position: absolute; bottom: 18%; left: 8%;">10 ── 01 ── 11
+│           │
+●── 0x2083 ──●</div>
+  </div>
+
+  <main style="position: relative; z-index: 1; width: 100%; max-width: 440px;">
+    <section class="glass" aria-labelledby="login-title" style="box-sizing: border-box; width: 100%; padding: 44px 40px 32px; border: 1px solid var(--line-strong); border-radius: 24px; background: var(--surface-strong); box-shadow: var(--glass-hi), var(--shadow-lift); display: flex; flex-direction: column; align-items: center; gap: 0; text-align: center;">
+      <img src="/_blob/2361260a942726892d672ff0d59d40d6" alt="Heubert Tracker logo" style="width: 56px; height: 56px; border-radius: 14px; object-fit: cover; box-shadow: 0 8px 24px rgba(61,99,240,.35);">
+
+      <span style="margin-top: 20px; height: 24px; padding: 0 10px; border-radius: 9999px; background: var(--pb-green); color: var(--pf-green); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+        <span style="width: 6px; height: 6px; border-radius: 9999px; background: var(--pf-green);" aria-hidden="true"></span>
+        Internal Portal
+      </span>
+
+      <h1 id="login-title" style="margin: 16px 0 0; font-family: var(--f-display); font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; color: var(--text-1);">Heubert Tracker</h1>
+      <p style="margin: 10px 0 0; max-width: 320px; font-size: 15px; line-height: 1.5; color: var(--text-3);">Fines, leaves, standups and ceremonies for the Heubert team.</p>
+
+      <sc-if value="{{showError}}" hint-placeholder-val="{{false}}">
+        <div role="alert" style="margin-top: 22px; width: 100%; box-sizing: border-box; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--pb-red); border: 1px solid var(--pf-red); color: var(--pf-red); font-size: 14px; text-align: left;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 2px;"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 8v4M12 16h.01"></path></svg>
+          You are unauthorized to access this page.
+        </div>
+      </sc-if>
+
+      <sc-if value="{{signingIn}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="margin-top: 28px; height: 48px; display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-2);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color: var(--cyan);"><path d="M21 12a9 9 0 1 1-6.22-8.56"></path></svg>
+          Signing you in…
+        </div>
+      </sc-if>
+      <sc-if value="{{idle}}" hint-placeholder-val="{{true}}">
+        <button class="btn-s" style="margin-top: 28px; width: 100%; height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--line-strong); border-radius: 9999px; background: var(--surface-solid); color: var(--text-1); font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--primary-text);"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4zM16.5 7a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1z"></path></svg>
+          Continue with Google
+        </button>
+      </sc-if>
+      <span style="margin-top: 12px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">Use your @heubert.com account</span>
+
+      <ul style="margin: 32px 0 0; padding: 0; width: 100%; list-style: none; display: flex; flex-direction: column; gap: 10px; text-align: left;">
+        <li style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-2);">
+          <span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: var(--primary-soft); color: var(--primary-text); display: inline-flex; align-items: center; justify-content: center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"></path></svg>
+          </span>
+          Track late fines and standup records
+        </li>
+        <li style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-2);">
+          <span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: var(--primary-soft); color: var(--primary-text); display: inline-flex; align-items: center; justify-content: center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </span>
+          Manage employee profiles and history
+        </li>
+        <li style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-2);">
+          <span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: var(--primary-soft); color: var(--primary-text); display: inline-flex; align-items: center; justify-content: center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path></svg>
+          </span>
+          View and record team leaves
+        </li>
+      </ul>
+
+      <p style="margin: 28px 0 0; padding-top: 18px; width: 100%; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-3);">Access restricted to Heubert team members only</p>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"showError":{"editor":"boolean","default":false},"signingIn":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const showError = this.props.showError ?? false;
+    const signingIn = this.props.signingIn ?? false;
+    return {
+      themeCls: light ? 'light' : '',
+      showError,
+      signingIn,
+      idle: !signingIn
+    };
+  }
+}
+</script>
+</body>
+</html>

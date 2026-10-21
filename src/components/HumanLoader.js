@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { FestiveScene } from "@/components/DashainBanner";
 import { isFestiveSeason } from "@/lib/festiveSeason";
@@ -25,16 +26,13 @@ const LOADER_FIREWORKS = [
 // Children cheering in front of the rooftops. Their lines take turns on a 9s
 // cycle, so neighbours never talk over each other.
 const LOADER_KIDS = [
-  { left: "6%", pose: "kite", shirt: "#ef4444", head: "#fcd34d", say: "दुई धार्के धागो छोड! 🪁", sayDelay: 0 },
-  { left: "22%", pose: "jump", shirt: "#22c55e", head: "#fdba74", say: "दशैं आयो! 🎉", sayDelay: 4.5, wide: true },
-  { left: "36%", pose: "wave", shirt: "#3b82f6", head: "#fcd34d", say: "मासु भात खाउँ! 🍖", sayDelay: 1.5, wide: true },
-  { left: "52%", pose: "kite", shirt: "#a855f7", head: "#fdba74", say: "चेट! 🪁", sayDelay: 3 },
-  { left: "64%", pose: "jump", shirt: "#f97316", head: "#fcd34d", say: "नयाँ लुगा लगाएँ! 👕", sayDelay: 6, wide: true },
-  { left: "76%", pose: "wave", shirt: "#ec4899", head: "#fdba74", say: "देउसी रे! 🪔", sayDelay: 7.5, wide: true },
+  { left: "6%", pose: "kite", shirt: "#ef4444", head: "#fcd34d", say: "दुई धार्के धागो छोड!", sayDelay: 0 },
+  { left: "22%", pose: "jump", shirt: "#22c55e", head: "#fdba74", say: "दशैं आयो!", sayDelay: 4.5, wide: true },
+  { left: "36%", pose: "wave", shirt: "#3b82f6", head: "#fcd34d", say: "मासु भात खाउँ!", sayDelay: 1.5, wide: true },
+  { left: "52%", pose: "kite", shirt: "#a855f7", head: "#fdba74", say: "चेट!", sayDelay: 3 },
+  { left: "64%", pose: "jump", shirt: "#f97316", head: "#fcd34d", say: "नयाँ लुगा लगाएँ!", sayDelay: 6, wide: true },
+  { left: "76%", pose: "wave", shirt: "#ec4899", head: "#fdba74", say: "देउसी रे!", sayDelay: 7.5, wide: true },
 ];
-
-// People who already carry their own prop; everyone else gets a kite during the festival.
-const hasOwnProp = ["aashish", "nikhil", "nitesh", "jenish", "prativa", "dinesh", "pratisha", "bikesh", "pranay", "sanish"];
 
 // Known categorizations
 const knownBoys = ["sanish", "jenish", "dinesh", "nikhil", "nitesh", "aashish", "bikesh", "pranay", "ankit", "bipin" , "nikesh"];
@@ -89,11 +87,13 @@ export default function HumanLoader({ exiting = false }) {
     festive && animationsEnabled === false && "dashain-still",
     exiting && "loading-splash-exit",
     exiting && animationsEnabled === false && "loading-splash-exit-plain",
+    // The splash sits outside .app-shell, so it can't use the app's .motion-off gate.
+    animationsEnabled === false && "splash-still",
   ].filter(Boolean).join(" ");
   const festiveBackdrop = festive && (
-    <FestiveScene kites={LOADER_KITES} fireworks={LOADER_FIREWORKS} diyas={24} swingSay="चा चा हुई! 🎉" kids={LOADER_KIDS} />
+    <FestiveScene kites={LOADER_KITES} fireworks={LOADER_FIREWORKS} diyas={24} swingSay="चा चा हुई!" kids={LOADER_KIDS} />
   );
-  const festiveTagline = festive && <div className="splash-festive-tagline" lang="ne">🪔 शुभ दशैं तथा तिहार 🪁</div>;
+  const festiveTagline = festive && <div className="splash-festive-tagline" lang="ne">शुभ दशैं तथा तिहार</div>;
 
   useEffect(() => {
     setShuffledDefaults(shuffle(defaultNames));
@@ -137,11 +137,15 @@ export default function HumanLoader({ exiting = false }) {
   }, [exiting]);
 
   let statusMessage = null;
+  // "error" when nothing can load at all, "warn" when it is only slow.
+  let statusTone = "warn";
   if (!exiting) {
     if (isOffline) {
       statusMessage = "You're offline — waiting for a connection…";
+      statusTone = "error";
     } else if (startupReach === "unreachable") {
       statusMessage = "Can't reach the server right now.";
+      statusTone = "error";
     } else if (startupReach === "partial" && waitedMs >= SLOW_AFTER_MS) {
       statusMessage = "Some data is still on its way…";
     } else if (waitedMs >= VERY_SLOW_AFTER_MS) {
@@ -151,7 +155,7 @@ export default function HumanLoader({ exiting = false }) {
     }
   }
   const statusNote = statusMessage && (
-    <div className="splash-status" role="status">{statusMessage}</div>
+    <div className={`splash-status splash-status--${statusTone}`} role="status">{statusMessage}</div>
   );
 
   const currentName = names[index] || "Employee";
@@ -196,438 +200,146 @@ export default function HumanLoader({ exiting = false }) {
 
 
 
-  if (!isMounted || animationsEnabled === false) {
-    return (
-      <div className={splashClass}>
-        {festiveBackdrop}
-        <div 
-          className="human-loader-container" 
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            transform: 'scale(0.85)',
-            transformOrigin: 'center center'
-          }}
-        >
-          {animationsEnabled === false && (
-            <div style={{ marginBottom: '1.5rem', opacity: 0.7 }}>
-              <svg 
-                className="basic-spinner" 
-                viewBox="0 0 50 50" 
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  animation: 'spin 1s linear infinite'
-                }}
+  // Revamp look (no canvas artboard; built from Login.dc.html and Foundations.dc.html):
+  // the app's ink and aurora behind one frosted card holding the brand, the teammate
+  // walking through, a blue-to-cyan progress strip and a live caption. On the first
+  // paint (the name list is random) and with Animations off, the card stays still and
+  // shows no teammate.
+  const still = !isMounted || animationsEnabled === false;
+
+  const stage = !still && (
+    <div
+      className="splash-stage"
+      onMouseEnter={() => { isPausedRef.current = true; }}
+      onMouseLeave={() => { isPausedRef.current = false; }}
+    >
+      <div className="splash-bubble" key={displayGreeting}>{displayGreeting}</div>
+      <div className="splash-avatar">
+        <span className="splash-avatar-ring" aria-hidden="true" />
+        <div className="walking-figure splash-figure">
+          <img
+            src={`https://api.dicebear.com/7.x/micah/svg?seed=${nameKey}&hair=${hairParam}&hairProbability=100&mouth=${mouthParam}${glassesParam}&baseColor=${baseColorParam}${facialHairParamString}`}
+            alt={`${currentName}'s avatar`}
+            width="96"
+            height="96"
+            className="splash-avatar-img"
+          />
+          {/* Sanish walks out in his KAKA shirt, drawn over the avatar's shoulders. */}
+          {nameKey === "sanish" && (
+            <svg
+              viewBox="0 0 120 60"
+              width="84"
+              height="42"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                bottom: '-6px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 5,
+                pointerEvents: 'none',
+                filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))'
+              }}
+            >
+              <defs>
+                <clipPath id="kaka-jersey-clip">
+                  <path d="M4 16 L34 6 C44 4 48 18 60 18 C72 18 76 4 86 6 L116 16 L108 34 L96 30 L98 60 L22 60 L24 30 L12 34 Z" />
+                </clipPath>
+              </defs>
+              <g clipPath="url(#kaka-jersey-clip)">
+                <rect x="0" y="0" width="120" height="60" fill="#c8102e" />
+                <rect x="4" y="0" width="8" height="60" fill="#111111" />
+                <rect x="20" y="0" width="8" height="60" fill="#111111" />
+                <rect x="36" y="0" width="8" height="60" fill="#111111" />
+                <rect x="52" y="0" width="8" height="60" fill="#111111" />
+                <rect x="68" y="0" width="8" height="60" fill="#111111" />
+                <rect x="84" y="0" width="8" height="60" fill="#111111" />
+                <rect x="100" y="0" width="8" height="60" fill="#111111" />
+              </g>
+              <path
+                d="M4 16 L34 6 C44 4 48 18 60 18 C72 18 76 4 86 6 L116 16 L108 34 L96 30 L98 60 L22 60 L24 30 L12 34 Z"
+                fill="none"
+                stroke="#000000"
+                strokeWidth="3"
+                strokeLinejoin="round"
+              />
+              <path d="M46 10 C50 20 70 20 74 10" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
+              <text
+                x="60"
+                y="35"
+                textAnchor="middle"
+                fontSize="15"
+                fontWeight="bold"
+                letterSpacing="1.5"
+                fill="#ffffff"
+                stroke="#000000"
+                strokeWidth="0.8"
+                paintOrder="stroke"
+                fontFamily="Arial, Helvetica, sans-serif"
               >
-                <circle 
-                  cx="25" cy="25" r="20" 
-                  fill="none" 
-                  stroke="var(--text-primary)" 
-                  strokeWidth="4"
-                  strokeDasharray="90,150"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes spin { 100% { transform: rotate(360deg); } }
-              `}} />
-            </div>
+                KAKA
+              </text>
+              <text
+                x="60"
+                y="54"
+                textAnchor="middle"
+                fontSize="14"
+                fontWeight="bold"
+                fill="#ffffff"
+                stroke="#000000"
+                strokeWidth="0.8"
+                paintOrder="stroke"
+                fontFamily="Arial, Helvetica, sans-serif"
+              >
+                22
+              </text>
+            </svg>
           )}
-          <div className="splash-text">Heubert Tracker</div>
-        {festiveTagline}
-          <div className="loader-bar-container" style={{ marginTop: '1rem' }}>
-            <div className="loader-bar"></div>
-          </div>
-          {statusNote}
         </div>
+        {nameKey === "sanish" && (
+          <div className="splash-flute" aria-hidden="true">
+            <svg viewBox="0 0 100 20" width="70" height="15" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))', transform: 'rotate(-25deg)' }}>
+              <rect x="0" y="2" width="100" height="12" rx="3" fill="#e6c280" stroke="#8b5a2b" strokeWidth="1" />
+              <line x1="20" y1="2" x2="20" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
+              <line x1="45" y1="2" x2="45" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
+              <line x1="85" y1="2" x2="85" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
+              <ellipse cx="25" cy="8" rx="2.5" ry="3.5" fill="#3e2723" />
+              <circle cx="50" cy="8" r="2" fill="#3e2723" />
+              <circle cx="60" cy="8" r="2" fill="#3e2723" />
+              <circle cx="70" cy="8" r="2" fill="#3e2723" />
+              <circle cx="80" cy="8" r="2" fill="#3e2723" />
+            </svg>
+          </div>
+        )}
       </div>
-    );
-  }
+      <span className="splash-name">{currentName}</span>
+    </div>
+  );
 
   return (
-    <div className={splashClass}>
-        {festiveBackdrop}
-      <div
-        className="human-loader-container"
-        onMouseEnter={() => { isPausedRef.current = true; }}
-        onMouseLeave={() => { isPausedRef.current = false; }}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          transform: 'scale(0.85)', // scale down overall loader slightly
-          transformOrigin: 'center center'
-        }}
-      >
-        <div 
-          className="speech-bubble pulse-entry" 
-          style={{
-            background: 'var(--bg-layer-2, #ffffff)',
-            color: 'var(--accent, #00796b)',
-            padding: '4px 16px',
-            borderRadius: '16px',
-            fontWeight: 'bold',
-            fontSize: '1.2rem',
-            marginBottom: '0.5rem',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            minWidth: '100px',
-            textAlign: 'center',
-            border: '1px solid var(--border)',
-            transition: 'opacity 0.3s ease-in-out'
-          }}
-        >
-          {displayGreeting}
-        </div>
-        
-        <div 
-          className="splash-avatar" 
-          style={{ 
-            marginBottom: '1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))',
-          }}
-        >
-          <div className="walking-figure" style={{ position: 'relative' }}>
-            <img 
-              src={`https://api.dicebear.com/7.x/micah/svg?seed=${nameKey}&hair=${hairParam}&hairProbability=100&mouth=${mouthParam}${glassesParam}&baseColor=${baseColorParam}${facialHairParamString}`}
-              alt={`${currentName}'s avatar`}
-              width="100"
-              height="100"
-              style={{ 
-                background: 'transparent',
-                filter: 'grayscale(100%) brightness(1.1) contrast(1.1)' 
-              }}
-            />
-            {/* Sanish walks out in his KAKA shirt, drawn over the avatar's shoulders. */}
-            {nameKey === "sanish" && (
-              <svg
-                viewBox="0 0 120 60"
-                width="84"
-                height="42"
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  bottom: '-6px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: 5,
-                  pointerEvents: 'none',
-                  filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))'
-                }}
-              >
-                <defs>
-                  <clipPath id="kaka-jersey-clip">
-                    <path d="M4 16 L34 6 C44 4 48 18 60 18 C72 18 76 4 86 6 L116 16 L108 34 L96 30 L98 60 L22 60 L24 30 L12 34 Z" />
-                  </clipPath>
-                </defs>
-                <g clipPath="url(#kaka-jersey-clip)">
-                  <rect x="0" y="0" width="120" height="60" fill="#c8102e" />
-                  <rect x="4" y="0" width="8" height="60" fill="#111111" />
-                  <rect x="20" y="0" width="8" height="60" fill="#111111" />
-                  <rect x="36" y="0" width="8" height="60" fill="#111111" />
-                  <rect x="52" y="0" width="8" height="60" fill="#111111" />
-                  <rect x="68" y="0" width="8" height="60" fill="#111111" />
-                  <rect x="84" y="0" width="8" height="60" fill="#111111" />
-                  <rect x="100" y="0" width="8" height="60" fill="#111111" />
-                </g>
-                <path
-                  d="M4 16 L34 6 C44 4 48 18 60 18 C72 18 76 4 86 6 L116 16 L108 34 L96 30 L98 60 L22 60 L24 30 L12 34 Z"
-                  fill="none"
-                  stroke="#000000"
-                  strokeWidth="3"
-                  strokeLinejoin="round"
-                />
-                <path d="M46 10 C50 20 70 20 74 10" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
-                <text
-                  x="60"
-                  y="35"
-                  textAnchor="middle"
-                  fontSize="15"
-                  fontWeight="bold"
-                  letterSpacing="1.5"
-                  fill="#ffffff"
-                  stroke="#000000"
-                  strokeWidth="0.8"
-                  paintOrder="stroke"
-                  fontFamily="Arial, Helvetica, sans-serif"
-                >
-                  KAKA
-                </text>
-                <text
-                  x="60"
-                  y="54"
-                  textAnchor="middle"
-                  fontSize="14"
-                  fontWeight="bold"
-                  fill="#ffffff"
-                  stroke="#000000"
-                  strokeWidth="0.8"
-                  paintOrder="stroke"
-                  fontFamily="Arial, Helvetica, sans-serif"
-                >
-                  22
-                </text>
-              </svg>
-            )}
+    <div className={splashClass} aria-busy={!exiting}>
+      {!festive && <div className="splash-aurora" aria-hidden="true" />}
+      {festiveBackdrop}
+      <div className="human-loader-container splash-card">
+        <div className="splash-brand">
+          <Image src="/logo.png" alt="" className="splash-logo" width={40} height={40} priority />
+          <div className="splash-brand-text">
+            <span className="splash-text">Heubert Tracker</span>
+            <span className="splash-brand-sub">team.heubert</span>
           </div>
-          {nameKey === "aashish" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes rock-guitar {
-                  0% { transform: rotate(0deg) scale(1.1); }
-                  100% { transform: rotate(-25deg) scale(1.1) translateY(-5px); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'rock-guitar 0.3s infinite alternate ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                🎸
-              </span>
-            </>
-          )}
-          {nameKey === "nikhil" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes sing-mic {
-                  0% { transform: translateY(0px) rotate(-10deg) scale(1.1); }
-                  100% { transform: translateY(-5px) rotate(10deg) scale(1.1); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'sing-mic 0.5s infinite alternate ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                🎤
-              </span>
-            </>
-          )}
-          {nameKey === "nitesh" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes play-drum {
-                  0% { transform: scale(1) translateY(0px) rotate(-10deg); }
-                  50% { transform: scale(1.1) translateY(-5px) rotate(10deg); }
-                  100% { transform: scale(1) translateY(0px) rotate(-10deg); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'play-drum 0.3s infinite ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                
-              </span>
-            </>
-          )}
-          {nameKey === "jenish" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes pump-iron {
-                  0% { transform: translateY(0px) scale(1) rotate(-5deg); }
-                  50% { transform: translateY(-10px) scale(1.1) rotate(5deg); }
-                  100% { transform: translateY(0px) scale(1) rotate(-5deg); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'pump-iron 1s infinite ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                🏋️‍♂️
-              </span>
-            </>
-          )}          {nameKey === "prativa" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes data-analysis {
-                  0% { transform: translateY(0px) scale(1); }
-                  50% { transform: translateY(-5px) scale(1.1); }
-                  100% { transform: translateY(0px) scale(1); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'data-analysis 1.5s infinite ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                📈
-              </span>
-            </>
-          )}
-
-          {nameKey === "dinesh" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes egg-bounce {
-                  0% { transform: translateY(0px) scale(1); }
-                  50% { transform: translateY(-8px) scale(1.1) rotate(10deg); }
-                  100% { transform: translateY(0px) scale(1); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'egg-bounce 0.8s infinite ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                🥚
-              </span>
-            </>
-          )}
-          {nameKey === "pratisha" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes manager-chart {
-                  0% { transform: translateY(0px) scale(1); }
-                  50% { transform: translateY(-5px) scale(1.1); }
-                  100% { transform: translateY(0px) scale(1); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'manager-chart 1.2s infinite ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                📋
-              </span>
-            </>
-          )}
-
-          {nameKey === "bikesh" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes cycle-ride {
-                  0% { transform: translateX(0px) rotate(-5deg); }
-                  50% { transform: translateX(5px) rotate(5deg) scale(1.05); }
-                  100% { transform: translateX(0px) rotate(-5deg); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'cycle-ride 0.5s infinite ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                🚴
-              </span>
-            </>
-          )}
-          {nameKey === "pranay" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes yoga-float {
-                  0% { transform: translateY(0px) scale(1); }
-                  50% { transform: translateY(-8px) scale(1.05); }
-                  100% { transform: translateY(0px) scale(1); }
-                }
-              `}} />
-              <span style={{
-                position: 'absolute',
-                bottom: '35px',
-                right: '0px',
-                fontSize: '2.5rem',
-                animation: 'yoga-float 2s infinite ease-in-out',
-                zIndex: 10,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                🧘
-              </span>
-            </>
-          )}
-          {nameKey === "sanish" && (
-            <>
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes play-flute {
-                  0% { transform: rotate(0deg) scale(1.1); }
-                  100% { transform: rotate(5deg) scale(1.1) translateY(-2px); }
-                }
-              `}} />
-              <div style={{
-                position: 'absolute',
-                bottom: '30px',
-                right: '-20px',
-                animation: 'play-flute 0.6s infinite alternate ease-in-out',
-                zIndex: 10,
-                transformOrigin: 'left center'
-              }}>
-                <svg viewBox="0 0 100 20" width="70" height="15" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))', transform: 'rotate(-25deg)' }}>
-                  <rect x="0" y="2" width="100" height="12" rx="3" fill="#e6c280" stroke="#8b5a2b" strokeWidth="1" />
-                  <line x1="20" y1="2" x2="20" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
-                  <line x1="45" y1="2" x2="45" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
-                  <line x1="85" y1="2" x2="85" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
-                  <ellipse cx="25" cy="8" rx="2.5" ry="3.5" fill="#3e2723" />
-                  <circle cx="50" cy="8" r="2" fill="#3e2723" />
-                  <circle cx="60" cy="8" r="2" fill="#3e2723" />
-                  <circle cx="70" cy="8" r="2" fill="#3e2723" />
-                  <circle cx="80" cy="8" r="2" fill="#3e2723" />
-                </svg>
-              </div>
-            </>
-          )}
-          {festive && !hasOwnProp.includes(nameKey) && (
-            <span className="loader-festive-kite" aria-hidden="true">🪁</span>
-          )}
-          <span style={{ 
-            marginTop: '8px', 
-            fontSize: '1.2rem', 
-            fontWeight: 'bold', 
-            color: 'var(--text-main, #333)',
-            background: 'rgba(255,255,255,0.7)',
-            padding: '2px 8px',
-            borderRadius: '4px'
-          }}>
-            {currentName}
-          </span>
         </div>
-        
-        <div className="splash-text">Heubert Tracker</div>
-        {festiveTagline}
-        <div className="loader-bar-container" style={{ marginTop: '1rem' }}>
-          <div className="loader-bar"></div>
+        {stage}
+        <div className="loader-bar-container" aria-hidden="true">
+          <div className="loader-bar" />
         </div>
-        {statusNote}
+        {statusNote || (
+          <div className="splash-caption">
+            <span className="splash-live-dot" aria-hidden="true" />
+            Loading your workspace
+          </div>
+        )}
       </div>
+      {festiveTagline}
     </div>
   );
 }

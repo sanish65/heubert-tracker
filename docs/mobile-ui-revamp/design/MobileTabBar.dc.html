@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tab bar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<nav aria-label="Tabs" style="box-sizing: border-box; width: 390px; height: 86px; padding: 8px 8px 26px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); font-family: 'IBM Plex Sans', system-ui, sans-serif; background: var(--tab-bg, rgba(17,23,37,.92)); border-top: 1px solid var(--line, rgba(255,255,255,.09)); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);">
+  <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+    <sc-if value="{{t.on}}" hint-placeholder-val="{{false}}">
+      <a href="{{t.href}}" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-decoration: none; color: var(--text-1, #EDF1F8); font-size: 12px; font-weight: 600;">
+        <span style="position: relative; width: 52px; height: 30px; border-radius: 9999px; background: var(--primary-soft, rgba(61,99,240,.18)); color: var(--primary-text, #8EA6FF); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"></path></svg>
+          <span aria-hidden="true" style="position: absolute; top: 3px; right: 9px; width: 5px; height: 5px; border-radius: 9999px; background: var(--cyan, #2DD4EF); box-shadow: var(--glow, 0 0 10px rgba(45,212,239,.7));"></span>
+        </span>
+        {{t.label}}
+      </a>
+    </sc-if>
+    <sc-if value="{{t.off}}" hint-placeholder-val="{{true}}">
+      <a href="{{t.href}}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-decoration: none; color: var(--text-3, #8E98AC); font-size: 12px; font-weight: 500;">
+        <span style="width: 52px; height: 30px; display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"></path></svg>
+        </span>
+        {{t.label}}
+      </a>
+    </sc-if>
+  </sc-for>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["dashboard","fines","leaves","team","more"],"default":"dashboard"},"$preview":{"width":390,"height":86}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active ?? 'dashboard';
+    const tabs = [
+      { key: 'dashboard', label: 'Home', href: 'MobileDashboard.dc.html', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
+      { key: 'fines', label: 'Fines', href: 'MobileFines.dc.html', icon: 'M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4' },
+      { key: 'leaves', label: 'Leaves', href: 'MobileLeaves.dc.html', icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z' },
+      { key: 'team', label: 'Team', href: 'MobileTeam.dc.html', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
+      { key: 'more', label: 'More', href: 'MobileMore.dc.html', icon: 'M4 6h16M4 12h16M4 18h16' }
+    ];
+    return { tabs: tabs.map((t) => ({ ...t, on: t.key === active, off: t.key !== active })) };
+  }
+}
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import Icon from "@/components/Icon";
 
 export default function EditCompanyEventModal({ isOpen, onClose, event }) {
   const { updateCompanyEvent } = useApp();
@@ -36,12 +37,13 @@ export default function EditCompanyEventModal({ isOpen, onClose, event }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>📅 Edit Event</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="flag" size={20} /></span>
+          <h2>Edit event</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-section">
-            <div className="form-section-title">✨ Event Details</div>
+            <div className="form-section-title">Event details</div>
             <div className="form-grid-horizontal">
               <div className="form-group-interactive" style={{ flex: 2 }}>
                 <label htmlFor="edit-event-title">Event Name</label>
@@ -67,9 +69,9 @@ export default function EditCompanyEventModal({ isOpen, onClose, event }) {
               </div>
             </div>
           </div>
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>

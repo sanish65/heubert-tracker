@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import Icon from "@/components/Icon";
 
 export default function AddEmployeeModal({ isOpen, onClose }) {
   const { addEmployee, employees } = useApp();
@@ -54,14 +55,15 @@ export default function AddEmployeeModal({ isOpen, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Add New Employee</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="user" size={20} /></span>
+          <h2>Add new employee</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-sections-container">
             {/* 1. Personal Info */}
             <div className="form-section">
-              <div className="form-section-title">👤 Personal Information</div>
+              <div className="form-section-title">Personal information</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="emp-name">Full Name *</label>
@@ -98,7 +100,7 @@ export default function AddEmployeeModal({ isOpen, onClose }) {
 
             {/* 2. Employment */}
             <div className="form-section">
-              <div className="form-section-title">💼 Employment Details</div>
+              <div className="form-section-title">Employment details</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="emp-joined">Office Joined Date</label>
@@ -133,7 +135,7 @@ export default function AddEmployeeModal({ isOpen, onClose }) {
 
             {/* 3. Contact & Location */}
             <div className="form-section">
-              <div className="form-section-title">📧 Contact & Location</div>
+              <div className="form-section-title">Contact & location</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="emp-work-email">Work Email</label>
@@ -168,9 +170,9 @@ export default function AddEmployeeModal({ isOpen, onClose }) {
               </div>
             </div>
           </div>
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary">Create Employee</button>
           </div>
         </form>

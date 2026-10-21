@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import Modal from "@/components/Modal";
+import Icon from "@/components/Icon";
 
 export default function AddLeaveSeasonModal({ isOpen, onClose }) {
   return (
@@ -38,8 +39,9 @@ function AddLeaveSeasonForm({ onClose }) {
   return (
     <>
       <div className="modal-header">
-        <h2>🏖️ New Leave Season</h2>
-        <button className="modal-close" onClick={onClose}>×</button>
+        <span className="modal-icon"><Icon name="calendar" size={20} /></span>
+        <h2>New leave season</h2>
+        <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
       </div>
       <form onSubmit={handleSubmit}>
         <div className="form-group-interactive">
@@ -57,7 +59,7 @@ function AddLeaveSeasonForm({ onClose }) {
           Every employee&apos;s leave balances reset to their full annual quota under a new season.
         </p>
         <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? "Creating..." : "Create Season"}
           </button>

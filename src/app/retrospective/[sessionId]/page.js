@@ -2,14 +2,19 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
 import RetroTimer from "@/components/RetroTimer";
 import SailboatScene from "@/components/SailboatScene";
 import SpaceScene    from "@/components/SpaceScene";
 import RetroActionItems from "@/components/RetroActionItems";
 import RetroKudos from "@/components/RetroKudos";
+import Avatar from "@/components/Avatar";
 import { arrangeColumn } from "@/lib/retroThemes";
+import { VOTE_EMOJI, reactionCounts, totalReactions, byVotes } from "@/lib/retroBoardRules";
 
 const RETRO_TEMPLATES = {
   // Left to right: what we are taking forward, then what to fix, then what went well.
@@ -17,29 +22,69 @@ const RETRO_TEMPLATES = {
   // moves nothing in the database. Do NOT mirror this order into the TEMPLATES arrays in
   // src/app/api/retro/route.js: those map template keys onto the three DB column values
   // BY POSITION, and reordering them would file Focus cards as went_well.
+  // `tone` is the pill colour: each column takes the colour of the DB column the route
+  // files it under (went_well green, improve amber, focus blue). Same table as in
+  // src/components/RetrospectivePage.js.
   standard: [
-    { key: "focus",     label: "Focus More On",      emoji: "🎯", color: "indigo" },
-    { key: "improve",   label: "Needs Improvement", emoji: "🔧", color: "amber"  },
-    { key: "went_well", label: "What Went Well?",   emoji: "🎉", color: "green"  },
+    { key: "focus",     label: "Focus More On",      icon: "eye",   tone: "blue"  },
+    { key: "improve",   label: "Needs Improvement", icon: "alert", tone: "amber" },
+    { key: "went_well", label: "What Went Well?",   icon: "check", tone: "green" },
   ],
   sailboat: [
-    { key: "wind",    label: "Wind (Pushing us forward)", emoji: "⛵", color: "sky"    },
-    { key: "anchors", label: "Anchors (Holding us back)", emoji: "⚓", color: "slate"  },
-    { key: "rocks",   label: "Rocks (Risks ahead)",      emoji: "🪨", color: "rose"   },
+    { key: "wind",    label: "Wind (Pushing us forward)", icon: "send",  tone: "green" },
+    { key: "anchors", label: "Anchors (Holding us back)", icon: "lock",  tone: "amber" },
+    { key: "rocks",   label: "Rocks (Risks ahead)",      icon: "alert", tone: "blue"  },
   ],
   start_stop: [
-    { key: "start",    label: "Start Doing",    emoji: "🚀", color: "emerald" },
-    { key: "stop",     label: "Stop Doing",     emoji: "🛑", color: "crimson" },
-    { key: "continue", label: "Continue Doing", emoji: "🔄", color: "violet"  },
+    { key: "start",    label: "Start Doing",    icon: "play",    tone: "green" },
+    { key: "stop",     label: "Stop Doing",     icon: "pause",   tone: "amber" },
+    { key: "continue", label: "Continue Doing", icon: "refresh", tone: "blue"  },
   ]
 };
 
+const FLAVOUR_LABELS = { standard: "Standard", sailboat: "Sailboat", start_stop: "Start/Stop" };
+
 const DEFAULT_COLUMNS = RETRO_TEMPLATES.standard;
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "🎉", "💡"];
+// The vote button is the 👍 reaction (VOTE_EMOJI): same data, shown on its own with a thumbs-up icon.
+
+// The column's label chip: pill colours from the column's tone, a line icon, no emoji.
+function ColumnChip({ col, as: Tag = "span" }) {
+  return (
+    <Tag className="retro-col-chip">
+      <Icon name={col.icon} size={14} strokeWidth={2} />
+      <span className="retro-col-chip-text">{col.label}</span>
+    </Tag>
+  );
+}
+
+// This route sits outside the app shell, so it brings its own slim top bar: the same
+// bar as /planning-poker/[sessionId] (its classes live in the PLANNING POKER section).
+function StandaloneBar({ sessionId, live }) {
+  return (
+    <header className="glass poker-standalone-bar">
+      <div className="poker-standalone-brand">
+        <Image src="/logo.png" alt="" width={32} height={32} className="poker-bar-logo" />
+        <h1 className="poker-standalone-name">Retrospective</h1>
+        {live && (
+          <span className="pill pill-cyan poker-live">
+            <span className="poker-live-dot" aria-hidden="true" />
+            Live
+          </span>
+        )}
+      </div>
+      {sessionId && <code className="poker-id-code poker-standalone-id">{sessionId}</code>}
+      <Link href="/" className="btn btn-secondary poker-standalone-back">
+        <Icon name="arrow-left" size={16} strokeWidth={2} />
+        Back to Tracker
+      </Link>
+    </header>
+  );
+}
 
 export default function RetroSessionPage() {
   const { sessionId } = useParams();
-  const { user, currentEmployee, isAdmin } = useApp();
+  const { user, currentEmployee, isAdmin, animationsEnabled } = useApp();
   const { confirmDialog } = useDialog();
 
   // ── Core state ──────────────────────────────────────────
@@ -88,7 +133,7 @@ export default function RetroSessionPage() {
   // ── Fetch board ─────────────────────────────────────────
   const fetchBoard = useCallback(async () => {
     try {
-      const res = await fetch(`/api/retro?sessionId=${sessionId}`);
+      const res = await fetch(`/api/retro?sessionId=${encodeURIComponent(sessionId)}`);
       if (!res.ok) { setError("Session not found."); setLoading(false); return; }
       const data = await res.json();
       setSession(data.session);
@@ -253,7 +298,7 @@ export default function RetroSessionPage() {
 
   // ── Delete card ─────────────────────────────────────────
   const handleDelete = async (cardId) => {
-    await fetch(`/api/retro?cardId=${cardId}`, { method: "DELETE" });
+    await fetch(`/api/retro?cardId=${encodeURIComponent(cardId)}`, { method: "DELETE" });
     setCards(prev => prev.filter(c => c.id !== cardId));
   };
 
@@ -353,42 +398,35 @@ export default function RetroSessionPage() {
   // ── Helpers ─────────────────────────────────────────────
   const currentColumns = (session?.template && RETRO_TEMPLATES[session.template]) || DEFAULT_COLUMNS;
 
-  const reactionCountsFor = (cardId) => {
-    const counts = {};
-    cardReactions
-      .filter(r => String(r.card_id) === String(cardId))
-      .forEach(r => { counts[r.emoji] = (counts[r.emoji] || 0) + 1; });
-    return counts;
-  };
+  const reactionCountsFor = (cardId) => reactionCounts(cardReactions, cardId);
   const hasReacted = (cardId, emoji) =>
     cardReactions.some(r => String(r.card_id) === String(cardId) && r.participant_name === participantName && r.emoji === emoji);
-  const voteCountFor = (cardId) => reactionCountsFor(cardId)["👍"] || 0;
-  // Theme totals count every emoji; voteCountFor above is the 👍 count the card sort uses.
-  const totalReactionsFor = (cardId) => Object.values(reactionCountsFor(cardId)).reduce((s, n) => s + n, 0);
-  const hasVotedFor  = (cardId) => hasReacted(cardId, "👍");
+  // Theme totals count every emoji; the card sort counts only votes (👍).
+  const totalReactionsFor = (cardId) => totalReactions(cardReactions, cardId);
 
-  const cardsFor = (colKey) =>
-    cards
-      .filter(c => c.column_type === colKey)
-      .sort((a, b) => {
-        const diff = voteCountFor(b.id) - voteCountFor(a.id);
-        if (diff !== 0) return diff;
-        return String(a.id).localeCompare(String(b.id)); // Stable secondary sort
-      });
+  const cardsFor = (colKey) => cards.filter(c => c.column_type === colKey).sort(byVotes(cardReactions));
 
   const isDragging = !!dragType;
 
+  const animated = animationsEnabled !== false;
+  const shellClass = `poker-standalone-shell${animated ? " is-animated" : ""}`;
+
   // ── Loading / Error ──────────────────────────────────────
   if (loading) return (
-    <div className="poker-standalone-shell">
-      <div className="poker-standalone-loading"><div className="spinner" /><span>Loading board…</span></div>
+    <div className={shellClass}>
+      <StandaloneBar sessionId={sessionId} />
+      <div className="poker-standalone-state">
+        <div className="spinner" />
+        <span>Loading board…</span>
+      </div>
     </div>
   );
   if (error || !session) return (
-    <div className="poker-standalone-shell">
-      <div className="poker-standalone-error">
-        <span className="poker-error-icon">🗂️</span>
-        <h2>Board Not Found</h2>
+    <div className={shellClass}>
+      <StandaloneBar sessionId={sessionId} />
+      <div className="poker-standalone-state">
+        <span className="modal-icon modal-icon-red"><Icon name="alert" size={20} /></span>
+        <h2 className="section-title">Board Not Found</h2>
         <p>{error || "This retro session does not exist or has expired."}</p>
       </div>
     </div>
@@ -396,62 +434,54 @@ export default function RetroSessionPage() {
 
   // ── Render ───────────────────────────────────────────────
   return (
-    <div className="poker-standalone-shell">
-      {session?.template === "sailboat"    && <SailboatScene />}
-      {session?.template === "start_stop" && <SpaceScene />}
-      <header className="poker-standalone-header">
-        <div className="poker-standalone-logo">
-          <span>🗂️</span>
-          <span className="poker-standalone-logo-text">Sprint Retrospective</span>
+    <div className={shellClass}>
+      {(session.template === "sailboat" || session.template === "start_stop") && (
+        <div className="retro-scene" aria-hidden="true">
+          {session.template === "sailboat" ? <SailboatScene /> : <SpaceScene />}
         </div>
-        <span className="poker-pulse"><span className="pulse-dot" /> Live</span>
-      </header>
+      )}
+      <StandaloneBar sessionId={sessionId} live />
 
-      <main className="retro-standalone-main">
-        <div className="retro-standalone-header-row">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div>
-              <h2 className="retro-standalone-title">{session.title}</h2>
-              {session.project?.name && (
-                <span className="retro-standalone-project">📁 {session.project.name}</span>
-              )}
-            </div>
-            {isHost && (
-              <RetroTimer
-                session={session}
-                isHost={isHost}
-                timerState={timerState}
-                onUpdate={handleTimerAction}
-              />
+      <main className="poker-standalone-main retro-standalone-main">
+        <div className="retro-board-head">
+          <div className="retro-board-head-text">
+            {Object.hasOwn(FLAVOUR_LABELS, session.template ?? "") && (
+              <span className="page-eyebrow">{FLAVOUR_LABELS[session.template]} board</span>
+            )}
+            <h2 className="retro-board-title">{session.title}</h2>
+            {session.project?.name && (
+              <div className="retro-board-meta">
+                <span className="retro-head-project"><Icon name="folder" size={15} />{session.project.name}</span>
+              </div>
             )}
           </div>
           {isHost && !session.is_ended && (
-            <button className="retro-end-session-btn" onClick={handleEndSession}>
-              🏁 End Session
-            </button>
+            <div className="retro-board-actions">
+              <button type="button" className="btn btn-secondary retro-end-btn" onClick={handleEndSession}>
+                <Icon name="flag" size={16} strokeWidth={2} />
+                End Session
+              </button>
+            </div>
           )}
         </div>
 
-        {session.is_ended && (
-           <div className="retro-ended-overlay">
-             <div className="retro-ended-message">
-               <span className="retro-ended-icon">🏁</span>
-               <h2>This Retrospective has ended</h2>
-               <p>The facilitator has concluded this session. Thank you for your contributions!</p>
-               <p className="retro-ended-sub">Please wait for the next sprint's session to begin.</p>
-               <button className="btn-poker-primary" onClick={() => { window.location.href = "/"; }}>
-                 Exit to Home
-               </button>
-             </div>
-           </div>
+        {isHost && (
+          <section className="glass retro-session-strip" aria-label="Session controls">
+            <RetroTimer
+              session={session}
+              isHost={isHost}
+              timerState={timerState}
+              onUpdate={handleTimerAction}
+            />
+          </section>
         )}
 
         {!nameEntered ? (
-          <div className="retro-standalone-name">
-            <label className="poker-form-label">Enter your name to participate</label>
-            <div className="poker-standalone-name-row">
+          <section className="glass-card poker-name-card">
+            <label htmlFor="retro-name" className="poker-field-label">Enter your name to participate</label>
+            <div className="poker-name-row">
               <input
-                className="poker-input"
+                id="retro-name"
                 placeholder="Your name…"
                 value={participantName}
                 onChange={e => setParticipantName(e.target.value)}
@@ -464,269 +494,286 @@ export default function RetroSessionPage() {
                 autoFocus
               />
               <button
-                className="btn-poker-primary"
+                type="button"
+                className="btn btn-primary"
                 disabled={!participantName.trim()}
                 onClick={() => {
                   setNameEntered(true);
                   localStorage.setItem("heubert_collab_name", participantName.trim());
                 }}
               >
-                Join →
+                Join
+                <Icon name="chevron-right" size={16} strokeWidth={2} />
               </button>
             </div>
-          </div>
+          </section>
         ) : (
           <>
-            <RetroActionItems
-              session={session}
-              actionItems={actionItems}
-              members={members}
-              participantName={participantName}
-              canManage={canManageActions}
-              onChanged={fetchBoard}
-            />
-
             {/* ── Card Stacks tray (draggable) ── */}
-            <div className="retro-stack-tray">
-              <p className="retro-stack-tray-label">
+            <section className="glass retro-tray" aria-label="Add a card">
+              <p className="retro-tray-label">
                 Hi <strong>{participantName}</strong> —{" "}
-                <span className="retro-drag-hint">↕ drag</span> a card onto the matching column, or click to compose:
+                <span className="retro-drag-hint"><Icon name="grip" size={14} strokeWidth={2.4} />drag</span> a card onto the matching column, or click to compose:
               </p>
               <div className="retro-stacks">
                 {currentColumns.map(col => (
                   <button
                     key={col.key}
+                    type="button"
                     draggable
                     onDragStart={e => handleDragStart(e, col.key)}
                     onDragEnd={handleDragEnd}
                     className={[
                       "retro-stack",
-                      `retro-stack-${col.color}`,
-                      activeCompose === col.key ? "retro-stack-active" : "",
-                      isDragging && dragType === col.key ? "retro-stack-dragging" : "",
-                    ].join(" ")}
+                      `retro-tone-${col.tone}`,
+                      activeCompose === col.key ? "is-active" : "",
+                      isDragging && dragType === col.key ? "is-dragging" : "",
+                    ].filter(Boolean).join(" ")}
                     onClick={() => {
                       setDropCol(null); setDropText("");
                       setActiveCompose(col.key); setComposeText("");
                     }}
                   >
-                    <div className="retro-stack-card retro-stack-card-3" />
-                    <div className="retro-stack-card retro-stack-card-2" />
-                    <div className="retro-stack-card retro-stack-card-1">
-                      <span className="retro-stack-emoji">{col.emoji}</span>
-                      <span className="retro-stack-col-label">{col.label}</span>
-                      <span className="retro-stack-hint">↕ Drag or Click</span>
-                    </div>
+                    <ColumnChip col={col} />
+                    <span className="retro-stack-hint"><Icon name="grip" size={12} strokeWidth={2.4} />Drag or Click</span>
                   </button>
                 ))}
               </div>
-            </div>
+            </section>
 
             {/* ── Global compose panel (click-to-open) ── */}
             {activeCompose && (() => {
               const col = currentColumns.find(c => c.key === activeCompose);
               return (
-                <div className="retro-compose-panel">
-                  <div className={`retro-compose-card retro-compose-${col.color}`}>
-                    <div className="retro-compose-pin">📌</div>
-                    <textarea
-                      ref={composeRef}
-                      className="retro-compose-textarea"
-                      placeholder={`Write your thought for "${col.label}"…`}
-                      value={composeText}
-                      onChange={e => setComposeText(e.target.value)}
-                      maxLength={280} rows={4}
-                    />
-                    <div className="retro-compose-footer">
-                      <span className="retro-compose-char">{composeText.length}/280</span>
-                      <div className="retro-compose-actions">
-                        <button className="retro-btn-cancel" onClick={() => { setActiveCompose(null); setComposeText(""); }}>
-                          Cancel
-                        </button>
-                        <button
-                          className={`retro-btn-pin retro-btn-pin-${col.color}`}
-                          onClick={() => handlePin(col.key, composeText, () => { setActiveCompose(null); setComposeText(""); })}
-                          disabled={!composeText.trim() || pinning}
-                        >
-                          {pinning ? <span className="poker-spinner" /> : "📌 Pin to Board"}
-                        </button>
-                      </div>
+                <div className={`retro-compose retro-compose-panel retro-tone-${col.tone}`}>
+                  <ColumnChip col={col} />
+                  <textarea
+                    ref={composeRef}
+                    className="retro-compose-textarea"
+                    aria-label={`Write your thought for "${col.label}"`}
+                    placeholder={`Write your thought for "${col.label}"…`}
+                    value={composeText}
+                    onChange={e => setComposeText(e.target.value)}
+                    maxLength={280} rows={4}
+                  />
+                  <div className="retro-compose-footer">
+                    <span className="retro-compose-char mono">{composeText.length}/280</span>
+                    <div className="retro-compose-actions">
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setActiveCompose(null); setComposeText(""); }}>
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handlePin(col.key, composeText, () => { setActiveCompose(null); setComposeText(""); })}
+                        disabled={!composeText.trim() || pinning}
+                      >
+                        {pinning ? <span className="retro-spinner" aria-hidden="true" /> : "Pin to Board"}
+                      </button>
                     </div>
                   </div>
                 </div>
               );
             })()}
 
-            {/* ── Board columns with drop zones ── */}
-            <div className={`retro-columns${isDragging ? " retro-columns-dragging" : ""}`}>
-              {currentColumns.map(col => {
-                const isOver   = dragOver === col.key;
-                const isMatch  = dragType === col.key;
-                const isReject = rejectedCol === col.key;
-                const hasDrop  = dropCol === col.key;
-                const colCards = cardsFor(col.key);
-                const arranged = arrangeColumn({ cards: colCards, themes, themeCards, reactionsFor: totalReactionsFor });
+            {/* ── Board columns with drop zones: a row that scrolls sideways on narrow screens ── */}
+            <div className="retro-columns-scroll">
+              <div className="retro-columns">
+                {currentColumns.map(col => {
+                  const isOver   = dragOver === col.key;
+                  const isMatch  = dragType === col.key;
+                  const isReject = rejectedCol === col.key;
+                  const hasDrop  = dropCol === col.key;
+                  const colCards = cardsFor(col.key);
+                  const arranged = arrangeColumn({ cards: colCards, themes, themeCards, reactionsFor: totalReactionsFor });
 
-                const renderCard = (card, idx) => {
-                    const isEditing = editingCardId === card.id;
-                    const isMine    = card.author === participantName;
-                    const isTemp    = card.id.toString().startsWith("temp_");
-                    const reactionCounts = reactionCountsFor(card.id);
+                  const renderCard = (card) => {
+                      const isEditing = editingCardId === card.id;
+                      const isMine    = card.author === participantName;
+                      const isTemp    = card.id.toString().startsWith("temp_");
+                      const counts = reactionCountsFor(card.id);
+                      const votes = counts[VOTE_EMOJI] || 0;
+                      const voted = hasReacted(card.id, VOTE_EMOJI);
+                      const canEdit = isMine && !isTemp && !isEditing;
+                      const canDelete = card.author === participantName && !isEditing;
 
-                    return (
-                      <div
-                        key={card.id}
-                        className={`retro-sticky retro-sticky-${col.color}`}
-                        style={{ "--card-rotate": `${(idx % 2 === 0 ? 1 : -1) * (0.5 + (idx % 3) * 0.4)}deg` }}
-                      >
-                        <div className="retro-sticky-pin">📌</div>
-
-                        {isEditing ? (
-                          <div className="retro-mention-wrapper" style={{ position: "relative" }}>
-                            <textarea
-                              className="retro-compose-textarea retro-edit-textarea"
-                              value={editText}
-                              onChange={e => setEditText(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === "Escape") { setEditingCardId(null); setEditText(""); }
-                                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleEditCard(card.id); }
-                              }}
-                              maxLength={280}
-                              rows={3}
-                              autoFocus
-                            />
-                            <div className="retro-compose-footer">
-                              <span className="retro-compose-char">{editText.length}/280 · Ctrl+Enter to save</span>
-                              <div className="retro-compose-actions">
-                                <button className="retro-btn-cancel" type="button" onClick={() => { setEditingCardId(null); setEditText(""); }}>Cancel</button>
-                                <button
-                                  className="retro-btn-pin retro-btn-pin-green"
-                                  type="button"
-                                  onClick={() => handleEditCard(card.id)}
-                                  disabled={!editText.trim() || savingEdit}
-                                >
-                                  {savingEdit ? <span className="poker-spinner" /> : "💾 Save"}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="retro-sticky-content">{card.content}</p>
-                        )}
-
-                        <div className="retro-sticky-footer">
-                          <span className="retro-sticky-author">— {card.author}</span>
-                          <div className="retro-sticky-actions">
-                            <div className="retro-reaction-picker-wrap">
-                              {Object.entries(reactionCounts).map(([emoji, count]) => (
-                                <button
-                                  key={emoji}
-                                  className={`retro-reaction-badge${hasReacted(card.id, emoji) ? " retro-reaction-badge-active" : ""}`}
-                                  onClick={() => handleReact(card.id, emoji)}
-                                  title={hasReacted(card.id, emoji) ? "Remove your reaction" : "React"}
-                                >
-                                  {emoji}<span className="retro-reaction-count">{count}</span>
-                                </button>
-                              ))}
-                              {!isTemp && (
-                                <button
-                                  className="retro-reaction-add-btn"
-                                  onClick={() => setReactionPickerFor(reactionPickerFor === card.id ? null : card.id)}
-                                  title="Add reaction"
-                                >
-                                  +😀
-                                </button>
-                              )}
-                              {reactionPickerFor === card.id && (
-                                <div className="retro-reaction-popover">
-                                  {REACTION_EMOJIS.map(emoji => (
+                      return (
+                        <article key={card.id} className={`retro-card${animated ? " card-lift" : ""}`}>
+                          <div className="retro-card-top">
+                            {isEditing ? (
+                              <div className="retro-mention-wrapper">
+                                <textarea
+                                  className="retro-compose-textarea"
+                                  aria-label="Card text"
+                                  value={editText}
+                                  onChange={e => setEditText(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === "Escape") { setEditingCardId(null); setEditText(""); }
+                                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleEditCard(card.id); }
+                                  }}
+                                  maxLength={280}
+                                  rows={3}
+                                  autoFocus
+                                />
+                                <div className="retro-compose-footer">
+                                  <span className="retro-compose-char mono">{editText.length}/280 · Ctrl+Enter to save</span>
+                                  <div className="retro-compose-actions">
+                                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => { setEditingCardId(null); setEditText(""); }}>Cancel</button>
                                     <button
-                                      key={emoji}
-                                      className={`retro-reaction-option${hasReacted(card.id, emoji) ? " retro-reaction-option-active" : ""}`}
-                                      onClick={() => { handleReact(card.id, emoji); setReactionPickerFor(null); }}
+                                      className="btn btn-primary btn-sm"
+                                      type="button"
+                                      onClick={() => handleEditCard(card.id)}
+                                      disabled={!editText.trim() || savingEdit}
                                     >
-                                      {emoji}
+                                      {savingEdit ? <span className="retro-spinner" aria-hidden="true" /> : "Save"}
                                     </button>
-                                  ))}
+                                  </div>
                                 </div>
-                              )}
-                            </div>
-
-                            {isMine && !isTemp && !isEditing && (
-                              <button
-                                className="retro-sticky-edit"
-                                onClick={() => { setEditingCardId(card.id); setEditText(card.content); setSavingEdit(false); }}
-                                title="Edit"
-                              >
-                                ✏️
-                              </button>
-                            )}
-                            {card.author === participantName && !isEditing && (
-                              <button
-                                className="retro-sticky-delete"
-                                onClick={() => handleDelete(card.id)}
-                                title="Remove"
-                              >
-                                ✕
-                              </button>
+                              </div>
+                            ) : (
+                              <p className="retro-card-text">{card.content}</p>
                             )}
                           </div>
-                        </div>
+
+                          <div className="retro-card-by">
+                            <Avatar name={card.author} isMe={isMine} className="avatar retro-card-avatar" aria-hidden="true" />
+                            <span className="retro-card-author">{card.author}</span>
+                            {(canEdit || canDelete) && (
+                              <span className="retro-card-tools">
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    className="retro-icon-btn"
+                                    onClick={() => { setEditingCardId(card.id); setEditText(card.content); setSavingEdit(false); }}
+                                    title="Edit"
+                                    aria-label="Edit card"
+                                  >
+                                    <Icon name="edit" size={14} strokeWidth={2} />
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    type="button"
+                                    className="retro-icon-btn retro-icon-btn-danger"
+                                    onClick={() => handleDelete(card.id)}
+                                    title="Remove"
+                                    aria-label="Remove card"
+                                  >
+                                    <Icon name="trash" size={14} strokeWidth={2} />
+                                  </button>
+                                )}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="retro-reactions retro-reaction-picker-wrap">
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm retro-vote"
+                              aria-pressed={voted}
+                              aria-label={`${voted ? "Remove your vote" : "Vote for this card"}, ${votes} ${votes === 1 ? "vote" : "votes"}`}
+                              title={voted ? "Remove your vote" : "Vote for this card"}
+                              disabled={isTemp}
+                              onClick={() => handleReact(card.id, VOTE_EMOJI)}
+                            >
+                              <Icon name="thumbs-up" size={14} strokeWidth={2} />
+                              <span className="mono">{votes}</span>
+                            </button>
+                            {Object.entries(counts).filter(([emoji]) => emoji !== VOTE_EMOJI).map(([emoji, count]) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                className={`retro-reaction${hasReacted(card.id, emoji) ? " is-mine" : ""}`}
+                                aria-pressed={hasReacted(card.id, emoji)}
+                                onClick={() => handleReact(card.id, emoji)}
+                                title={hasReacted(card.id, emoji) ? "Remove your reaction" : "React"}
+                              >
+                                <span className="retro-reaction-emoji">{emoji}</span>
+                                <span className="mono">{count}</span>
+                              </button>
+                            ))}
+                            {!isTemp && (
+                              <button
+                                type="button"
+                                className="btn-icon btn-sm retro-react-add"
+                                onClick={() => setReactionPickerFor(reactionPickerFor === card.id ? null : card.id)}
+                                title="Add reaction"
+                                aria-label="Add reaction"
+                                aria-expanded={reactionPickerFor === card.id}
+                              >
+                                <Icon name="smile" size={16} />
+                              </button>
+                            )}
+                            {reactionPickerFor === card.id && (
+                              <div className="retro-reaction-popover" role="group" aria-label="Reactions">
+                                {REACTION_EMOJIS.map(emoji => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    className={`retro-reaction-option${hasReacted(card.id, emoji) ? " is-mine" : ""}`}
+                                    aria-pressed={hasReacted(card.id, emoji)}
+                                    onClick={() => { handleReact(card.id, emoji); setReactionPickerFor(null); }}
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </article>
+                      );
+                  };
+
+                  return (
+                    <section
+                      key={col.key}
+                      aria-label={col.label}
+                      className={[
+                        "glass",
+                        "retro-column",
+                        `retro-tone-${col.tone}`,
+                        isOver && isMatch   ? "retro-column-drop-valid"   : "",
+                        isOver && !isMatch  ? "retro-column-drop-invalid" : "",
+                        isReject            ? "retro-column-rejected"     : "",
+                      ].filter(Boolean).join(" ")}
+                      onDragOver={e => handleDragOver(e, col.key)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={e => handleDrop(e, col.key)}
+                    >
+                      <div className="retro-column-head">
+                        <ColumnChip col={col} as="h3" />
+                        <span className="retro-column-count mono">{colCards.length}</span>
                       </div>
-                    );
-                };
 
-                return (
-                  <div
-                    key={col.key}
-                    className={[
-                      "retro-column",
-                      `retro-column-${col.color}`,
-                      isOver && isMatch   ? "retro-column-drop-valid"   : "",
-                      isOver && !isMatch  ? "retro-column-drop-invalid" : "",
-                      isReject            ? "retro-column-rejected"     : "",
-                    ].filter(Boolean).join(" ")}
-                    onDragOver={e => handleDragOver(e, col.key)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={e => handleDrop(e, col.key)}
-                  >
-                    {!col && <div style={{display:'none'}} />}
-                    {col && (
-                      <>
-                    <div className="retro-column-header">
-                      <span className="retro-column-emoji">{col.emoji}</span>
-                      <span className="retro-column-label">{col.label}</span>
-                      <span className="retro-column-count">{colCards.length}</span>
-                    </div>
-
-                    <div className="retro-column-cards">
                       {/* Inline drop compose */}
                       {hasDrop && (
-                        <div className={`retro-inline-compose retro-inline-compose-${col.color}`}>
-                          <div className="retro-compose-pin">📌</div>
+                        <div className="retro-compose">
                           <textarea
                             ref={dropComposeRef}
                             className="retro-compose-textarea"
+                            aria-label={`Your thought for "${col.label}"`}
                             placeholder={`Your thought for "${col.label}"…`}
                             value={dropText}
                             onChange={e => setDropText(e.target.value)}
                             maxLength={280} rows={3}
                           />
                           <div className="retro-compose-footer">
-                            <span className="retro-compose-char">{dropText.length}/280</span>
+                            <span className="retro-compose-char mono">{dropText.length}/280</span>
                             <div className="retro-compose-actions">
                               <button
-                                className="retro-btn-cancel"
+                                type="button"
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => { setDropCol(null); setDropText(""); }}
                               >
                                 Cancel
                               </button>
                               <button
-                                className={`retro-btn-pin retro-btn-pin-${col.color}`}
+                                type="button"
+                                className="btn btn-primary btn-sm"
                                 onClick={() => handlePin(col.key, dropText, () => { setDropCol(null); setDropText(""); })}
                                 disabled={!dropText.trim() || pinning}
                               >
-                                {pinning ? <span className="poker-spinner" /> : "📌 Pin"}
+                                {pinning ? <span className="retro-spinner" aria-hidden="true" /> : "Pin"}
                               </button>
                             </div>
                           </div>
@@ -735,43 +782,43 @@ export default function RetroSessionPage() {
 
                       {/* Activity indicators (Others thinking) */}
                       {activity.filter(a => a.column_type === col.key && a.participant_name !== participantName).map((a) => (
-                        <div key={`typing-${a.participant_name}`} className="retro-typing-indicator">
-                          <div className="typing-dots">
-                            <span></span><span></span><span></span>
-                          </div>
-                          <span className="typing-text">{a.participant_name} is thinking...</span>
+                        <div key={`typing-${a.participant_name}`} className="retro-typing" role="status">
+                          <span className="retro-typing-dots" aria-hidden="true"><span /><span /><span /></span>
+                          <span>{a.participant_name} is thinking...</span>
                         </div>
                       ))}
 
                       {/* Empty state */}
                       {colCards.length === 0 && !hasDrop && activity.filter(a => a.column_type === col.key).length === 0 && (
-                        <div className={`retro-column-empty${isDragging && isMatch ? " retro-column-empty-glow" : ""}`}>
-                          {isDragging && isMatch ? `Drop here ↓` : "No cards yet!"}
+                        <div className={`retro-column-empty${isDragging && isMatch ? " is-drop-target" : ""}`}>
+                          {isDragging && isMatch ? "Drop here" : "No cards yet!"}
                         </div>
                       )}
 
                       {/* Themes, then the cards that are in none */}
                       {arranged.themes.map(theme => (
-                        <section key={theme.id} className="retro-theme">
-                          <div className="retro-theme-header">
-                            <span className="retro-theme-name">{theme.name}</span>
-                            <span className="retro-theme-meta">
+                        <section key={theme.id} className="retro-theme" aria-label={`Theme: ${theme.name}`}>
+                          <div className="retro-theme-head">
+                            <span className="eyebrow retro-theme-eyebrow">
+                              <Icon name="sparkles" size={13} strokeWidth={2} />
+                              Theme
+                            </span>
+                            <span className="retro-theme-meta mono">
                               {theme.cards.length} {theme.cards.length === 1 ? "card" : "cards"} · {theme.reactions} {theme.reactions === 1 ? "reaction" : "reactions"}
                             </span>
                           </div>
+                          <span className="retro-theme-name">{theme.name}</span>
                           {theme.cards.map(renderCard)}
                         </section>
                       ))}
                       {arranged.themes.length > 0 && arranged.loose.length > 0 && (
-                        <div className="retro-theme-loose-label">Not in a theme</div>
+                        <div className="eyebrow retro-theme-loose-label">Not in a theme</div>
                       )}
                       {arranged.loose.map(renderCard)}
-                    </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+                    </section>
+                  );
+                })}
+              </div>
             </div>
 
             <RetroKudos
@@ -784,14 +831,32 @@ export default function RetroSessionPage() {
               reactionEmojis={REACTION_EMOJIS}
               onChanged={fetchBoard}
             />
+
+            <RetroActionItems
+              session={session}
+              actionItems={actionItems}
+              members={members}
+              participantName={participantName}
+              canManage={canManageActions}
+              onChanged={fetchBoard}
+            />
           </>
         )}
       </main>
 
-      <footer className="poker-standalone-footer">
-        <span>Heubert Tracker — Retrospective</span>
-        <span className="poker-pulse"><span className="pulse-dot" /> Live</span>
-      </footer>
+      {session.is_ended && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="retro-ended-title">
+          <div className="modal-content poker-ended">
+            <span className="modal-icon"><Icon name="flag" size={20} /></span>
+            <h2 id="retro-ended-title">This Retrospective has ended</h2>
+            <p>The facilitator has concluded this session. Thank you for your contributions!</p>
+            <p className="poker-ended-sub">Please wait for the next sprint&apos;s session to begin.</p>
+            <button type="button" className="btn btn-primary" onClick={() => { window.location.href = "/"; }}>
+              Exit to Home
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

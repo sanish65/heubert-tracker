@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Button } from "./ui";
+import { FormModal, TextField } from "./ui";
+import { SheetActions } from "./SheetParts";
 
+// A new word, in the record sheet's look (MobileRecordFine.dc.html).
 export default function AddWordModal({ isOpen, onClose }) {
   const { addWord, wordSeasons } = useApp();
 
@@ -35,13 +37,13 @@ export default function AddWordModal({ isOpen, onClose }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="📖 Add New Word">
+    <FormModal visible={isOpen} onClose={onClose} title="Add New Word">
       <TextField label="Word" value={word} onChangeText={setWord} placeholder="e.g. Hyperbole" />
       <TextField label="Type / Phonetic" value={phonetic} onChangeText={setPhonetic} placeholder="e.g. noun, verb, idiom" />
       <TextField label="Translation (Optional)" value={translation} onChangeText={setTranslation} placeholder="Nepali or other language" />
       <TextField label="Definition" value={definition} onChangeText={setDefinition} placeholder="What does it mean?" multiline />
       <TextField label="Example Sentence" value={example} onChangeText={setExample} placeholder="Use it in a sentence..." multiline />
-      <Button title={submitting ? "Saving..." : "Add Word"} onPress={handleSubmit} disabled={submitting} />
+      <SheetActions title={submitting ? "Saving..." : "Add Word"} icon="plus" onPress={handleSubmit} disabled={submitting} onCancel={onClose} />
     </FormModal>
   );
 }

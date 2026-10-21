@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile — Meeting mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--tab-bg:rgba(15,20,34,.9);--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.82);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;overflow:hidden;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:20px 20px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--tab-bg:rgba(255,255,255,.88);--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.86);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.38),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.28),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(45,212,239,.16),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.12),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.22),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.16),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(6,182,212,.14),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="width: 390px; min-height: 1960px; box-sizing: border-box; padding: 0 0 40px;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header style="padding: 56px 16px 14px; display: flex; align-items: center; gap: 12px;">
+    <a href="MobileMore.dc.html" class="glass" aria-label="Back" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </a>
+    <h1 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 20px; font-weight: 700; color: var(--text-1);">Meeting mode</h1>
+    <span style="height: 28px; padding: 0 10px; border-radius: 9999px; background: var(--orange-soft); border: 1px solid rgba(255,106,31,.35); color: var(--text-1); font-family: var(--f-mono); font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px;">
+      <span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 9999px; background: var(--orange); box-shadow: 0 0 8px rgba(255,106,31,.8);"></span>LIVE
+    </span>
+  </header>
+
+  <main style="padding: 0 16px; display: flex; flex-direction: column; gap: 14px;">
+    <section aria-label="Clock" class="glass" style="position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 6px; padding: 20px 18px; border: 1px solid rgba(255,106,31,.3); border-radius: 20px; background: var(--surface);">
+      <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(260px 160px at 100% 0%, rgba(255,106,31,.22), transparent 70%); pointer-events: none;"></div>
+      <span style="position: relative; font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);">Daily standup</span>
+      <time datetime="2026-10-19T10:02:14" style="position: relative; font-family: var(--f-mono); font-size: 46px; line-height: 1.05; font-weight: 500; letter-spacing: -0.02em; color: var(--text-1); font-variant-numeric: tabular-nums;">10:02<span style="color: var(--text-3);">:14</span></time>
+      <div style="position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;">
+        <span style="font-size: 15px; font-weight: 600; color: var(--text-1);">Monday, October 19, 2026</span>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--cyan-text);">3 Kartik 2083 BS</span>
+      </div>
+    </section>
+
+    <section aria-label="Quick actions" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+      <button style="height: 52px; border: 0; border-radius: 14px; background: var(--primary); color: #FFFFFF; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 6px 20px rgba(61,99,240,.35);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Late Fine
+      </button>
+      <button class="glass" style="height: 52px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--pb-amber); color: var(--pf-amber); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Standup Fine
+      </button>
+      <button class="glass" style="height: 52px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--pb-cyan); color: var(--pf-cyan); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Leave
+      </button>
+      <button class="glass" style="height: 52px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface); color: var(--text-1); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Set Word
+      </button>
+    </section>
+
+    <section aria-label="Standup status" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Standup status</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">Closes 10:30</span>
+      </div>
+      <div style="display: flex; align-items: flex-end; gap: 10px;">
+        <span style="font-family: var(--f-display); font-size: 34px; line-height: 1; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums;">5<span style="font-size: 20px; color: var(--text-3);">/9</span></span>
+        <span style="font-size: 14px; color: var(--text-2); padding-bottom: 3px;">submitted</span>
+        <span style="margin-left: auto; height: 24px; padding: 0 10px; border-radius: 9999px; background: var(--pb-amber); color: var(--pf-amber); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">4 missing</span>
+      </div>
+      <div role="progressbar" aria-label="Standups submitted" aria-valuemin="0" aria-valuemax="9" aria-valuenow="5" style="height: 8px; border-radius: 9999px; background: var(--raised); overflow: hidden;">
+        <div style="width: 55.5%; height: 100%; border-radius: 9999px; background: var(--cyan); box-shadow: var(--glow);"></div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px;">
+        <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Not submitted</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <sc-for list="{{missing}}" as="m" hint-placeholder-count="4">
+            <span style="height: 36px; padding: 0 12px 0 4px; border-radius: 9999px; border: 1px dashed var(--line-strong); background: var(--raised); display: inline-flex; align-items: center; gap: 8px;">
+              <span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 9999px; background: {{m.av}}; color: #FFFFFF; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; opacity: .75;">{{m.initials}}</span>
+              <span style="font-size: 13px; font-weight: 500; color: var(--text-1);">{{m.name}}</span>
+              <sc-if value="{{m.onLeave}}" hint-placeholder-val="{{false}}">
+                <span style="font-size: 12px; color: var(--pf-cyan);">on leave</span>
+              </sc-if>
+            </span>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; padding-top: 4px;">
+        <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); padding-bottom: 4px;">Submitted</span>
+        <sc-for list="{{submitted}}" as="s" hint-placeholder-count="5">
+          <button aria-expanded="false" aria-label="{{s.aria}}" style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 0; border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; color: inherit; cursor: pointer;">
+            <span aria-hidden="true" style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 9999px; background: {{s.av}}; color: {{s.fg}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">{{s.initials}}</span>
+            <span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 15px; font-weight: 600; color: var(--text-1);">{{s.name}}</span>
+              <span style="display: flex; flex-wrap: wrap; gap: 4px;">
+                <sc-for list="{{s.tickets}}" as="tk" hint-placeholder-count="2">
+                  <span style="height: 20px; padding: 0 6px; border-radius: 6px; background: var(--pb-gray); color: var(--pf-gray); font-family: var(--f-mono); font-size: 12px; display: inline-flex; align-items: center;">{{tk.key}}</span>
+                </sc-for>
+              </span>
+            </span>
+            <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{s.time}}</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; color: var(--text-3);"><path d="M6 9l6 6 6-6"></path></svg>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-label="On leave today" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">On leave today</h2>
+        <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--pb-cyan); color: var(--pf-cyan); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">2</span>
+      </div>
+      <sc-for list="{{leaves}}" as="l" hint-placeholder-count="2">
+        <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; border-top: 1px solid var(--line);">
+          <span aria-hidden="true" style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 9999px; background: {{l.av}}; color: #FFFFFF; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">{{l.initials}}</span>
+          <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600; color: var(--text-1);">{{l.name}}</span>
+            <span style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+              <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--pb-cyan); color: var(--pf-cyan); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">{{l.span}}</span>
+              <span style="font-size: 13px; color: var(--text-3);">{{l.meta}}</span>
+            </span>
+          </div>
+          <button aria-label="{{l.editLabel}}" style="width: 44px; height: 44px; flex-shrink: 0; border: 0; border-radius: 12px; background: transparent; color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg>
+          </button>
+        </div>
+      </sc-for>
+    </section>
+
+    <section aria-label="Today's late fines" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Today's late fines</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-1);">Rs. 600</span>
+      </div>
+      <sc-for list="{{fines}}" as="f" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; border-top: 1px solid var(--line);">
+          <span aria-hidden="true" style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 9999px; background: {{f.av}}; color: #FFFFFF; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">{{f.initials}}</span>
+          <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 15px; font-weight: 600; color: var(--text-1);">{{f.name}}</span>
+            <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{f.when}}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <span style="font-family: var(--f-mono); font-size: 13px; font-weight: 500; color: var(--text-1);">{{f.amount}}</span>
+            <span style="height: 20px; padding: 0 7px; border-radius: 9999px; background: {{f.pb}}; color: {{f.pf}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">{{f.status}}</span>
+          </div>
+          <button aria-label="{{f.editLabel}}" style="width: 44px; height: 44px; flex-shrink: 0; margin-right: -10px; border: 0; border-radius: 12px; background: transparent; color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg>
+          </button>
+        </div>
+      </sc-for>
+    </section>
+
+    <section aria-label="Word of the meeting" class="glass" style="position: relative; overflow: hidden; padding: 18px; border: 1px solid rgba(255,106,31,.35); border-radius: 20px; background: var(--orange-soft); display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span aria-hidden="true" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; background: var(--orange); color: #0A0E17; display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+        </span>
+        <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2);">Word of the meeting</h2>
+        <button aria-label="Edit or delete the word" style="width: 44px; height: 44px; margin-right: -8px; border: 0; border-radius: 12px; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg>
+        </button>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;">
+        <span style="font-family: var(--f-display); font-size: 30px; line-height: 1.1; font-weight: 700; color: var(--text-1);">Ephemeral</span>
+        <span style="font-family: var(--f-mono); font-size: 13px; color: var(--text-3);">/ɪˈfem(ə)rəl/</span>
+      </div>
+      <span style="font-size: 14px; color: var(--text-2);">Translation: <span style="font-weight: 600; color: var(--text-1);">क्षणिक</span></span>
+      <p style="margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-1);">Lasting for a very short time.</p>
+      <p style="margin: 0; padding-left: 12px; border-left: 2px solid var(--orange); font-size: 14px; line-height: 1.5; font-style: italic; color: var(--text-2);">"The office went quiet for an ephemeral moment before the Dashain release went live."</p>
+      <span style="font-size: 13px; color: var(--text-3);">Shared by Aarav Shrestha</span>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const av = ['#3D63F0', '#7C5CE0', '#0B7F90', '#B4471A'];
+    const sub = (name, initials, color, time, tickets, me) => ({
+      name, initials, time,
+      av: me ? 'var(--orange)' : color,
+      fg: me ? '#0A0E17' : '#FFFFFF',
+      tickets: tickets.map((k) => ({ key: k })),
+      aria: name + ', submitted at ' + time + ', show answers'
+    });
+    const fine = (name, initials, color, when, amount, paid) => ({
+      name, initials, when, amount, av: color,
+      status: paid ? 'Paid' : 'Unpaid',
+      pb: paid ? 'var(--pb-green)' : 'var(--pb-amber)',
+      pf: paid ? 'var(--pf-green)' : 'var(--pf-amber)',
+      editLabel: 'Edit or delete fine for ' + name
+    });
+    return {
+      themeCls: light ? 'light' : '',
+      missing: [
+        { name: 'Priya Maharjan', initials: 'PM', av: av[3], onLeave: false },
+        { name: 'Nabin Tamang', initials: 'NT', av: av[2], onLeave: false },
+        { name: 'Rohan KC', initials: 'RK', av: av[0], onLeave: false },
+        { name: 'Sita Gurung', initials: 'SG', av: av[1], onLeave: true }
+      ],
+      submitted: [
+        sub('Bikash Thapa', 'BT', av[2], '09:12', ['HT-48', 'HT-51'], false),
+        sub('Aarav Shrestha', 'AS', av[0], '09:26', ['HT-52'], false),
+        sub('Sanish', 'S', av[0], '09:31', ['HT-49', 'HT-52'], true),
+        sub('Kriti Joshi', 'KJ', av[1], '09:44', ['HT-55'], false),
+        sub('Anisha Rai', 'AR', av[3], '09:58', ['HT-50'], false)
+      ],
+      leaves: [
+        { name: 'Sita Gurung', initials: 'SG', av: av[1], span: 'Full Day', meta: 'Casual', editLabel: 'Edit or delete leave for Sita Gurung' },
+        { name: 'Kriti Joshi', initials: 'KJ', av: av[1], span: 'Half Day', meta: 'Sick · Second Half', editLabel: 'Edit or delete leave for Kriti Joshi' }
+      ],
+      fines: [
+        fine('Rohan KC', 'RK', av[0], 'In at 10:22', 'Rs. 300', false),
+        fine('Nabin Tamang', 'NT', av[2], 'In at 10:11', 'Rs. 100', true),
+        fine('Bikash Thapa', 'BT', av[2], 'In at 10:16', 'Rs. 200', false)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

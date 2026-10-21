@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import EditFineModal from "@/components/EditFineModal";
 import EditStandupModal from "@/components/EditStandupModal";
@@ -11,16 +12,86 @@ import EditLeaveModal from "@/components/EditLeaveModal";
 import { useSplashExit } from "@/components/HumanLoader";
 import EventBanner from "@/components/EventBanner";
 import ArcheryBanner from "@/components/ArcheryBanner";
-import MeetingShoutouts from "@/components/MeetingShoutouts";
+import MeetingShoutouts, { MeetingAvatar } from "@/components/MeetingShoutouts";
 import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
 import DashainBanner from "@/components/DashainBanner";
+import StatsCard from "@/components/StatsCard";
+import Icon from "@/components/Icon";
 import { computeLeaveBalances, parseHalfDaySegment, findExistingLateFine } from "@/lib/utils";
+import { formatBs } from "@/lib/nepaliDate";
 import { useDialog } from "@/context/DialogContext";
 
 const MEETING_TYPE_LABELS = { full: "Full Day", half: "Half Day", early: "Early Leave" };
-const MEETING_TYPE_ICONS = { full: "📅", half: "🌗", early: "🚪" };
 const MEETING_SEGMENT_LABELS = { first: "First Half", second: "Second Half" };
-const MEETING_SEGMENT_ICONS = { first: "🌅", second: "🌇" };
+// The On leave figure's breakdown, e.g. "1 full day · 1 half day".
+const LEAVE_COUNT_LABELS = { full: "full day", half: "half day", early: "early leave" };
+const MEETING_LINK = "https://meet.google.com/khg-nxbc-ayo";
+// Summary figure dots (Meeting.dc.html): submitted green, missing red, leave cyan, late amber.
+const FIGURE_COLORS = { submitted: "#22C55E", missing: "#F43F5E", leave: "#2DD4EF", late: "#F5A524" };
+
+// Jira tickets in these states are left out of the meeting; the rest are read blockers first.
+const HIDDEN_TICKET_STATUSES = ["on hold", "rejected", "backlog"];
+const TICKET_STATUS_ORDER = {
+  "blocked":     0,
+  "in progress": 1,
+  "in review":   2,
+  "to do":       3,
+  "on hold":     4,
+  "done":        5,
+  "closed":      6,
+};
+
+// What the idle bug says while it walks across a submission in the enlarged view.
+const NUDGE_PHRASES = [
+  "There is so much work left today",
+  "Gotta finish these tasks ASAP today",
+  "Time to lock in and code!",
+  "Let's crush these tickets!",
+  "Focus mode activated",
+  "Still got a lot on my plate!",
+];
+
+// "09:42:17", the viewer's local time.
+const CLOCK_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+// "06:12": minutes and seconds, for the meeting timers.
+function formatElapsed(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+// "Monday, Oct 19 2026" for a local "YYYY-MM-DD".
+function meetingDayLabel(ymd) {
+  if (!ymd) return "";
+  const d = new Date(`${ymd}T00:00:00`);
+  const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+  const monthDay = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${weekday}, ${monthDay} ${d.getFullYear()}`;
+}
+
+// A submission (real or synthetic "missing") is matched to an employee the same way the
+// missing-submission list matches employees: by email first, then by first name.
+function submissionMatchesEmployee(submission, emp) {
+  const subEmail = submission.email?.trim().toLowerCase();
+  const workEmail = emp.work_email?.trim().toLowerCase();
+  const personalEmail = emp.personal_email?.trim().toLowerCase();
+  if (subEmail && (subEmail === workEmail || subEmail === personalEmail)) return true;
+
+  const subFirstName = submission.name?.trim().split(/\s+/)[0].toLowerCase();
+  const empFirstName = emp.name?.trim().split(/\s+/)[0].toLowerCase();
+  return !!subFirstName && subFirstName === empFirstName;
+}
+
+// A ticket's url comes from the standup form's data: only a web link becomes an anchor.
+function safeTicketUrl(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url) ? url : null;
+}
 
 export default function MeetingPage() {
   const {
@@ -74,6 +145,12 @@ export default function MeetingPage() {
   const lateFineSelectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && !e.late_fine_excluded), [employees]);
   const standupFineSelectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && !e.standup_fine_excluded), [employees]);
   const leaveSelectableEmployees = useMemo(() => employees.filter(e => e.status !== "resigned" && !e.leave_excluded), [employees]);
+  // Who "Add fine" in Missing submissions may be offered for: the same list the
+  // standup fine dialog lets you pick from.
+  const standupFineSelectableNames = useMemo(
+    () => new Set(standupFineSelectableEmployees.map((e) => e.name)),
+    [standupFineSelectableEmployees]
+  );
   const router = useRouter();
   const [viewDate, setViewDate] = useState("");
   const [isEnlarged, setIsEnlarged] = useState(false);
@@ -115,12 +192,6 @@ export default function MeetingPage() {
       }
     };
   }, [isEnlarged]);
-
-  const formatElapsed = (totalSeconds) => {
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
 
   useEffect(() => {
     setIsClient(true);
@@ -364,7 +435,7 @@ export default function MeetingPage() {
     return [...missingSubmissions, ...sortedActual];
   }, [standupSubmissions, viewDate, employees, isClient, sortNewestFirst]);
 
-  // Projects with at least one staffed employee, for the enlarged view's filter pills.
+  // Projects with at least one staffed employee, for the submissions' project filter pills.
   const membersByProject = useMemo(() => {
     const employeesById = new Map((employees || []).map((e) => [e.id, e]));
     const map = new Map();
@@ -382,24 +453,22 @@ export default function MeetingPage() {
     [projects, membersByProject]
   );
 
-  // A submission (real or synthetic "missing") is matched to an employee the same way the
-  // missing-submission list matches employees above: by email first, then by first name.
-  const submissionMatchesEmployee = (submission, emp) => {
-    const subEmail = submission.email?.trim().toLowerCase();
-    const workEmail = emp.work_email?.trim().toLowerCase();
-    const personalEmail = emp.personal_email?.trim().toLowerCase();
-    if (subEmail && (subEmail === workEmail || subEmail === personalEmail)) return true;
-
-    const subFirstName = submission.name?.trim().split(/\s+/)[0].toLowerCase();
-    const empFirstName = emp.name?.trim().split(/\s+/)[0].toLowerCase();
-    return !!subFirstName && subFirstName === empFirstName;
-  };
-
   const filteredSubmissions = useMemo(() => {
     if (projectFilter === "all") return allSubmissions;
     const members = membersByProject.get(projectFilter) || [];
     return allSubmissions.filter((s) => members.some((emp) => submissionMatchesEmployee(s, emp)));
   }, [allSubmissions, projectFilter, membersByProject]);
+
+  // How many people each project pill stands for on the viewed date (submitted and
+  // missing), matched exactly as the filter above matches them.
+  const projectCounts = useMemo(() => {
+    const counts = new Map();
+    for (const p of staffedProjects) {
+      const members = membersByProject.get(p.id) || [];
+      counts.set(p.id, allSubmissions.filter((s) => members.some((emp) => submissionMatchesEmployee(s, emp))).length);
+    }
+    return counts;
+  }, [staffedProjects, membersByProject, allSubmissions]);
 
   // Searching by name lifts matches to the top rather than hiding the rest, so the
   // submitted/missing counts stay honest and you keep the context of the whole standup.
@@ -442,6 +511,8 @@ export default function MeetingPage() {
   // Form States
   const [showAddFine, setShowAddFine] = useState(false);
   const [showAddStandup, setShowAddStandup] = useState(false);
+  // The person "Add fine" in Missing submissions was pressed for; "" from Quick add.
+  const [standupPrefill, setStandupPrefill] = useState("");
   const [showAddWord, setShowAddWord] = useState(false);
   const [showAddLeave, setShowAddLeave] = useState(false);
 
@@ -462,385 +533,600 @@ export default function MeetingPage() {
     return <>{splash}</>;
   }
 
-  // Nudge phrases
-  const nudgePhrases = [
-    "There is so much work left today",
-    "Gotta finish these tasks ASAP today",
-    "Time to lock in and code! 💻",
-    "Let's crush these tickets! 🚀",
-    "Focus mode activated ⚡",
-    "Still got a lot on my plate! 🍽️"
-  ];
+  const openStandupFine = (name) => {
+    setStandupPrefill(name);
+    setShowAddStandup(true);
+  };
+
+  const viewDateLabel = viewDate === today
+    ? "Today"
+    : (viewDate ? new Date(viewDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : "...");
+
+  // Missing people get their own panel; the enlarged view, which covers that panel,
+  // keeps them at the top of its list as before.
+  const missingSubmissions = orderedSubmissions.filter((s) => s.isMissing);
+  const listedSubmissions = isEnlarged ? orderedSubmissions : orderedSubmissions.filter((s) => !s.isMissing);
+  // A standup fine from Quick add is always dated today, so a person is only offered one
+  // while today's standup is on screen.
+  const canFineMissing = canManageFines && viewDate === today;
+
+  // The signed-in user's avatar is the orange one.
+  const myEmails = new Set(
+    [currentEmployee?.work_email, currentEmployee?.personal_email]
+      .filter(Boolean)
+      .map((e) => e.trim().toLowerCase())
+  );
+  const isMe = (name, email) =>
+    (!!email && myEmails.has(email.trim().toLowerCase())) || (!!name && name === currentEmployee?.name);
+
+  // Summary figures.
+  const missingNames = missingSubmissions.map((s) => s.name?.trim().split(/\s+/)[0]).filter(Boolean);
+  const missingSub = missingNames.length === 0
+    ? "everyone is in"
+    : missingNames.slice(0, 3).join(", ") + (missingNames.length > 3 ? ` +${missingNames.length - 3} more` : "");
+  const leaveCounts = activeLeaves.reduce((acc, l) => {
+    if (LEAVE_COUNT_LABELS[l.type]) acc[l.type] = (acc[l.type] || 0) + 1;
+    return acc;
+  }, {});
+  const leaveSub = activeLeaves.length === 0
+    ? "full strength today"
+    : Object.keys(LEAVE_COUNT_LABELS)
+        .filter((type) => leaveCounts[type])
+        .map((type) => `${leaveCounts[type]} ${LEAVE_COUNT_LABELS[type]}`)
+        .join(" · ");
+  const lateTotal = todaysFines.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const lateUnpaid = todaysFines.filter((f) => f.status === "unpaid").length;
+  const lateSub = todaysFines.length === 0
+    ? "all on time today"
+    : `Rs. ${lateTotal} · ${lateUnpaid ? `${lateUnpaid} unpaid` : "all paid"}`;
 
   return (
     <>
     {splash}
     <div className="meeting-layout">
-      <EventBanner />
-      <ArcheryBanner />
-      <NewFiscalYearBanner />
-      <DashainBanner />
-      <header className="meeting-header">
-        <div className="meeting-title-group">
-          <Link href="/" className="exit-link">← Exit Meeting</Link>
-          <h1 className="meeting-title">
-            Daily Sync: {isClient ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : "..."}
-          </h1>
+      {/* This route sits outside the app shell: the slim top bar of the standalone pages. */}
+      <header className="glass poker-standalone-bar meeting-topbar">
+        <div className="poker-standalone-brand">
+          <Image src="/logo.png" alt="" width={32} height={32} className="poker-bar-logo" />
+          <h1 className="meeting-topbar-title">Daily Sync</h1>
+          <span className="meeting-live">
+            <span className="meeting-live-dot" aria-hidden="true" />
+            Live
+          </span>
         </div>
-        <div className="meeting-actions">
+        <MeetingClock today={today} />
+        <div className="meeting-topbar-actions">
           <a
-            href="https://meet.google.com/khg-nxbc-ayo"
+            href={MEETING_LINK}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primary"
-            title="Meeting Link"
+            className="btn btn-secondary meeting-topbar-link"
           >
+            <Icon name="external" size={16} strokeWidth={2} />
             Meeting Link
           </a>
-          {canManageFines && (
-            <>
-              <button className="btn btn-primary" onClick={() => setShowAddFine(true)}>+ Late Fine</button>
-              <button className="btn btn-warning" onClick={() => setShowAddStandup(true)}>+ Standup Fine</button>
-            </>
-          )}
-          <button className="btn btn-accent" onClick={() => setShowAddLeave(true)}>+ Leave</button>
-          {!todaysWord && (
-             <button className="btn btn-secondary" onClick={() => setShowAddWord(true)}>+ Set Word</button>
-          )}
+          <Link href="/" className="btn btn-orange meeting-topbar-link">
+            Exit Meeting
+          </Link>
         </div>
       </header>
 
-      <div className="meeting-grid">
-        {/* LATE FINES */}
-        <section className="meeting-card fines-card">
-          <h2 className="card-title">💰 Today's Late Fines</h2>
-          <div className="meeting-list">
-            {todaysFines.length === 0 ? (
-              <p className="empty-msg">All on time today! ☀️</p>
-            ) : (
-              todaysFines.map((f, index) => (
-                <div key={`fine-item-${index}`} className="meeting-item group">
-                  <span className="item-name">{f.employee_name}</span>
-                  <span className="item-value">Rs. {f.amount}</span>
-                  <span className={`status-badge ${f.status}`}>{f.status}</span>
-                  {canManageFines && (
-                    <div className="item-actions">
-                      <button onClick={() => { setEditingFine(f); setShowEditFine(true); }} title="Edit">✏️</button>
-                      <button onClick={async () => { if (await confirmDialog("Delete fine?", { danger: true })) deleteFine(f.id); }} title="Delete">🗑</button>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+      <main className="meeting-main">
+        <div className="meeting-banners">
+          <EventBanner />
+          <ArcheryBanner />
+          <NewFiscalYearBanner />
+          <DashainBanner />
+        </div>
 
-        {/* STANDUP FINES */}
-        <section className="meeting-card standup-card">
-          <h2 className="card-title">📝 Standup Status</h2>
-          <div className="meeting-list">
-            {todaysStandups.length === 0 ? (
-              <p className="empty-msg">No standup fines yet.</p>
-            ) : (
-              todaysStandups.map((s, index) => (
-                <div key={`standup-item-${index}`} className="meeting-item group">
-                  <span className="item-name">{s.employee_name}</span>
-                  <span className={`status-badge ${s.status}`}>{s.status}</span>
-                  {canManageFines && (
-                    <div className="item-actions">
-                      <button onClick={() => { setEditingStandup(s); setShowEditStandup(true); }} title="Edit">✏️</button>
-                      <button onClick={async () => { if (await confirmDialog("Delete record?", { danger: true })) deleteStandupFine(s.id); }} title="Delete">🗑</button>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+        <div className="meeting-row meeting-row-top">
+          <section className="meeting-figures" aria-label="Today at a glance">
+            <StatsCard label="Submitted" value={`${stats.submitted} / ${stats.total}`} sub={viewDate === today ? "standups in for today" : `standups in for ${viewDateLabel}`} color={FIGURE_COLORS.submitted} />
+            <StatsCard label="Missing" value={stats.missing} sub={missingSub} color={FIGURE_COLORS.missing} />
+            <StatsCard label="On leave" value={activeLeaves.length} sub={leaveSub} color={FIGURE_COLORS.leave} />
+            <StatsCard label="Late today" value={todaysFines.length} sub={lateSub} color={FIGURE_COLORS.late} />
+          </section>
+          <section className="glass meeting-quick" aria-label="Quick add">
+            <span className="eyebrow">Quick add</span>
+            <div className="meeting-quick-grid">
+              {canManageFines && (
+                <>
+                  <button type="button" className="btn btn-secondary meeting-quick-btn" onClick={() => setShowAddFine(true)}>
+                    <Icon name="plus" size={16} strokeWidth={2.2} />
+                    Late Fine
+                  </button>
+                  <button type="button" className="btn btn-secondary meeting-quick-btn" onClick={() => openStandupFine("")}>
+                    <Icon name="plus" size={16} strokeWidth={2.2} />
+                    Standup Fine
+                  </button>
+                </>
+              )}
+              <button type="button" className="btn btn-secondary meeting-quick-btn" onClick={() => setShowAddLeave(true)}>
+                <Icon name="plus" size={16} strokeWidth={2.2} />
+                Leave
+              </button>
+              {!todaysWord && (
+                <button type="button" className="btn btn-secondary meeting-quick-btn" onClick={() => setShowAddWord(true)}>
+                  <Icon name="plus" size={16} strokeWidth={2.2} />
+                  Set Word
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
 
-        {/* ACTIVE LEAVES */}
-        <section className="meeting-card leaves-card">
-          <h2 className="card-title">🏖️ On Leave Today</h2>
-          <div className="meeting-list">
-            {activeLeaves.length === 0 ? (
-              <p className="empty-msg">Full strength today! 💪</p>
-            ) : (
-              activeLeaves.map((l, index) => {
-                const segment = parseHalfDaySegment(l);
-                return (
-                <div key={`leave-item-${index}`} className="meeting-item group">
-                  <span className="item-name">{l.employee_name?.trim() ? l.employee_name : "Unknown"}</span>
-                  <span className="leave-type-tag">
-                    {MEETING_TYPE_ICONS[l.type]} {MEETING_TYPE_LABELS[l.type]} · {leaveTypeById.get(l.leave_type_id)?.name || "Uncategorized"}
-                    {segment ? ` · ${MEETING_SEGMENT_ICONS[segment]} ${MEETING_SEGMENT_LABELS[segment]}` : ""}
-                  </span>
-                  {canManageLeave(l) && (
-                    <div className="item-actions">
-                      <button onClick={() => { setEditingLeave(l); setShowEditLeave(true); }} title="Edit">✏️</button>
-                      <button onClick={async () => { if (await confirmDialog("Delete leave?", { danger: true })) deleteLeave(l.id); }} title="Delete">🗑</button>
-                    </div>
-                  )}
-                </div>
-                );
-              })
+        <div className="meeting-row">
+          {/* STANDUP SUBMISSIONS (FROM SECONDARY DB) */}
+          <section
+            className={`glass meeting-panel submissions-card ${isEnlarged ? 'enlarged' : ''}`}
+            aria-labelledby="meeting-subs-title"
+          >
+            {isEnlarged && showEnlargedIdle && (
+              <ConfusedHuman onDismiss={() => setShowEnlargedIdle(false)} />
             )}
-          </div>
-        </section>
-
-        {/* STANDUP SUBMISSIONS (FROM SECONDARY DB) */}
-        <section className={`meeting-card submissions-card ${isEnlarged ? 'enlarged' : ''}`}>
-          {isEnlarged && showEnlargedIdle && (
-            <ConfusedHuman onDismiss={() => setShowEnlargedIdle(false)} />
-          )}
-          {isEnlarged && (
-            <div className="enlarged-timer">⏱ {formatElapsed(enlargedSeconds)}</div>
-          )}
-          <div className="card-header-with-actions">
-            <h2 className="card-title">✅ Daily Submissions</h2>
-            <div className="card-header-tools">
-              <div className="search-box submission-search">
-                <span className="search-icon">🔍</span>
-                <input
-                  type="text"
-                  placeholder="Search name…"
-                  value={nameSearch}
-                  onChange={(e) => setNameSearch(e.target.value)}
-                />
+            {isEnlarged && (
+              <div className="enlarged-timer">
+                <Icon name="clock" size={18} strokeWidth={2} />
+                {formatElapsed(enlargedSeconds)}
+              </div>
+            )}
+            <div className="meeting-panel-head">
+              <h2 id="meeting-subs-title" className="meeting-panel-title">Daily submissions</h2>
+              <span className="pill pill-green meeting-pill-lg">
+                {stats.submitted} / {stats.total} submitted
+              </span>
+              <div className="meeting-tools">
+                <label className="meeting-search">
+                  <Icon name="search" size={16} strokeWidth={2} />
+                  <input
+                    type="text"
+                    aria-label="Search name"
+                    placeholder="Search name…"
+                    value={nameSearch}
+                    onChange={(e) => setNameSearch(e.target.value)}
+                  />
+                  {nameQuery && (
+                    <button
+                      type="button"
+                      className="meeting-search-clear"
+                      onClick={() => setNameSearch("")}
+                      aria-label="Clear search"
+                      title="Clear search"
+                    >
+                      <Icon name="x" size={14} strokeWidth={2} />
+                    </button>
+                  )}
+                </label>
                 {nameQuery && (
+                  <span className="meeting-search-count">
+                    {matchCount === 0 ? "no match" : `${matchCount} matched`}
+                  </span>
+                )}
+                <div className="meeting-date-nav" role="group" aria-label="Date">
+                  <button type="button" className="meeting-date-btn" onClick={handlePrevDate} aria-label="Previous day" title="Previous day">
+                    <Icon name="chevron-left" size={16} strokeWidth={2} />
+                  </button>
+                  <span className="meeting-date-label">{viewDateLabel}</span>
                   <button
                     type="button"
-                    className="search-clear"
-                    onClick={() => setNameSearch("")}
-                    title="Clear search"
+                    className="meeting-date-btn"
+                    onClick={handleNextDate}
+                    disabled={viewDate >= today}
+                    aria-label="Next day"
+                    title="Next day"
                   >
-                    ×
+                    <Icon name="chevron-right" size={16} strokeWidth={2} />
                   </button>
-                )}
-              </div>
-              {nameQuery && (
-                <span className="search-match-count">
-                  {matchCount === 0 ? "no match" : `${matchCount} matched`}
-                </span>
-              )}
-              <span className="standup-stats">
-                {stats.submitted}/{stats.total} Submitted
-              </span>
-              <div className="date-navigator">
-                <button className="btn-nav" onClick={handlePrevDate}>◀</button>
-                <span className="view-date-label">
-                  {viewDate === today ? "Today" : (viewDate ? new Date(viewDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : "...")}
-                </span>
-                <button className="btn-nav" onClick={handleNextDate} disabled={viewDate >= today}>▶</button>
-              </div>
-              <button
-                className="btn-sort-toggle"
-                onClick={() => setSortNewestFirst(p => !p)}
-                title={sortNewestFirst ? "Showing: Last submitted first" : "Showing: First submitted first"}
-              >
-                {sortNewestFirst ? "↓ Latest" : "↑ Earliest"}
-              </button>
-              <button 
-                className="btn-enlarge" 
-                onClick={() => setIsEnlarged(!isEnlarged)}
-                title={isEnlarged ? "Minimize" : "Enlarge"}
-              >
-                {isEnlarged ? "✕" : "⛶"}
-              </button>
-            </div>
-          </div>
-          {isEnlarged && staffedProjects.length > 0 && (
-            <div className="meeting-project-pills">
-              <button
-                className={`meeting-project-pill ${projectFilter === "all" ? "active" : ""}`}
-                onClick={() => setProjectFilter("all")}
-              >
-                All
-              </button>
-              {staffedProjects.map((p) => (
-                <button
-                  key={p.id}
-                  className={`meeting-project-pill ${projectFilter === p.id ? "active" : ""}`}
-                  onClick={() => setProjectFilter(p.id)}
-                  title={`Show standups for ${p.name}`}
-                >
-                  🚀 {p.name}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="submissions-list" onScroll={() => window.dispatchEvent(new Event('mousemove'))}>
-            {orderedSubmissions.length > 0 ? (
-              orderedSubmissions.map((s, index) => {
-                const subId = s.id || `sub-${index}`;
-                const isIdleTarget = idleSubmissionId === subId;
-                const HIDDEN_STATUSES = ['on hold', 'rejected', 'backlog'];
-                const visibleTickets = (s.jira_tickets || []).filter(t => {
-                  const st = (typeof t === 'object' ? t.status : null)?.toLowerCase() ?? '';
-                  return !HIDDEN_STATUSES.includes(st);
-                });
-
-                return (
-                  <div
-                    key={subId}
-                    data-submission-id={subId}
-                    className={`submission-item ${s.isMissing ? 'missing' : ''} ${
-                      nameQuery && s.name?.toLowerCase().includes(nameQuery) ? 'search-match' : ''
-                    }`}
-                  >
-                    {isIdleTarget && <IdleNudge phrases={nudgePhrases} />}
-                    <div className="submission-header">
-                      <span className="submission-user">
-                        {s.name} {s.isMissing && <span className="missing-badge">NOT SUBMITTED</span>}
-                      </span>
-                      {!s.isMissing && s.responded_at && (
-                        <span className="submission-time">
-                          {new Date(s.responded_at).toLocaleTimeString("en-US", { timeZone: "Asia/Kathmandu", hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                    </div>
-                    <div className="submission-content">
-                      {s.isMissing ? (
-                        <div className="missing-state-content">
-                          <p className="ans-text italic text-muted">No standup update received for this date.</p>
-                        </div>
-                      ) : (
-                        <>
-                          {standupQuestions.length > 0 ? (
-                            standupQuestions.map((q, qIndex) => {
-                              const answers = s.answers || {};
-                              const answer = answers[`question_${q.id}`] || 
-                                           answers[q.id] || 
-                                           answers[q.question] || 
-                                           answers[q.sort_order] || 
-                                           (q.sort_order ? answers[q.sort_order.toString()] : null);
-                              
-                              return (
-                                <div key={`submission-${index}-q-${qIndex}`} className="submission-qa">
-                                  <label className="qa-label">{q.question}</label>
-                                  <div className="ans-text position-relative">
-                                    {answer && String(answer).trim() ? (
-                                      typeof answer === 'object' ? JSON.stringify(answer) : formatText(String(answer))
-                                    ) : (
-                                      <span className="text-muted italic">No answer provided</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            // If no questions fetched, show raw answers
-                            Object.entries(s.answers || {}).map(([key, value], ansIdx) => (
-                              <div key={`submission-${index}-ans-${ansIdx}`} className="submission-qa">
-                                <label className="qa-label">{key}</label>
-                                <div className="ans-text position-relative">
-                                  {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </>
-                      )}
-                    </div>
-                    {/* Jira tickets rendered OUTSIDE submission-content so they're never hidden by 250px scroll cap */}
-                    {!s.isMissing && visibleTickets.length > 0 && (
-                      <div className="jira-section">
-                        <label className="qa-label">Jira Tickets</label>
-                        <div className={`jira-tags${visibleTickets.length > 5 ? ' jira-tags--multi-col' : ''}`}>
-                          {[...visibleTickets].sort((a, b) => {
-                            const priority = {
-                              'blocked':     0,
-                              'in progress': 1,
-                              'in review':   2,
-                              'to do':       3,
-                              'on hold':     4,
-                              'done':        5,
-                              'closed':      6,
-                            };
-                            const aStatus = (typeof a === 'object' ? a.status : null)?.toLowerCase() ?? '';
-                            const bStatus = (typeof b === 'object' ? b.status : null)?.toLowerCase() ?? '';
-                            return (priority[aStatus] ?? 99) - (priority[bStatus] ?? 99);
-                          }).map((t, tIdx) => {
-                            const ticketKey = typeof t === 'object' ? (t.key || t.summary || "Ticket") : t;
-                            const ticketStatus = typeof t === 'object' ? (t.status || null) : null;
-                            const ticketUrl = typeof t === 'object' ? t.url : null;
-                            const statusClass = ticketStatus
-                              ? `jira-status jira-status--${ticketStatus.toLowerCase().replace(/\s+/g, '-')}`
-                              : null;
-                            return (
-                              <span key={`jira-${index}-${tIdx}`} className="jira-tag">
-                                <span className="jira-tag-row">
-                                  {ticketUrl ? (
-                                    <a href={ticketUrl} target="_blank" rel="noopener noreferrer" className="jira-tag-key">
-                                      {ticketKey}
-                                    </a>
-                                  ) : (
-                                    <span className="jira-tag-key">{ticketKey}</span>
-                                  )}
-                                  {ticketStatus && (
-                                    <span className={statusClass}>{ticketStatus}</span>
-                                  )}
-                                </span>
-                                {typeof t === 'object' && t.summary && (
-                                  <span className="jira-summary">{t.summary}</span>
-                                )}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
                 </div>
-                );
-              })
-            ) : (
-              <p className="empty-msg">
-                {projectFilter === "all"
-                  ? "No submissions for this date. 📥"
-                  : "No one on this project has a standup for this date. 📥"}
-              </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSortNewestFirst(p => !p)}
+                  title={sortNewestFirst ? "Showing: Last submitted first" : "Showing: First submitted first"}
+                >
+                  {sortNewestFirst ? "Latest first" : "Earliest first"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsEnlarged(!isEnlarged)}
+                  title={isEnlarged ? "Minimize" : "Enlarge"}
+                >
+                  {isEnlarged && <Icon name="x" size={16} strokeWidth={2} />}
+                  {isEnlarged ? "Minimize" : "Enlarge"}
+                </button>
+              </div>
+            </div>
+            {staffedProjects.length > 0 && (
+              <div className="meeting-project-pills" role="group" aria-label="Filter by project">
+                <button
+                  type="button"
+                  className={`meeting-project-pill ${projectFilter === "all" ? "active" : ""}`}
+                  aria-pressed={projectFilter === "all"}
+                  onClick={() => setProjectFilter("all")}
+                >
+                  All
+                  <span className="meeting-project-count">{allSubmissions.length}</span>
+                </button>
+                {staffedProjects.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`meeting-project-pill ${projectFilter === p.id ? "active" : ""}`}
+                    aria-pressed={projectFilter === p.id}
+                    onClick={() => setProjectFilter(p.id)}
+                    title={`Show standups for ${p.name}`}
+                  >
+                    {p.name}
+                    <span className="meeting-project-count">{projectCounts.get(p.id) ?? 0}</span>
+                  </button>
+                ))}
+              </div>
             )}
-          </div>
-        </section>
+            <div className="submissions-list" onScroll={() => window.dispatchEvent(new Event('mousemove'))}>
+              {listedSubmissions.length > 0 ? (
+                listedSubmissions.map((s, index) => {
+                  const subId = s.id || `sub-${index}`;
+                  const isIdleTarget = idleSubmissionId === subId;
+                  const visibleTickets = (s.jira_tickets || []).filter(t => {
+                    const st = (typeof t === 'object' ? t.status : null)?.toLowerCase() ?? '';
+                    return !HIDDEN_TICKET_STATUSES.includes(st);
+                  });
 
-        {/* WORD OF THE DAY */}
-        <section className="meeting-card word-hero-card">
-          <h2 className="card-title">📖 Word of the Meeting</h2>
-          {todaysWord ? (
-            <div className="meeting-word-display pulse-entry">
-              <div className="word-main">
-                <h3 className="word-text">{todaysWord.word}</h3>
-                {todaysWord.phonetic && <span className="phonetic">({todaysWord.phonetic})</span>}
-                {isAdmin && (
-                  <div className="word-actions-inline">
-                    <button onClick={() => { setEditingWord(todaysWord); setShowEditWord(true); }} title="Edit Word">✏️</button>
-                    <button onClick={async () => { if (await confirmDialog("Delete word?", { danger: true })) deleteWord(todaysWord.id); }} title="Delete Word">🗑</button>
+                  return (
+                    <article
+                      key={subId}
+                      data-submission-id={subId}
+                      className={`submission-item ${s.isMissing ? 'missing' : ''} ${
+                        nameQuery && s.name?.toLowerCase().includes(nameQuery) ? 'search-match' : ''
+                      }`}
+                    >
+                      {isIdleTarget && <IdleNudge phrases={NUDGE_PHRASES} />}
+                      <div className="submission-header">
+                        <MeetingAvatar name={s.name} isMe={isMe(s.name, s.email)} />
+                        <h3 className="submission-user">{s.name}</h3>
+                        {s.isMissing && <span className="pill pill-red">Not submitted</span>}
+                        {!s.isMissing && s.responded_at && (
+                          <span className="submission-time">
+                            {new Date(s.responded_at).toLocaleTimeString("en-US", { timeZone: "Asia/Kathmandu", hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                      {s.isMissing ? (
+                        <p className="submission-missing-note">No standup update received for this date.</p>
+                      ) : (
+                        <div className="submission-body">
+                          <dl className="submission-content">
+                            {standupQuestions.length > 0 ? (
+                              standupQuestions.map((q, qIndex) => {
+                                const answers = s.answers || {};
+                                const answer = answers[`question_${q.id}`] ||
+                                             answers[q.id] ||
+                                             answers[q.question] ||
+                                             answers[q.sort_order] ||
+                                             (q.sort_order ? answers[q.sort_order.toString()] : null);
+
+                                return (
+                                  <div key={`submission-${index}-q-${qIndex}`} className="submission-qa">
+                                    <dt className="qa-label">{q.question}</dt>
+                                    <dd className="ans-text">
+                                      {answer && String(answer).trim() ? (
+                                        typeof answer === 'object' ? JSON.stringify(answer) : formatText(String(answer))
+                                      ) : (
+                                        <span className="ans-empty">No answer provided</span>
+                                      )}
+                                    </dd>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              // If no questions fetched, show raw answers
+                              Object.entries(s.answers || {}).map(([key, value], ansIdx) => (
+                                <div key={`submission-${index}-ans-${ansIdx}`} className="submission-qa">
+                                  <dt className="qa-label">{key}</dt>
+                                  <dd className="ans-text">
+                                    {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
+                                  </dd>
+                                </div>
+                              ))
+                            )}
+                          </dl>
+                          {/* Jira tickets sit OUTSIDE submission-content so its scroll cap never hides them */}
+                          {visibleTickets.length > 0 && (
+                            <div className="jira-section">
+                              <span className="jira-label">Jira Tickets</span>
+                              <div className={`jira-tags${visibleTickets.length > 5 ? ' jira-tags--multi-col' : ''}`}>
+                                {[...visibleTickets].sort((a, b) => {
+                                  const aStatus = (typeof a === 'object' ? a.status : null)?.toLowerCase() ?? '';
+                                  const bStatus = (typeof b === 'object' ? b.status : null)?.toLowerCase() ?? '';
+                                  return (TICKET_STATUS_ORDER[aStatus] ?? 99) - (TICKET_STATUS_ORDER[bStatus] ?? 99);
+                                }).map((t, tIdx) => {
+                                  const ticketKey = typeof t === 'object' ? (t.key || t.summary || "Ticket") : t;
+                                  const ticketStatus = typeof t === 'object' ? (t.status || null) : null;
+                                  const ticketUrl = typeof t === 'object' ? safeTicketUrl(t.url) : null;
+                                  const statusClass = ticketStatus
+                                    ? `jira-status jira-status--${ticketStatus.toLowerCase().replace(/\s+/g, '-')}`
+                                    : null;
+                                  return (
+                                    <span key={`jira-${index}-${tIdx}`} className="jira-tag">
+                                      <span className="jira-tag-row">
+                                        {ticketUrl ? (
+                                          <a href={ticketUrl} target="_blank" rel="noopener noreferrer" className="jira-tag-key">
+                                            {ticketKey}
+                                          </a>
+                                        ) : (
+                                          <span className="jira-tag-key">{ticketKey}</span>
+                                        )}
+                                        {ticketStatus && (
+                                          <span className={statusClass}>{ticketStatus}</span>
+                                        )}
+                                      </span>
+                                      {typeof t === 'object' && t.summary && (
+                                        <span className="jira-summary">{t.summary}</span>
+                                      )}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="empty-msg">
+                  {projectFilter === "all"
+                    ? "No submissions for this date."
+                    : "No one on this project has a standup for this date."}
+                </p>
+              )}
+            </div>
+          </section>
+
+          <div className="meeting-side">
+            <section className="glass meeting-panel meeting-side-panel meeting-missing" aria-labelledby="meeting-missing-title">
+              <div className="meeting-panel-head">
+                <h2 id="meeting-missing-title" className="meeting-panel-title meeting-panel-title-sm">Missing submissions</h2>
+                <span className="pill pill-red meeting-pill-md">{stats.missing} missing</span>
+              </div>
+              {missingSubmissions.length === 0 ? (
+                <p className="empty-msg">Everyone has submitted.</p>
+              ) : (
+                <ul className="meeting-people">
+                  {missingSubmissions.map((s) => (
+                    <li
+                      key={s.id}
+                      className={`meeting-person ${nameQuery && s.name?.toLowerCase().includes(nameQuery) ? 'search-match' : ''}`}
+                    >
+                      <MeetingAvatar name={s.name} isMe={isMe(s.name, s.email)} />
+                      <div className="meeting-person-text">
+                        <span className="meeting-person-name">{s.name}</span>
+                        <span className="meeting-person-sub">No standup update received for this date.</span>
+                      </div>
+                      {canFineMissing && standupFineSelectableNames.has(s.name) && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm meeting-fine-btn"
+                          onClick={() => openStandupFine(s.name)}
+                          aria-label={`Add standup fine for ${s.name}`}
+                        >
+                          Add fine
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* ACTIVE LEAVES */}
+            <section className="glass meeting-panel meeting-side-panel" aria-labelledby="meeting-leave-title">
+              <div className="meeting-panel-head">
+                <h2 id="meeting-leave-title" className="meeting-panel-title meeting-panel-title-sm">On leave today</h2>
+                <span className="pill pill-cyan meeting-pill-md">{activeLeaves.length} away</span>
+              </div>
+              {activeLeaves.length === 0 ? (
+                <p className="empty-msg">Full strength today!</p>
+              ) : (
+                <ul className="meeting-people">
+                  {activeLeaves.map((l, index) => {
+                    const segment = parseHalfDaySegment(l);
+                    const name = l.employee_name?.trim() ? l.employee_name : "Unknown";
+                    const duration = [MEETING_TYPE_LABELS[l.type], segment && MEETING_SEGMENT_LABELS[segment]]
+                      .filter(Boolean)
+                      .join(" · ");
+                    return (
+                      <li key={l.id ?? `leave-item-${index}`} className="meeting-person">
+                        <MeetingAvatar name={name} isMe={isMe(l.employee_name)} />
+                        <div className="meeting-person-text">
+                          <span className="meeting-person-name">{name}</span>
+                          <div className="meeting-person-pills">
+                            {duration && <span className="pill pill-cyan">{duration}</span>}
+                            <span className="pill pill-gray">{leaveTypeById.get(l.leave_type_id)?.name || "Uncategorized"}</span>
+                          </div>
+                        </div>
+                        {canManageLeave(l) && (
+                          <div className="meeting-actions">
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm"
+                              onClick={() => { setEditingLeave(l); setShowEditLeave(true); }}
+                              aria-label={`Edit leave for ${name}`}
+                              title="Edit"
+                            >
+                              <Icon name="edit" size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm meeting-delete"
+                              onClick={async () => { if (await confirmDialog("Delete leave?", { danger: true })) deleteLeave(l.id); }}
+                              aria-label={`Delete leave for ${name}`}
+                              title="Delete"
+                            >
+                              <Icon name="trash" size={15} />
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+                              
+            {/* WORD OF THE DAY */}
+            <section className="glass meeting-panel meeting-side-panel meeting-word" aria-labelledby="meeting-word-title">
+              <div className="meeting-panel-head">
+                <Icon name="book" size={20} className="meeting-word-icon" />
+                <h2 id="meeting-word-title" className="meeting-panel-title meeting-panel-title-sm">Word of the meeting</h2>
+                {todaysWord && isAdmin && (
+                  <div className="meeting-actions">
+                    <button
+                      type="button"
+                      className="btn-icon btn-sm"
+                      onClick={() => { setEditingWord(todaysWord); setShowEditWord(true); }}
+                      aria-label="Edit word"
+                      title="Edit Word"
+                    >
+                      <Icon name="edit" size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-icon btn-sm meeting-delete"
+                      onClick={async () => { if (await confirmDialog("Delete word?", { danger: true })) deleteWord(todaysWord.id); }}
+                      aria-label="Delete word"
+                      title="Delete Word"
+                    >
+                      <Icon name="trash" size={15} />
+                    </button>
                   </div>
                 )}
               </div>
-              {todaysWord.translation && (
-                <p className="translation">Translation: <strong>{todaysWord.translation}</strong></p>
-              )}
-              <p className="definition">{todaysWord.definition}</p>
-              {todaysWord.example && (
-                <div className="example-box">
-                  <p>"{todaysWord.example}"</p>
+              {todaysWord ? (
+                <div className="meeting-word-body">
+                  <div className="meeting-word-main">
+                    <span className="meeting-word-text">{todaysWord.word}</span>
+                    {todaysWord.phonetic && <span className="meeting-word-phonetic">({todaysWord.phonetic})</span>}
+                  </div>
+                  {todaysWord.translation && (
+                    <p className="meeting-word-translation">Translation: <strong>{todaysWord.translation}</strong></p>
+                  )}
+                  <p className="meeting-word-definition">{todaysWord.definition}</p>
+                  {todaysWord.example && (
+                    <blockquote className="meeting-word-example">&ldquo;{todaysWord.example}&rdquo;</blockquote>
+                  )}
+                </div>
+              ) : (
+                <div className="meeting-word-empty">
+                  <p className="empty-msg">No word shared for this meeting yet.</p>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowAddWord(true)}>
+                    <Icon name="plus" size={16} strokeWidth={2} />
+                    Set Meeting Word
+                  </button>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="empty-state-meeting manual-prompt">
-              <div className="prompt-icon">📢</div>
-              <p className="empty-msg">No word shared for this meeting yet.</p>
-              <button className="btn btn-secondary" onClick={() => setShowAddWord(true)}>
-                + Set Meeting Word
-              </button>
-            </div>
-          )}
-        </section>
+            </section>
+          </div>
+        </div>
 
-        {/* SHOUTOUTS & KUDOS */}
-        <MeetingShoutouts today={today} />
-      </div>
+        <div className="meeting-row">
+          {/* SHOUTOUTS & KUDOS */}
+          <MeetingShoutouts today={today} />
+
+          <div className="meeting-side meeting-side-records">
+            {/* LATE FINES */}
+            <section className="glass meeting-panel meeting-side-panel" aria-labelledby="meeting-fines-title">
+              <div className="meeting-panel-head">
+                <h2 id="meeting-fines-title" className="meeting-panel-title meeting-panel-title-sm">Today&apos;s late fines</h2>
+              </div>
+              {todaysFines.length === 0 ? (
+                <p className="empty-msg">All on time today!</p>
+              ) : (
+                <ul className="meeting-people">
+                  {todaysFines.map((f, index) => (
+                    <li key={f.id ?? `fine-item-${index}`} className="meeting-person">
+                      <MeetingAvatar name={f.employee_name} isMe={isMe(f.employee_name)} />
+                      <div className="meeting-person-text">
+                        <span className="meeting-person-name">{f.employee_name}</span>
+                      </div>
+                      <span className="meeting-amount">Rs. {f.amount}</span>
+                      <span className={`status-badge status-static ${f.status}`}>{f.status}</span>
+                      {canManageFines && (
+                        <div className="meeting-actions">
+                          <button
+                            type="button"
+                            className="btn-icon btn-sm"
+                            onClick={() => { setEditingFine(f); setShowEditFine(true); }}
+                            aria-label={`Edit fine for ${f.employee_name}`}
+                            title="Edit"
+                          >
+                            <Icon name="edit" size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon btn-sm meeting-delete"
+                            onClick={async () => { if (await confirmDialog("Delete fine?", { danger: true })) deleteFine(f.id); }}
+                            aria-label={`Delete fine for ${f.employee_name}`}
+                            title="Delete"
+                          >
+                            <Icon name="trash" size={15} />
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* STANDUP FINES */}
+            <section className="glass meeting-panel meeting-side-panel" aria-labelledby="meeting-standups-title">
+              <div className="meeting-panel-head">
+                <h2 id="meeting-standups-title" className="meeting-panel-title meeting-panel-title-sm">Standup status</h2>
+              </div>
+              {todaysStandups.length === 0 ? (
+                <p className="empty-msg">No standup fines yet.</p>
+              ) : (
+                <ul className="meeting-people">
+                  {todaysStandups.map((s, index) => (
+                    <li key={s.id ?? `standup-item-${index}`} className="meeting-person">
+                      <MeetingAvatar name={s.employee_name} isMe={isMe(s.employee_name)} />
+                      <div className="meeting-person-text">
+                        <span className="meeting-person-name">{s.employee_name}</span>
+                      </div>
+                      <span className={`status-badge status-static ${s.status}`}>{s.status}</span>
+                      {canManageFines && (
+                        <div className="meeting-actions">
+                          <button
+                            type="button"
+                            className="btn-icon btn-sm"
+                            onClick={() => { setEditingStandup(s); setShowEditStandup(true); }}
+                            aria-label={`Edit standup record for ${s.employee_name}`}
+                            title="Edit"
+                          >
+                            <Icon name="edit" size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon btn-sm meeting-delete"
+                            onClick={async () => { if (await confirmDialog("Delete record?", { danger: true })) deleteStandupFine(s.id); }}
+                            aria-label={`Delete standup record for ${s.employee_name}`}
+                            title="Delete"
+                          >
+                            <Icon name="trash" size={15} />
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        </div>
+      </main>
 
       {/* QUICK MODALS - REUSING LOGIC AND CLASSES */}
       {showAddFine && (
@@ -862,6 +1148,7 @@ export default function MeetingPage() {
           employees={standupFineSelectableEmployees}
           today={today}
           standupFines={standupFines}
+          initialName={standupPrefill}
         />
       )}
 
@@ -918,6 +1205,38 @@ export default function MeetingPage() {
   );
 }
 
+// Clock, date (AD and BS) and time in the meeting, for the top bar. It ticks on its own,
+// so only this part of the page renders every second.
+function MeetingClock({ today }) {
+  const [startedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(startedAt);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const day = useMemo(() => meetingDayLabel(today), [today]);
+  const bs = useMemo(() => formatBs(today), [today]);
+
+  return (
+    <div className="meeting-clock">
+      <time className="meeting-clock-time" role="timer" aria-label="Current time">
+        {CLOCK_FORMAT.format(now)}
+      </time>
+      <div className="meeting-clock-date">
+        <span className="meeting-clock-day">{day}</span>
+        {bs && <span className="meeting-clock-bs">{bs} BS</span>}
+      </div>
+      <span className="meeting-elapsed">
+        <Icon name="clock" size={14} strokeWidth={2} />
+        In meeting
+        <span className="meeting-elapsed-time">{formatElapsed(Math.floor((now - startedAt) / 1000))}</span>
+      </span>
+    </div>
+  );
+}
+
 // COMPACT INLINE MODALS FOR MEETING MODE
 function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, fineSeasons }) {
   const [name, setName] = useState("");
@@ -955,11 +1274,15 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-content-small" onClick={e => e.stopPropagation()}>
-        <div className="modal-header"><h3>⚡ Fast Fine</h3></div>
+        <div className="modal-header">
+          <span className="modal-icon"><Icon name="wallet" size={20} /></span>
+          <h2>Fast fine</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
+        </div>
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
-            <label>Employee</label>
-            <select value={name} onChange={e => { setName(e.target.value); setError(""); }} required>
+            <label htmlFor="quick-fine-employee">Employee</label>
+            <select id="quick-fine-employee" value={name} onChange={e => { setName(e.target.value); setError(""); }} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
@@ -983,7 +1306,7 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, 
           </div>
           {existingFine && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">🚫</span>
+              <span className="duplicate-warning-icon"><Icon name="alert" size={18} /></span>
               <div className="duplicate-warning-text">
                 <strong>Already fined for this day</strong>
                 <p>
@@ -993,9 +1316,9 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, 
               </div>
             </div>
           )}
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={!!existingFine}>Save Fine</button>
           </div>
         </form>
@@ -1043,26 +1366,30 @@ function QuickAddWordModal({ isOpen, onClose, addWord, seasons, words }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-content-small" onClick={e => e.stopPropagation()}>
-        <div className="modal-header"><h3>⚡ Fast Word</h3></div>
+        <div className="modal-header">
+          <span className="modal-icon"><Icon name="book" size={20} /></span>
+          <h2>Fast word</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
+        </div>
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
-            <label>Season</label>
-            <select value={seasonId} onChange={e => setSeasonId(e.target.value)} required>
+            <label htmlFor="quick-word-season">Season</label>
+            <select id="quick-word-season" value={seasonId} onChange={e => setSeasonId(e.target.value)} required>
               <option value="">Select...</option>
               {seasons.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>
           </div>
           <div className="form-group-interactive">
-            <label>Word</label>
-            <input type="text" value={word} onChange={e => setWord(e.target.value)} required />
-            {isDuplicate && <span className="form-error">Oops, this one has already been mentioned.</span>}
+            <label htmlFor="quick-word-word">Word</label>
+            <input id="quick-word-word" type="text" value={word} onChange={e => setWord(e.target.value)} required />
+            {isDuplicate && <div className="form-error" role="alert"><Icon name="alert" size={16} />Oops, this one has already been mentioned.</div>}
           </div>
           <div className="form-group-interactive">
-            <label>Definition</label>
-            <textarea value={def} onChange={e => setDef(e.target.value)} required rows={2} />
+            <label htmlFor="quick-word-definition">Definition</label>
+            <textarea id="quick-word-definition" value={def} onChange={e => setDef(e.target.value)} required rows={2} />
           </div>
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={isDuplicate}>Save Word</button>
           </div>
         </form>
@@ -1195,9 +1522,9 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
   }, [isOpen, isAdmin, currentEmployee, name]);
 
   const DURATION_OPTS = [
-    { value: "full",  label: "Full Day",     icon: "📅" },
-    { value: "half",  label: "Half Day",     icon: "🌗" },
-    { value: "early", label: "Early Leave",  icon: "🚪" },
+    { value: "full",  label: "Full Day" },
+    { value: "half",  label: "Half Day" },
+    { value: "early", label: "Early Leave" },
   ];
 
   const holidaySet = useMemo(
@@ -1257,11 +1584,15 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-content-small" onClick={e => e.stopPropagation()}>
-        <div className="modal-header"><h3>⚡ Fast Leave (Today)</h3></div>
+        <div className="modal-header">
+          <span className="modal-icon"><Icon name="calendar" size={20} /></span>
+          <h2>Fast leave (today)</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
+        </div>
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
-            <label>Employee</label>
-            <select value={name} onChange={e => setName(e.target.value)} required>
+            <label htmlFor="quick-leave-employee">Employee</label>
+            <select id="quick-leave-employee" value={name} onChange={e => setName(e.target.value)} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
@@ -1282,19 +1613,19 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
                     checked={duration === opt.value}
                     onChange={() => setDuration(opt.value)}
                   />
-                  <span>{opt.icon} {opt.label}</span>
+                  <span>{opt.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           {duration === "half" && (
-            <div className="form-group-interactive" style={{ marginTop: "1rem" }}>
+            <div className="form-group-interactive">
               <label>Half Day Segment</label>
               <div className="leave-type-options">
                 {[
-                  { value: "first", label: "First Half", icon: "🌅" },
-                  { value: "second", label: "Second Half", icon: "🌇" },
+                  { value: "first", label: "First Half" },
+                  { value: "second", label: "Second Half" },
                 ].map((opt) => (
                   <label
                     key={opt.value}
@@ -1307,7 +1638,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
                       checked={segment === opt.value}
                       onChange={() => setSegment(opt.value)}
                     />
-                    <span>{opt.icon} {opt.label}</span>
+                    <span>{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -1316,8 +1647,8 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
 
           {activeLeaveTypes.length > 0 && (
             <div className="form-group-interactive">
-              <label>Category</label>
-              <select value={effectiveLeaveTypeId} onChange={e => setLeaveTypeId(e.target.value)}>
+              <label htmlFor="quick-leave-category">Category</label>
+              <select id="quick-leave-category" value={effectiveLeaveTypeId} onChange={e => setLeaveTypeId(e.target.value)}>
                 {balances.map((b) => (
                   <option key={b.id} value={b.id} disabled={!isAdmin && b.remaining <= 0}>
                     {b.name} — {b.remaining}/{b.annual_days} left{b.is_unpaid ? " (unpaid)" : ""}
@@ -1339,7 +1670,7 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
 
           {duplicateWarning && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">⚠️</span>
+              <span className="duplicate-warning-icon"><Icon name="alert" size={18} /></span>
               <div className="duplicate-warning-text">
                 <strong>Duplicate entry detected</strong>
                 <p>A leave for <strong>{name}</strong> today already exists. Add it anyway?</p>
@@ -1348,11 +1679,11 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
           )}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
             {duplicateWarning ? (
               <button type="submit" className="btn btn-warning">Add Anyway</button>
             ) : (
-              <button type="submit" className="btn btn-accent">Save Leave</button>
+              <button type="submit" className="btn btn-primary">Save Leave</button>
             )}
           </div>
         </form>
@@ -1360,8 +1691,10 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
     </div>
   );
 }
-function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, today, standupFines }) {
-  const [name, setName] = useState("");
+function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, today, standupFines, initialName = "" }) {
+  // Opened from a Missing submissions row, the person comes picked — when they are someone
+  // this dialog may fine.
+  const [name, setName] = useState(() => (employees.some((e) => e.name === initialName) ? initialName : ""));
   const [duplicateWarning, setDuplicateWarning] = useState(false);
   const [error, setError] = useState("");
 
@@ -1390,20 +1723,24 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-content-small" onClick={e => e.stopPropagation()}>
-        <div className="modal-header"><h3>⚡ Fast Standup Fine</h3></div>
+        <div className="modal-header">
+          <span className="modal-icon"><Icon name="clipboard" size={20} /></span>
+          <h2>Fast standup fine</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
+        </div>
         <form onSubmit={hSubmit}>
           <div className="form-group-interactive">
-            <label>Employee</label>
-            <select value={name} onChange={e => setName(e.target.value)} required>
+            <label htmlFor="quick-standup-employee">Employee</label>
+            <select id="quick-standup-employee" value={name} onChange={e => setName(e.target.value)} required>
               <option value="">Select...</option>
               {employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
           </div>
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
 
           {duplicateWarning && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">⚠️</span>
+              <span className="duplicate-warning-icon"><Icon name="alert" size={18} /></span>
               <div className="duplicate-warning-text">
                 <strong>Duplicate entry detected</strong>
                 <p>A standup fine for <strong>{name}</strong> today already exists. Add it anyway?</p>
@@ -1411,7 +1748,7 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
             </div>
           )}
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
             {duplicateWarning ? (
               <button type="submit" className="btn btn-warning">Add Anyway</button>
             ) : (
@@ -1431,7 +1768,7 @@ function ConfusedHuman({ onDismiss }) {
       <div className="confused-human-wrap">
         {/* Speech bubble */}
         <div className="confused-bubble">
-          Let&apos;s finish the sync first! 📋
+          Let&apos;s finish the sync first!
         </div>
         <div className="confused-bubble-tail" />
 

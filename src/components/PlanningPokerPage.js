@@ -4,9 +4,217 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import ShareQRModal from "@/components/ShareQRModal";
+import Icon from "@/components/Icon";
+import Avatar from "@/components/Avatar";
 
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
+export const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
+// Hidden behind the "Others" card until someone asks for them.
+const EXTRA_POINTS = [34, 55, 89];
 
+const hasVoted = (v) => Boolean(v.vote) && v.vote !== "waiting";
+
+// The average of the numeric votes ("?" and empty seats left out), the Fibonacci
+// number nearest it, and how many votes each card got, in deck order.
+export function summariseVotes(votes) {
+  const numericVotes = votes.map((v) => Number(v.vote)).filter((n) => !isNaN(n) && n > 0);
+  const average =
+    numericVotes.length > 0
+      ? (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(1)
+      : null;
+  const nearestFib =
+    average !== null
+      ? FIBONACCI.filter((f) => typeof f === "number").reduce((a, b) =>
+          Math.abs(b - parseFloat(average)) < Math.abs(a - parseFloat(average)) ? b : a
+        )
+      : null;
+
+  const counts = {};
+  votes.filter(hasVoted).forEach((v) => { counts[v.vote] = (counts[v.vote] || 0) + 1; });
+  const top = Math.max(0, ...Object.values(counts));
+  const perCard = FIBONACCI.map(String)
+    .filter((card) => counts[card])
+    .map((card) => ({
+      card,
+      count: counts[card],
+      width: Math.round((counts[card] / top) * 100),
+      isTop: counts[card] === top,
+    }));
+
+  return { average, nearestFib, perCard };
+}
+
+function PokerSeat({ vote, revealed, isMe, isNearest, order }) {
+  const name = vote.participant_name || "";
+  const voted = hasVoted(vote);
+  const state = voted
+    ? (revealed ? `Voted ${vote.vote}` : "Ready")
+    : (revealed ? "No vote" : "Thinking...");
+  const label = `${name}${isMe ? " (you)" : ""}: ${
+    voted ? (revealed ? `voted ${vote.vote}` : "has voted") : "has not voted"
+  }`;
+
+  return (
+    <div role="listitem" aria-label={label} className="poker-seat">
+      {voted && !revealed && (
+        <div className="poker-seat-card poker-seat-back" aria-hidden="true">
+          <span className="poker-seat-check"><Icon name="check" size={14} strokeWidth={2.6} /></span>
+        </div>
+      )}
+      {voted && revealed && (
+        <div
+          className={`poker-seat-card poker-seat-face${isNearest ? " is-nearest" : ""}`}
+          style={{ animationDelay: `${order * 60}ms` }}
+          aria-hidden="true"
+        >
+          {vote.vote}
+        </div>
+      )}
+      {!voted && (
+        <div className="poker-seat-card poker-seat-empty" aria-hidden="true">
+          {revealed ? "—" : "…"}
+        </div>
+      )}
+      <div className="poker-seat-who">
+        <Avatar name={name} isMe={isMe} className="avatar poker-seat-avatar" aria-hidden="true" />
+        <span className="poker-seat-name" title={name}>{isMe ? "You" : name}</span>
+      </div>
+      <span className={`poker-seat-state${voted && !revealed ? " is-ready" : ""}${!voted && !revealed ? " is-thinking" : ""}`}>
+        {state}
+      </span>
+    </div>
+  );
+}
+
+// Everyone in the session seated around the table: their card face-down once they
+// have voted, face-up after the reveal, and the "x / n voted" count in the middle.
+export function PokerTable({ votes, revealed, me, nearestFib, statusLabel, emptyText, children }) {
+  const votedCount = votes.filter((v) => v.vote !== "waiting").length;
+  const pct = votes.length > 0 ? Math.round((votedCount / votes.length) * 100) : 0;
+  const half = Math.ceil(votes.length / 2);
+
+  const seatRow = (list, offset, label) =>
+    list.length > 0 && (
+      <div role="list" aria-label={label} className="poker-seats">
+        {list.map((v, i) => (
+          <PokerSeat
+            key={v.id}
+            vote={v}
+            revealed={revealed}
+            isMe={Boolean(me) && v.participant_name === me}
+            isNearest={nearestFib !== null && String(v.vote) === String(nearestFib)}
+            order={offset + i}
+          />
+        ))}
+      </div>
+    );
+
+  return (
+    <section className="glass-card poker-table" aria-label="Poker table">
+      {seatRow(votes.slice(0, half), 0, "Participants, top of table")}
+      <div className="poker-felt">
+        <span className="eyebrow">{revealed ? statusLabel : "Votes are face-down"}</span>
+        <div className="poker-felt-count">
+          <span className="poker-felt-num">{votedCount} / {votes.length}</span>
+          <span>voted</span>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Votes in"
+          aria-valuemin={0}
+          aria-valuemax={votes.length}
+          aria-valuenow={votedCount}
+          className="poker-progress"
+        >
+          <div className="poker-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        {votes.length === 0 && <p className="poker-felt-empty">{emptyText}</p>}
+        {children}
+      </div>
+      {seatRow(votes.slice(half), half, "Participants, bottom of table")}
+    </section>
+  );
+}
+
+export function PokerDeck({ title, isSelected, onVote, showMore, onShowMore }) {
+  return (
+    <section className="glass-card poker-deck" aria-labelledby="poker-deck-title">
+      <div className="poker-deck-head">
+        <h2 id="poker-deck-title" className="section-title">{title}</h2>
+        <span className="poker-deck-hint">Story points · Fibonacci</span>
+      </div>
+      <div role="group" aria-label="Your estimate" className="poker-deck-cards">
+        {FIBONACCI.filter((val) => showMore || !EXTRA_POINTS.includes(val)).map((val) => {
+          const selected = isSelected(val);
+          return (
+            <button
+              key={val}
+              type="button"
+              aria-pressed={selected}
+              aria-label={typeof val === "number" ? `${val} points` : "Not sure"}
+              className={`poker-deck-card${selected ? " is-selected" : ""}`}
+              onClick={() => onVote(val)}
+            >
+              <span className="poker-deck-card-val">{val}</span>
+              {typeof val === "number" && <span className="poker-deck-card-sub">pts</span>}
+            </button>
+          );
+        })}
+        {!showMore && (
+          <button
+            type="button"
+            className="poker-deck-card poker-deck-more"
+            aria-label="Show more story points"
+            onClick={onShowMore}
+          >
+            <span className="poker-deck-card-val">...</span>
+            <span className="poker-deck-card-sub">Others</span>
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function PokerResults({ votes, summary }) {
+  const { average, nearestFib, perCard } = summary;
+  return (
+    <section className="glass-card poker-results" aria-labelledby="poker-results-title">
+      <h2 id="poker-results-title" className="section-title">Results</h2>
+      <div className="poker-results-avg">
+        <span className="poker-results-num">{average !== null ? average : "—"}</span>
+        <span className="poker-results-label">Average Story Points</span>
+      </div>
+      {nearestFib !== null && (
+        <div className="poker-results-tile">
+          <span className="poker-results-label">Nearest Fibonacci</span>
+          <span className="poker-results-nearest">{nearestFib}</span>
+        </div>
+      )}
+      {perCard.length > 0 && (
+        <div className="poker-dist">
+          <span className="eyebrow">Votes per card</span>
+          {perCard.map((d) => (
+            <div key={d.card} className="poker-dist-row">
+              <span className="poker-dist-card">{d.card}</span>
+              <div className="poker-dist-track">
+                <div className={`poker-dist-bar${d.isTop ? " is-top" : ""}`} style={{ width: `${d.width}%` }} />
+              </div>
+              <span className="poker-dist-count">{d.count} {d.count === 1 ? "vote" : "votes"}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="poker-who">
+        {votes.map((v) => (
+          <span key={v.id} className="pill pill-gray poker-who-pill">
+            {v.participant_name}
+            <span className="mono poker-who-vote">{hasVoted(v) ? v.vote : "—"}</span>
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function PlanningPokerPage() {
   const [view, setView] = useState("home"); // home | host | join
@@ -32,7 +240,7 @@ export default function PlanningPokerPage() {
   const [shareUrl, setShareUrl] = useState("");
   const prevRevealedRef = useRef(false);
 
-  const { isAdmin } = useApp();
+  const { isAdmin, animationsEnabled } = useApp();
   const { confirmDialog } = useDialog();
 
   const playChime = () => {
@@ -68,7 +276,7 @@ export default function PlanningPokerPage() {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/poker?sessionId=${sid}`);
+        const res = await fetch(`/api/poker?sessionId=${encodeURIComponent(sid)}`);
         if (!res.ok) return;
         const data = await res.json();
         setSession(data.session);
@@ -120,7 +328,7 @@ export default function PlanningPokerPage() {
       setJoinSessionId(savedId);
       const autoJoin = async () => {
         try {
-          const res = await fetch(`/api/poker?sessionId=${savedId}`);
+          const res = await fetch(`/api/poker?sessionId=${encodeURIComponent(savedId)}`);
           if (!res.ok) {
             localStorage.removeItem("heubert_poker_session_id");
             setIsRestoring(false);
@@ -211,7 +419,7 @@ export default function PlanningPokerPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/poker?sessionId=${joinSessionId.trim()}`);
+      const res = await fetch(`/api/poker?sessionId=${encodeURIComponent(joinSessionId.trim())}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Session not found");
       setSession(data.session);
@@ -324,23 +532,51 @@ export default function PlanningPokerPage() {
     });
   };
 
-  // ── Compute average ────────────────────────────────────
-  const numericVotes = votes
-    .map((v) => Number(v.vote))
-    .filter((n) => !isNaN(n) && n > 0);
-  const average =
-    numericVotes.length > 0
-      ? (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(1)
-      : null;
-
-  const nearestFib =
-    average !== null
-      ? FIBONACCI.filter((f) => typeof f === "number").reduce((a, b) =>
-          Math.abs(b - parseFloat(average)) < Math.abs(a - parseFloat(average)) ? b : a
-        )
-      : null;
-
+  const summary = summariseVotes(votes);
   const myVoteInSession = votes.find((v) => v.participant_name === participantName);
+  const votedCount = votes.filter((v) => v.vote !== "waiting").length;
+
+  const leaveSession = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    setView("home");
+    setSession(null);
+    setVotes([]);
+    setMyVote(null);
+    setError("");
+    localStorage.removeItem("heubert_poker_session_id");
+  };
+
+  // Rejoin one of the active sessions listed on the home view.
+  const openRecentSession = (s) => {
+    setJoinSessionId(s.id);
+    setJoinName(participantName || "");
+    if (participantName) {
+      setLoading(true);
+      fetch(`/api/poker?sessionId=${encodeURIComponent(s.id)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+          setSession(data.session);
+          setVotes(data.votes || []);
+          setParticipantName(participantName);
+          localStorage.setItem("heubert_poker_session_id", data.session.id);
+          localStorage.setItem("heubert_collab_name", participantName);
+          setView("host");
+          startPolling(s.id);
+        })
+        .catch(e => setError(e.message))
+        .finally(() => setLoading(false));
+    }
+  };
+
+  const role = isHost
+    ? { label: "Host", pill: "pill-blue" }
+    : isAdmin
+      ? { label: "Admin", pill: "pill-violet" }
+      : { label: "Participant", pill: "pill-gray" };
+
+  const activeSessions = recentSessions.filter(s => !s.is_ended);
+  const inSession = view === "host" && session;
 
   // ──────────────────────────────────────────────────────
   // Lock body scroll when enlarged
@@ -350,407 +586,290 @@ export default function PlanningPokerPage() {
   }, [isEnlarged]);
 
   return (
-    <div className={`poker-page${isEnlarged ? " poker-page-enlarged" : ""}`}>
-      {/* ── Enlarge toggle bar ── */}
-      <div className="poker-topbar">
-        {isEnlarged && (
-          <span className="poker-topbar-title">🃏 Planning Poker</span>
+    <div className={`poker-page${isEnlarged ? " poker-page-enlarged" : ""}${animationsEnabled !== false ? " is-animated" : ""}`}>
+      <div className="poker-toolbar">
+        {inSession && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={leaveSession}>
+            <Icon name="arrow-left" size={16} />
+            Exit
+          </button>
         )}
-        <button
-          className="btn-enlarge poker-enlarge-btn"
-          onClick={() => setIsEnlarged(e => !e)}
-          title={isEnlarged ? "Exit fullscreen" : "Fullscreen"}
-        >
-          {isEnlarged ? "✕" : "⛶"}
-        </button>
+        {isEnlarged && <span className="poker-toolbar-title">Planning Poker</span>}
+        <div className="poker-toolbar-actions">
+          {inSession && (
+            <button
+              type="button"
+              className={`btn-icon poker-sound${soundEnabled ? "" : " is-off"}`}
+              onClick={toggleSound}
+              aria-pressed={!soundEnabled}
+              aria-label={soundEnabled ? "Mute reveal sound" : "Unmute reveal sound"}
+              title={soundEnabled ? "Mute reveal sound" : "Unmute reveal sound"}
+            >
+              <Icon name="bell" />
+            </button>
+          )}
+          {inSession && (isHost || isAdmin) && !session.is_ended && (
+            <button type="button" className="btn btn-secondary poker-end-btn" onClick={handleEndSession}>
+              <Icon name="flag" size={16} strokeWidth={2} />
+              End Session
+            </button>
+          )}
+          {inSession && (isHost || isAdmin) && session.is_ended && (
+            <button type="button" className="btn btn-primary" onClick={() => { setView("home"); setSession(null); }}>
+              <Icon name="arrow-left" size={16} />
+              Back to Hub
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setIsEnlarged(e => !e)}
+            title={isEnlarged ? "Exit fullscreen" : "Fullscreen"}
+          >
+            {isEnlarged && <Icon name="x" size={16} />}
+            {isEnlarged ? "Exit fullscreen" : "Fullscreen"}
+          </button>
+        </div>
       </div>
 
       {isRestoring && (
-        <div className="retro-ended-overlay">
-          <div className="retro-ended-message" style={{ background: 'transparent', boxShadow: 'none' }}>
-            <span className="poker-spinner" style={{ width: '40px', height: '40px', borderTopColor: 'var(--accent-indigo)' }}></span>
-            <h2 style={{ marginTop: '20px' }}>Loading your session...</h2>
-          </div>
+        <div className="poker-loading">
+          <div className="spinner" />
+          <p>Loading your session...</p>
         </div>
       )}
 
       {/* ── HOME / ENTRY ── */}
       {!isRestoring && view === "home" && (
         <div className="poker-home">
-          <div className="poker-hero">
-            <span className="poker-hero-icon">🃏</span>
-            <h2 className="poker-hero-title">Planning Poker</h2>
-            <p className="poker-hero-sub">
-              Estimate story points collaboratively with your team using Fibonacci
-              sequences. Create a session, share the link, and vote together.
-            </p>
-          </div>
-
           <div className="poker-entry-grid">
             {/* Create Session */}
-            <div className="poker-entry-card">
-              <div className="poker-entry-card-header">
-                <span className="poker-entry-icon">🚀</span>
-                <h3>Create Session</h3>
-                <p>Start a new planning poker session as the host</p>
-              </div>
-              <div className="poker-form">
-                <div className="poker-form-group">
-                  <label>Your Name</label>
-                  <input
-                    className="poker-input"
-                    type="text"
-                    placeholder="e.g. Alice"
-                    value={creatorName}
-                    onChange={(e) => setCreatorName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleCreateSession()}
-                  />
+            <section className="glass-card poker-entry" aria-labelledby="poker-create-title">
+              <div className="poker-entry-head">
+                <span className="modal-icon"><Icon name="plus" size={20} /></span>
+                <div>
+                  <h2 id="poker-create-title" className="section-title">Create Session</h2>
+                  <p className="poker-entry-sub">Start a new planning poker session as the host</p>
                 </div>
-                <div className="poker-form-group">
-                  <label>Sprint</label>
-                  <input
-                    className="poker-input"
-                    type="text"
-                    placeholder="e.g. Sprint 24"
-                    value={sessionTitle}
-                    onChange={(e) => setSessionTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleCreateSession()}
-                  />
-                </div>
-                <button
-                  className="btn-poker-primary"
-                  onClick={handleCreateSession}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="poker-spinner" />
-                  ) : (
-                    "🚀 Create Session"
-                  )}
-                </button>
               </div>
-            </div>
+              <label className="poker-field">
+                <span>Your Name</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Alice"
+                  value={creatorName}
+                  onChange={(e) => setCreatorName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateSession()}
+                />
+              </label>
+              <label className="poker-field">
+                <span>Sprint</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Sprint 24"
+                  value={sessionTitle}
+                  onChange={(e) => setSessionTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateSession()}
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-primary poker-entry-btn"
+                onClick={handleCreateSession}
+                disabled={loading}
+              >
+                {loading ? <span className="poker-spinner" /> : "Create Session"}
+              </button>
+            </section>
 
             {/* Join Session */}
-            <div className="poker-entry-card poker-entry-card-join">
-              <div className="poker-entry-card-header">
-                <span className="poker-entry-icon">🔗</span>
-                <h3>Join Session</h3>
-                <p>Enter a session ID shared by the host to join</p>
-              </div>
-              <div className="poker-form">
-                <div className="poker-form-group">
-                  <label>Your Name</label>
-                  <input
-                    className="poker-input"
-                    type="text"
-                    placeholder="e.g. Bob"
-                    value={joinName}
-                    onChange={(e) => setJoinName(e.target.value)}
-                  />
+            <section className="glass-card poker-entry" aria-labelledby="poker-join-title">
+              <div className="poker-entry-head">
+                <span className="modal-icon"><Icon name="link" size={20} /></span>
+                <div>
+                  <h2 id="poker-join-title" className="section-title">Join Session</h2>
+                  <p className="poker-entry-sub">Enter a session ID shared by the host to join</p>
                 </div>
-                <div className="poker-form-group">
-                  <label>Session ID</label>
-                  <input
-                    className="poker-input"
-                    type="text"
-                    placeholder="Paste session ID here"
-                    value={joinSessionId}
-                    onChange={(e) => setJoinSessionId(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleJoinSession()}
-                  />
-                </div>
-                <button
-                  className="btn-poker-secondary"
-                  onClick={handleJoinSession}
-                  disabled={loading}
-                >
-                  {loading ? <span className="poker-spinner" /> : "🔗 Join Session"}
-                </button>
               </div>
-            </div>
+              <label className="poker-field">
+                <span>Your Name</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Bob"
+                  value={joinName}
+                  onChange={(e) => setJoinName(e.target.value)}
+                />
+              </label>
+              <label className="poker-field">
+                <span>Session ID</span>
+                <input
+                  type="text"
+                  className="mono"
+                  placeholder="Paste session ID here"
+                  value={joinSessionId}
+                  onChange={(e) => setJoinSessionId(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleJoinSession()}
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-primary poker-entry-btn"
+                onClick={handleJoinSession}
+                disabled={loading}
+              >
+                {loading ? <span className="poker-spinner" /> : "Join Session"}
+              </button>
+            </section>
           </div>
 
-          {error && <div className="poker-error">{error}</div>}
-
-          {recentSessions.filter(s => !s.is_ended).length > 0 && (
-            <div className="retro-recent-sessions">
-              <div className="retro-recent-section">
-                <h3 className="retro-recent-title">🌐 Active Sessions</h3>
-                <div className="retro-recent-grid">
-                  {recentSessions.filter(s => !s.is_ended).map(s => (
-                    <button key={s.id} className="retro-recent-card" onClick={() => {
-                      setJoinSessionId(s.id);
-                      setJoinName(participantName || "");
-                      if (participantName) {
-                        setLoading(true);
-                        fetch(`/api/poker?sessionId=${s.id}`)
-                          .then(res => res.json())
-                          .then(data => {
-                            if (data.error) throw new Error(data.error);
-                            setSession(data.session);
-                            setVotes(data.votes || []);
-                            setParticipantName(participantName);
-                            localStorage.setItem("heubert_poker_session_id", data.session.id);
-                            localStorage.setItem("heubert_collab_name", participantName);
-                            setView("host");
-                            startPolling(s.id);
-                          })
-                          .catch(e => setError(e.message))
-                          .finally(() => setLoading(false));
-                      }
-                    }}>
-                      <div className="retro-recent-card-top">
-                        <span className="retro-recent-emoji">🗳️</span>
-                        <div className="retro-recent-meta">
-                          <h4>{s.title}</h4>
-                          <span>By {s.created_by} · {new Date(s.created_at).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+          {error && (
+            <div className="form-error" role="alert">
+              <Icon name="alert" size={16} />
+              {error}
             </div>
           )}
 
+          {activeSessions.length > 0 && (
+            <section className="glass-card poker-recent" aria-labelledby="poker-recent-title">
+              <h2 id="poker-recent-title" className="section-title">Active Sessions</h2>
+              <ul className="poker-recent-list">
+                {activeSessions.map(s => (
+                  <li key={s.id}>
+                    <button type="button" className="poker-recent-row" onClick={() => openRecentSession(s)}>
+                      <span className="poker-recent-main">
+                        <span className="poker-recent-title">{s.title}</span>
+                        <span className="poker-recent-meta">
+                          By {s.created_by} · <span className="mono">{new Date(s.created_at).toLocaleDateString()}</span>
+                        </span>
+                      </span>
+                      <code className="poker-recent-id">{s.id}</code>
+                      <span className={`pill ${s.revealed ? "pill-green" : "pill-amber"}`}>
+                        {s.revealed ? "Results Revealed" : "Voting in Progress"}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* How it works */}
-          <div className="poker-howto">
-            <h4 className="poker-howto-title">How it works</h4>
-            <div className="poker-howto-steps">
+          <section className="glass-card poker-howto" aria-labelledby="poker-howto-title">
+            <h2 id="poker-howto-title" className="eyebrow">How it works</h2>
+            <ol className="poker-howto-steps">
               {[
-                { icon: "1️⃣", text: "Host creates a session with the sprint title" },
-                { icon: "2️⃣", text: "Share the generated link with participants" },
-                { icon: "3️⃣", text: "Everyone picks a Fibonacci story point card" },
-                { icon: "4️⃣", text: "Host reveals results — average shown instantly" },
-              ].map((s, i) => (
-                <div key={i} className="poker-step">
-                  <span className="poker-step-icon">{s.icon}</span>
-                  <span>{s.text}</span>
-                </div>
+                "Host creates a session with the sprint title",
+                "Share the generated link with participants",
+                "Everyone picks a Fibonacci story point card",
+                "Host reveals results — average shown instantly",
+              ].map((text, i) => (
+                <li key={i} className="poker-step">
+                  <span className="poker-step-num" aria-hidden="true">{i + 1}</span>
+                  <span>{text}</span>
+                </li>
               ))}
-            </div>
-          </div>
+            </ol>
+          </section>
         </div>
       )}
 
       {/* ── SESSION VIEW ── */}
-      {view === "host" && session && (
+      {inSession && (
         <div className="poker-session">
-          {/* Session Header */}
-          <div className="poker-session-header">
-            {/* Row 1: exit | title + badge | end/back action */}
-            <div className="poker-session-toprow">
-              <div className="poker-session-meta">
-                <button
-                  className="poker-back-btn"
-                  onClick={() => {
-                    if (pollRef.current) clearInterval(pollRef.current);
-                    setView("home");
-                    setSession(null);
-                    setVotes([]);
-                    setMyVote(null);
-                    setError("");
-                    localStorage.removeItem("heubert_poker_session_id");
-                  }}
-                >
-                  ← Exit
-                </button>
-                <div>
-                  <h2 className="poker-session-title">{session.title}</h2>
-                  <span className="poker-session-badge">
-                    {isHost ? "🎯 Host" : isAdmin ? "🛡️ Admin" : "👤 Participant"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="poker-session-actions">
-                {(isHost || isAdmin) && !session.is_ended && (
-                  <button className="retro-end-session-btn" onClick={handleEndSession}>
-                    🏁 End Session
-                  </button>
-                )}
-                {(isHost || isAdmin) && session.is_ended && (
-                  <button className="btn-poker-primary" onClick={() => { setView("home"); setSession(null); }}>
-                    ← Back to Hub
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Row 2: share strip (host only) */}
-            {isHost && shareUrl && (
-              <div className="poker-share-strip">
-                <span className="poker-share-label">🔗 Share</span>
-                <input className="poker-share-input" readOnly value={shareUrl} />
-                <button className={`poker-copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>
-                  {copied ? "✅ Copied!" : "📋 Copy"}
-                </button>
-                <button className="poker-qr-btn" onClick={() => setShowQR(true)} title="Show QR code">
-                  📱 QR
-                </button>
-                <span className="poker-session-id-label">ID:</span>
-                <code className="poker-session-id">{session.id}</code>
-              </div>
-            )}
-          </div>
-
-
-
-          {/* Status Bar */}
-          <div className="poker-status-bar">
-            <div className="poker-status-info">
-              <span className="poker-vote-count">
-                🗳️ {votes.filter(v => v.vote !== 'waiting').length} / {votes.length} voted
-              </span>
-              <span
-                className={`poker-reveal-badge ${
-                  session.revealed ? "revealed" : "hidden"
-                }`}
-              >
-                {session.revealed ? "🔓 Results Revealed" : "🔒 Voting in Progress"}
-              </span>
-            </div>
-            <div className="poker-host-actions">
-              {isHost && !session.is_ended && (
-                <>
-                  {!session.revealed ? (
-                    <button
-                      className="btn-poker-reveal"
-                      onClick={handleReveal}
-                      disabled={votes.filter(v => v.vote !== 'waiting').length === 0}
-                    >
-                      📢 Publish Results
-                    </button>
-                  ) : (
-                    <button className="btn-poker-reset" onClick={handleReset}>
-                      🔄 New Round
-                    </button>
-                  )}
-                </>
-              )}
+          {/* Share strip (host only) */}
+          {isHost && shareUrl && (
+            <section className="glass poker-share" aria-label="Share session">
+              <label className="poker-share-field">
+                <Icon name="link" size={15} strokeWidth={2} />
+                <span className="poker-share-text">Share</span>
+                <input readOnly aria-label="Share link" value={shareUrl} />
+              </label>
               <button
-                className="poker-sound-toggle"
-                onClick={toggleSound}
-                title={soundEnabled ? "Mute reveal sound" : "Unmute reveal sound"}
+                type="button"
+                className={`btn poker-share-btn${copied ? " is-copied" : ""}`}
+                onClick={handleCopy}
               >
-                {soundEnabled ? "🔔" : "🔕"}
+                <Icon name={copied ? "check" : "copy"} size={15} strokeWidth={2} />
+                {copied ? "Copied!" : "Copy"}
               </button>
-            </div>
-          </div>
-
-          {/* Active Participants Tracking (Before Reveal) */}
-          {!session.revealed && votes.length > 0 && (
-            <div className="poker-vote-breakdown poker-participants-tracking" style={{ marginBottom: 16 }}>
-              {votes.map((v) => {
-                const hasVoted = v.vote && v.vote !== 'waiting';
-                return (
-                  <div key={v.id} className={`poker-vote-chip ${hasVoted ? 'voted' : 'waiting'}`} style={{ opacity: hasVoted ? 1 : 0.65 }}>
-                    <span className="poker-vote-chip-name">{v.participant_name}</span>
-                    <span className="poker-vote-chip-val" style={{ fontSize: '0.8rem', color: hasVoted ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-                      {hasVoted ? '✅ Ready' : <span className="pulse-opacity">🤔 Thinking...</span>}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+              <button
+                type="button"
+                className="btn poker-share-btn"
+                onClick={() => setShowQR(true)}
+                aria-label="Show QR code"
+                title="Show QR code"
+              >
+                <Icon name="qr" size={15} strokeWidth={2} />
+                QR
+              </button>
+              <span className="poker-share-id">
+                ID
+                <code className="poker-id-code">{session.id}</code>
+              </span>
+            </section>
           )}
 
-          {/* Results Panel (when revealed) */}
-          {session.revealed && (
-            <div className="poker-results-panel">
-              <div className="poker-results-glow" />
-              <div className="poker-results-content">
-                <div className="poker-results-avg-wrapper">
-                  <div className="poker-results-label">Average Story Points</div>
-                  <div className="poker-results-avg">
-                    {average !== null ? average : "—"}
-                  </div>
-                  {nearestFib !== null && (
-                    <div className="poker-results-nearest">
-                      Nearest Fibonacci: <strong>{nearestFib}</strong>
-                    </div>
-                  )}
+          <div className="poker-board">
+            <div className="poker-board-main">
+              <section className="glass-card poker-story" aria-label="Story being estimated">
+                <div className="poker-story-meta">
+                  <span className={`pill ${session.revealed ? "pill-green" : "pill-amber"}`}>
+                    <span className="poker-status-dot" aria-hidden="true" />
+                    {session.revealed ? "Results Revealed" : "Voting in Progress"}
+                  </span>
+                  <span className={`pill ${role.pill}`}>{role.label}</span>
                 </div>
-                <div className="poker-vote-breakdown">
-                  {votes.map((v) => (
-                    <div key={v.id} className="poker-vote-chip">
-                      <span className="poker-vote-chip-name">{v.participant_name}</span>
-                      <span className="poker-vote-chip-val">{v.vote}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+                <h2 className="poker-story-title">{session.title}</h2>
+              </section>
 
-          {/* Voting Grid */}
-          {!session.revealed && !session.is_ended && (
-            <div className="poker-vote-section">
-              <h3 className="poker-vote-title">
-                {myVoteInSession
-                  ? `✅ You voted: ${myVoteInSession.vote} — Change your vote?`
-                  : "Pick your story point estimate"}
-              </h3>
-              <div className="poker-cards-grid">
-                {FIBONACCI.filter(val => showMorePoints || ![34, 55, 89].includes(val)).map((val) => (
-                  <button
-                    key={val}
-                    className={`poker-card ${
-                      myVote === val || myVoteInSession?.vote === String(val)
-                        ? "poker-card-selected"
-                        : ""
-                    }`}
-                    onClick={() => handleVote(val)}
-                  >
-                    <span className="poker-card-val">{val}</span>
-                    {typeof val === "number" && (
-                      <span className="poker-card-sub">pts</span>
-                    )}
-                  </button>
-                ))}
-                {!showMorePoints && (
-                  <button
-                    className="poker-card"
-                    onClick={() => setShowMorePoints(true)}
-                  >
-                    <span className="poker-card-val">...</span>
-                    <span className="poker-card-sub">Others</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Participants List */}
-          <div className="poker-participants">
-            <h4 className="poker-participants-title">
-              👥 Participants ({votes.length})
-            </h4>
-            <div className="poker-participants-list">
-              {votes.length === 0 && (
-                <span className="poker-empty-participants">
-                  Waiting for participants to vote…
-                </span>
-              )}
-              {votes.map((v) => (
-                <div key={v.id} className="poker-participant-chip">
-                  <div className="poker-participant-avatar">
-                    {v.participant_name[0].toUpperCase()}
-                  </div>
-                  <span className="poker-participant-name">{v.participant_name}</span>
-                  {session.revealed ? (
-                    <span className="poker-participant-vote revealed">
-                      {v.vote === 'waiting' ? '—' : v.vote}
-                    </span>
+              <PokerTable
+                votes={votes}
+                revealed={session.revealed}
+                me={participantName}
+                nearestFib={summary.nearestFib}
+                statusLabel="Results Revealed"
+                emptyText="Waiting for participants to vote…"
+              >
+                {isHost && !session.is_ended && (
+                  !session.revealed ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleReveal}
+                      disabled={votedCount === 0}
+                    >
+                      <Icon name="eye" size={16} strokeWidth={2} />
+                      Publish Results
+                    </button>
                   ) : (
-                    <span className={`poker-participant-vote ${v.vote === 'waiting' ? 'waiting' : 'hidden'}`}>
-                      {v.vote === 'waiting' ? '...' : '✓'}
-                    </span>
-                  )}
-                </div>
-              ))}
+                    <button type="button" className="btn btn-secondary" onClick={handleReset}>
+                      <Icon name="refresh" size={16} strokeWidth={2} />
+                      New Round
+                    </button>
+                  )
+                )}
+              </PokerTable>
+
+              {!session.revealed && !session.is_ended && (
+                <PokerDeck
+                  title={
+                    myVoteInSession && hasVoted(myVoteInSession)
+                      ? `You voted: ${myVoteInSession.vote} — Change your vote?`
+                      : "Pick your story point estimate"
+                  }
+                  isSelected={(val) => myVote === val || myVoteInSession?.vote === String(val)}
+                  onVote={handleVote}
+                  showMore={showMorePoints}
+                  onShowMore={() => setShowMorePoints(true)}
+                />
+              )}
             </div>
+
+            {session.revealed && (
+              <aside className="poker-board-side">
+                <PokerResults votes={votes} summary={summary} />
+              </aside>
+            )}
           </div>
         </div>
       )}

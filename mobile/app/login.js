@@ -1,14 +1,29 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, Image, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GoogleSignin, isSuccessResponse, isErrorWithCode, statusCodes } from "@react-native-google-signin/google-signin";
 import { supabase } from "../lib/supabase";
 import { useApp } from "../context/AppContext";
+import { useThemeColors, fonts, radius } from "../lib/theme";
+import { Screen } from "../components/ui";
+import Aurora from "../components/Aurora";
+import Icon from "../components/Icon";
 
+// The web app's logo (public/logo.png); the same file as the Android adaptive icon's foreground.
+const LOGO = require("../assets/android-icon-foreground.png");
+
+// Sign-in, as the canvas's MobileLogin.dc.html: the logo, the badge, the title and the line under
+// it in the middle of the page; the error, the Google button and its footnote at the bottom. The
+// sign-in itself (Google, then Supabase) and its messages are the ones the screen had before.
+// The app's wording stays where the artboard renames it (the badge, the line under the title, the
+// button); the footnote is the web's, and the "restricted" line the app had stays under it.
 export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user, isAuthReady } = useApp();
+  const t = useThemeColors();
+  const insets = useSafeAreaInsets();
   const [signingIn, setSigningIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState(
     params.error === "unauthorized" ? "You are unauthorized to access this app." : ""
@@ -18,7 +33,7 @@ export default function LoginScreen() {
     if (isAuthReady && user) {
       router.replace("/");
     }
-  }, [isAuthReady, user]);
+  }, [isAuthReady, user, router]);
 
   const handleSignIn = async () => {
     setErrorMsg("");
@@ -52,105 +67,98 @@ export default function LoginScreen() {
 
   if (!isAuthReady) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.center, { backgroundColor: t.ink }]}>
+        <Aurora />
+        <ActivityIndicator size="large" color={t.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.logo}>⏰</Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>Internal Portal</Text>
+    <Screen style={[styles.page, { paddingTop: insets.top, paddingBottom: 48 + insets.bottom }]}>
+      <View style={styles.main}>
+        <View style={[styles.logo, { boxShadow: t.glowPrimaryLg }]}>
+          <Image source={LOGO} alt="Heubert Tracker logo" style={styles.logoImage} />
+          <View pointerEvents="none" style={[styles.logoRing, { borderColor: t.lineStrong }]} />
         </View>
-        <Text style={styles.title}>Heubert Tracker</Text>
-        <Text style={styles.subtitle}>
-          Internal Team Accountability & Record System.{"\n"}Sign in with your Google account to continue.
-        </Text>
 
+        <View style={[styles.badge, { backgroundColor: t.pbCyan }]}>
+          <View style={[styles.badgeDot, { backgroundColor: t.cyan, boxShadow: t.glow }]} />
+          <Text style={[styles.badgeText, { color: t.pfCyan }]}>Internal Portal</Text>
+        </View>
+
+        <View style={styles.heading}>
+          <Text accessibilityRole="header" style={[styles.title, { color: t.text1 }]}>
+            Heubert Tracker
+          </Text>
+          <Text style={[styles.subtitle, { color: t.text2 }]}>
+            Internal Team Accountability & Record System.{"\n"}Sign in with your Google account to continue.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.signIn}>
         {errorMsg ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{errorMsg}</Text>
+          <View accessibilityRole="alert" style={[styles.error, { backgroundColor: t.pbRed, borderColor: t.line }]}>
+            <Icon name="alert" size={18} strokeWidth={2} color={t.pfRed} style={styles.errorIcon} />
+            <Text style={[styles.errorText, { color: t.pfRed }]}>{errorMsg}</Text>
           </View>
         ) : null}
 
         {signingIn ? (
-          <View style={styles.signingIn}>
-            <ActivityIndicator color="#9ca3af" />
-            <Text style={styles.signingInText}>Signing you in…</Text>
+          <View accessibilityRole="progressbar" accessibilityLabel="Signing you in" style={styles.google}>
+            <ActivityIndicator color={t.text2} />
+            <Text style={[styles.signingInText, { color: t.text2 }]}>Signing you in…</Text>
           </View>
         ) : (
           <Pressable
-            style={({ pressed }) => [styles.googleBtn, pressed && styles.googleBtnPressed]}
             onPress={handleSignIn}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.google,
+              styles.googleButton,
+              { backgroundColor: pressed ? t.raised : t.surfaceSolid, borderColor: t.lineStrong, borderTopColor: t.glassHi },
+            ]}
           >
-            <Text style={styles.googleBtnText}>Sign in with Google</Text>
+            <Icon name="key-round" size={20} strokeWidth={1.9} color={t.text1} />
+            <Text style={[styles.googleText, { color: t.text1 }]}>Sign in with Google</Text>
           </Pressable>
         )}
 
-        <Text style={styles.footer}>Access restricted to Heubert team members only</Text>
+        <Text style={[styles.footnote, { color: t.text2 }]}>Use the Google account your team registered</Text>
+        <Text style={[styles.restricted, { color: t.text2 }]}>Access restricted to Heubert team members only</Text>
       </View>
-    </View>
+    </Screen>
   );
 }
 
+// Sizes, gaps and type from MobileLogin.dc.html. Text on the page keeps to text1 and text2 (over
+// the light aurora, text3 falls under 4.5:1), so the mono footnote takes text2 where the artboard
+// has text-3.
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0b0d14",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0b0d14" },
-  card: {
-    width: "100%",
-    maxWidth: 420,
-    backgroundColor: "rgba(17,24,39,0.9)",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    padding: 32,
-    alignItems: "center",
-  },
-  logo: { fontSize: 40, marginBottom: 16 },
-  badge: {
-    backgroundColor: "rgba(34,197,94,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.2)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 16,
-  },
-  badgeText: { color: "#22c55e", fontSize: 12, fontWeight: "600" },
-  title: { color: "#fff", fontSize: 26, fontWeight: "800", marginBottom: 8 },
-  subtitle: { color: "#9ca3af", fontSize: 14, textAlign: "center", marginBottom: 28, lineHeight: 20 },
-  errorBox: {
-    backgroundColor: "rgba(239,68,68,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.3)",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
-    width: "100%",
-  },
-  errorText: { color: "#fca5a5", fontSize: 14 },
-  googleBtn: {
-    backgroundColor: "#1f2430",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    borderRadius: 999,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    width: "100%",
-    alignItems: "center",
-  },
-  googleBtnPressed: { opacity: 0.7 },
-  googleBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  signingIn: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 },
-  signingInText: { color: "#9ca3af", fontSize: 14 },
-  footer: { color: "#4b5563", fontSize: 12, marginTop: 28, textAlign: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  page: { flexGrow: 1, paddingHorizontal: 24 },
+  main: { flexGrow: 1, alignItems: "center", justifyContent: "center", gap: 18, paddingTop: 96 },
+  logo: { width: 72, height: 72, borderRadius: 18 },
+  logoImage: { width: 72, height: 72, borderRadius: 18 },
+  // The artboard's `0 0 0 1px` ring: a hairline just outside the logo.
+  logoRing: { position: "absolute", top: -1, left: -1, right: -1, bottom: -1, borderRadius: 19, borderWidth: 1 },
+  badge: { height: 26, paddingHorizontal: 12, borderRadius: radius.pill, flexDirection: "row", alignItems: "center", gap: 6 },
+  badgeDot: { width: 6, height: 6, borderRadius: radius.pill },
+  // .08em at 12px.
+  badgeText: { fontFamily: fonts.mono, fontSize: 12, letterSpacing: 0.96, textTransform: "uppercase" },
+  heading: { alignItems: "center", gap: 10 },
+  // -0.02em at 34px.
+  title: { fontFamily: fonts.display, fontSize: 34, lineHeight: 37, letterSpacing: -0.68, textAlign: "center" },
+  subtitle: { maxWidth: 300, fontFamily: fonts.body, fontSize: 16, lineHeight: 24, textAlign: "center" },
+  signIn: { gap: 14, paddingTop: 24 },
+  error: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1 },
+  errorIcon: { marginTop: 1 },
+  errorText: { flex: 1, fontFamily: fonts.body, fontSize: 14, lineHeight: 20 },
+  google: { height: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  googleButton: { borderWidth: 1, borderRadius: 14 },
+  googleText: { fontFamily: fonts.bodySemibold, fontSize: 16 },
+  signingInText: { fontFamily: fonts.body, fontSize: 14 },
+  footnote: { fontFamily: fonts.mono, fontSize: 12, textAlign: "center" },
+  restricted: { fontFamily: fonts.body, fontSize: 12, textAlign: "center" },
 });

@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Attendance</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--sidebar-bg:transparent;--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.78);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:24px 24px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.82);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.34),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.26),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(45,212,239,.16),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.11),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.2),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.16),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(6,182,212,.14),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht .row-h:hover,.ht .nav-a:hover,.ht .btn-s:hover,.ht .btn-i:hover{background:var(--raised)}
+.ht .btn-p:hover{background:var(--primary-hover);color:#FFFFFF}
+.ht .btn-o:hover{background:var(--orange-hover);color:#0A0E17}
+.ht .card-h{transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease}
+.ht .card-h:hover{box-shadow:var(--glass-hi),var(--shadow-lift);border-color:var(--line-strong);transform:translateY(-2px)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.ht .card-h:hover{transform:none}}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch;">
+  <div class="aurora" aria-hidden="true"></div>
+  <div class="glass" style="flex: 1 0 240px; box-sizing: border-box; background: var(--surface); border-right: 1px solid var(--line);">
+    <dc-import name="Sidebar" active="attendance" hint-size="240px,1000px"></dc-import>
+  </div>
+
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column;">
+    <header class="glass" style="min-height: 68px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 32px; border-bottom: 1px solid var(--line); background: var(--surface);">
+      <label style="flex: 1 1 240px; max-width: 440px; display: flex; align-items: center; gap: 8px; height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); color: var(--text-3);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM21 21l-4.3-4.3"></path></svg>
+        <input type="search" aria-label="Search" placeholder="Search people, fines, tasks…" style="flex-grow: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 14px; color: var(--text-1);">
+        <kbd style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px;">Ctrl K</kbd>
+      </label>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+        <a class="btn-o" href="Meeting.dc.html" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 9999px; background: var(--orange); color: #0A0E17; font-size: 14px; font-weight: 600; text-decoration: none; box-shadow: 0 6px 20px rgba(255,106,31,.3);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 13l5.22 3.48a.5.5 0 0 0 .78-.42V7.87a.5.5 0 0 0-.75-.43L16 10.5M4 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path></svg>
+          Start Meeting
+        </a>
+        <button class="btn-i" aria-label="Notifications" style="position: relative; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+          <span style="position: absolute; top: 8px; right: 9px; width: 7px; height: 7px; border-radius: 9999px; background: var(--cyan); box-shadow: var(--glow);"></span>
+        </button>
+        <button class="btn-i" aria-label="Switch theme" style="width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+        </button>
+        <button class="btn-s" aria-label="Account and preferences" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px 0 4px; border: 0; border-radius: 9999px; background: transparent; color: var(--text-1); cursor: pointer;">
+          <span style="width: 32px; height: 32px; border-radius: 9999px; background: var(--orange); color: #0A0E17; font-family: var(--f-display); font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;">S</span>
+          <span style="font-size: 14px; font-weight: 600;">Sanish</span>
+        </button>
+      </div>
+    </header>
+
+    <main style="box-sizing: border-box; width: 100%; padding: 32px; display: flex; flex-direction: column; gap: 24px;">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;">
+        <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">Monday · Oct 19 · 3 Kartik 2083</span>
+          <h1 style="margin: 0; font-family: var(--f-display); font-size: 34px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; color: var(--text-1);">Attendance</h1>
+          <p style="margin: 0; font-size: 15px; color: var(--text-3);">Check in and out below, or from the mobile app inside the office radius.</p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <button class="btn-s glass" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--text-1); font-size: 14px; font-weight: 600; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+            Enlarge
+          </button>
+          <button class="btn-s glass" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--text-1); font-size: 14px; font-weight: 600; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <section class="glass" aria-label="Today's attendance" style="padding: 22px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-wrap: wrap; align-items: center; gap: 24px;">
+        <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);">Today's attendance · Nepal time</span>
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-family: var(--f-display); font-size: 44px; line-height: 1; font-weight: 700; letter-spacing: -0.02em; color: var(--text-1); font-variant-numeric: tabular-nums;">11:42:08</span>
+            <span style="font-family: var(--f-display); font-size: 18px; font-weight: 600; color: var(--text-3);">AM</span>
+          </div>
+          <span style="font-family: var(--f-mono); font-size: 13px; color: var(--text-3);">Mon, Oct 19 2026 · 3 Kartik 2083</span>
+          <span style="display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <span style="height: 24px; padding: 0 10px; border-radius: 9999px; background: var(--pb-green); color: var(--pf-green); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0ZM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"></path></svg>
+              Inside office radius
+            </span>
+            <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">38 m away · limit 200 m</span>
+          </span>
+        </div>
+
+        <ol aria-label="Today's punches" style="flex: 1 1 260px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0;">
+          <li style="display: flex; gap: 12px;">
+            <span style="display: flex; flex-direction: column; align-items: center;">
+              <span style="width: 28px; height: 28px; border-radius: 9999px; background: var(--pb-green); color: var(--pf-green); display: inline-flex; align-items: center; justify-content: center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+              </span>
+              <span style="width: 2px; flex-grow: 1; min-height: 16px; background: var(--line-strong);" aria-hidden="true"></span>
+            </span>
+            <span style="display: flex; flex-direction: column; gap: 1px; padding-bottom: 14px;">
+              <span style="font-size: 14px; font-weight: 600; color: var(--text-1);">Checked in <span style="font-family: var(--f-mono); font-weight: 500;">9:24 AM</span></span>
+              <span style="font-size: 13px; color: var(--text-3);">On time · web punch, geofenced</span>
+            </span>
+          </li>
+          <li style="display: flex; gap: 12px;">
+            <span style="width: 28px; height: 28px; flex-shrink: 0; box-sizing: border-box; border-radius: 9999px; border: 2px dashed var(--line-strong); color: var(--text-3); display: inline-flex; align-items: center; justify-content: center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2"></path></svg>
+            </span>
+            <span style="display: flex; flex-direction: column; gap: 1px;">
+              <span style="font-size: 14px; font-weight: 600; color: var(--text-1);">Check out <span style="font-family: var(--f-mono); font-weight: 500; color: var(--text-3);">—</span></span>
+              <span style="font-size: 13px; color: var(--text-3);">Reminder email at <span style="font-family: var(--f-mono);">6:30 PM</span> if missed</span>
+            </span>
+          </li>
+        </ol>
+
+        <div style="flex: 0 1 260px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: baseline; gap: 8px; padding: 0 2px;">
+            <span style="flex-grow: 1; font-size: 13px; color: var(--text-3);">Worked so far</span>
+            <span style="font-family: var(--f-display); font-size: 20px; font-weight: 700; color: var(--text-1);">2h 18m</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button disabled aria-label="Check In, already checked in at 9:24 AM" style="flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); color: var(--text-3); font-size: 14px; font-weight: 600; cursor: not-allowed;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"></path></svg>
+              Check In
+            </button>
+            <button class="btn-p" style="flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; border: 0; border-radius: 10px; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(61,99,240,.35);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+              Check Out
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="glass" style="padding: 22px 24px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px;">
+            <h2 style="margin: 0; font-family: var(--f-display); font-size: 19px; font-weight: 700; color: var(--text-1);">Monthly sheet</h2>
+            <span style="font-size: 13px; color: var(--text-3);">Sanish · October 2026 · <span style="font-family: var(--f-mono);">Ashwin–Kartik 2083 BS</span></span>
+          </div>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-3);">
+            Employee
+            <select style="height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--raised); color: var(--text-1); font-size: 14px;">
+              <option>Sanish</option>
+              <option>Aarav Shrestha</option>
+              <option>Anisha Rai</option>
+              <option>Bikash Thapa</option>
+              <option>Kriti Joshi</option>
+              <option>Nabin Tamang</option>
+              <option>Priya Maharjan</option>
+              <option>Rohan KC</option>
+              <option>Sita Gurung</option>
+            </select>
+          </label>
+          <div role="group" aria-label="Calendar" style="display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 11px; background: var(--raised);">
+            <button aria-pressed="true" style="height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--surface-solid); color: var(--text-1); font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.2);">English</button>
+            <button class="btn-s" aria-pressed="false" lang="ne" style="height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); font-size: 13px; font-weight: 600; cursor: pointer;">नेपाली</button>
+          </div>
+          <input type="month" aria-label="Month" value="2026-10" style="height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+          <sc-for list="{{stats}}" as="k" hint-placeholder-count="5">
+            <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line);">
+              <span style="display: flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">
+                <span style="width: 8px; height: 8px; border-radius: 2px; background: {{k.dot}};" aria-hidden="true"></span>
+                {{k.label}}
+              </span>
+              <span style="font-family: var(--f-display); font-size: 26px; line-height: 1.1; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums;">{{k.value}}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="overflow-x: auto; margin: 0 -24px; padding: 0 24px;">
+          <table style="width: 100%; min-width: 720px; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--line);">
+                <th scope="col" style="padding: 0 12px 10px 0; text-align: left; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Date</th>
+                <th scope="col" style="padding: 0 12px 10px; text-align: left; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Check In</th>
+                <th scope="col" style="padding: 0 12px 10px; text-align: left; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Check Out</th>
+                <th scope="col" style="padding: 0 12px 10px; text-align: right; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Hours</th>
+                <th scope="col" style="padding: 0 12px 10px; text-align: left; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Status</th>
+                <th scope="col" style="padding: 0 0 10px 12px; text-align: right; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{days}}" as="d" hint-placeholder-count="14">
+                <tr class="row-h" style="height: 56px; border-bottom: 1px solid var(--line); background: {{d.rowBg}};">
+                  <td style="padding: 0 12px 0 0;">
+                    <span style="display: flex; flex-direction: column; gap: 1px; white-space: nowrap;">
+                      <span style="display: inline-flex; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: 13px; color: {{d.dateFg}};">
+                        {{d.date}}
+                        <sc-if value="{{d.today}}" hint-placeholder-val="{{false}}">
+                          <span style="height: 20px; padding: 0 7px; border-radius: 9999px; background: var(--pb-cyan); color: var(--pf-cyan); font-family: var(--f-body); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Today</span>
+                        </sc-if>
+                      </span>
+                      <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{d.bs}}</span>
+                    </span>
+                  </td>
+                  <td style="padding: 0 12px; font-family: var(--f-mono); font-size: 13px; color: {{d.inFg}}; white-space: nowrap;">{{d.checkIn}}</td>
+                  <td style="padding: 0 12px; font-family: var(--f-mono); font-size: 13px; color: var(--text-2); white-space: nowrap;">{{d.checkOut}}</td>
+                  <td style="padding: 0 12px; text-align: right; font-family: var(--f-mono); font-size: 13px; font-weight: 500; color: var(--text-1);">{{d.hours}}</td>
+                  <td style="padding: 0 12px;">
+                    <span style="height: 22px; padding: 0 9px; border-radius: 9999px; background: {{d.sBg}}; color: {{d.sFg}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; white-space: nowrap;">{{d.status}}</span>
+                    <sc-if value="{{d.note}}" hint-placeholder-val="{{false}}">
+                      <span style="margin-left: 6px; font-size: 12px; color: var(--text-3);">{{d.note}}</span>
+                    </sc-if>
+                  </td>
+                  <td style="padding: 0 0 0 12px; text-align: right; white-space: nowrap;">
+                    <sc-if value="{{d.hasRecord}}" hint-placeholder-val="{{true}}">
+                      <button class="btn-i" aria-label="Edit attendance for {{d.date}}" style="width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                      </button>
+                      <button class="btn-i" aria-label="Delete attendance for {{d.date}}" style="width: 32px; height: 32px; margin-left: 4px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--pf-red); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path></svg>
+                      </button>
+                    </sc-if>
+                    <sc-if value="{{d.noRecord}}" hint-placeholder-val="{{false}}">
+                      <button class="btn-i" aria-label="Add attendance for {{d.date}}" style="width: 32px; height: 32px; border: 1px dashed var(--line-strong); border-radius: 8px; background: transparent; color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                      </button>
+                    </sc-if>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+          <span style="flex-grow: 1; font-size: 13px; color: var(--text-3);">Showing <span style="font-family: var(--f-mono); color: var(--text-2);">Oct 8 – Oct 21</span> of 31 days</span>
+          <button class="btn-s" style="height: 34px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 9px; background: transparent; color: var(--text-1); font-size: 13px; font-weight: 600; cursor: pointer;">Show full month</button>
+        </div>
+      </section>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start;">
+        <section class="glass" style="padding: 20px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--pb-blue); color: var(--pf-blue); display: inline-flex; align-items: center; justify-content: center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18ZM6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4"></path></svg>
+            </span>
+            <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 19px; font-weight: 700; color: var(--text-1);">Office employees</h2>
+            <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--pb-gray); color: var(--pf-gray); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Admin</span>
+          </div>
+          <p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-3);">Geofenced web punch. These on-site employees can punch from the website, but only inside the office radius — same rule as the mobile app.</p>
+          <div role="group" aria-label="Office employees with web punch" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <sc-for list="{{officeChips}}" as="c" hint-placeholder-count="9">
+              <sc-if value="{{c.on}}" hint-placeholder-val="{{false}}">
+                <label style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 9999px; background: var(--primary-soft); border: 1px solid var(--primary); color: var(--text-1); font-size: 13px; font-weight: 600; cursor: pointer;">
+                  <input type="checkbox" checked style="width: 15px; height: 15px; margin: 0; accent-color: #3D63F0;">
+                  {{c.name}}
+                </label>
+              </sc-if>
+              <sc-if value="{{c.off}}" hint-placeholder-val="{{true}}">
+                <label style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 9999px; background: transparent; border: 1px solid var(--line-strong); color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer;">
+                  <input type="checkbox" style="width: 15px; height: 15px; margin: 0; accent-color: #3D63F0;">
+                  {{c.name}}
+                </label>
+              </sc-if>
+            </sc-for>
+          </div>
+        </section>
+
+        <section class="glass" style="padding: 20px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--pb-violet); color: var(--pf-violet); display: inline-flex; align-items: center; justify-content: center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10"></path></svg>
+            </span>
+            <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 19px; font-weight: 700; color: var(--text-1);">Freelance / WFH</h2>
+            <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--pb-gray); color: var(--pf-gray); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Admin</span>
+          </div>
+          <p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-3);">For people without a fixed office desk. Selected employees can punch in and out from the website with no location check, as well as from the mobile app.</p>
+          <div role="group" aria-label="Freelance and WFH employees" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <sc-for list="{{wfhChips}}" as="c" hint-placeholder-count="9">
+              <sc-if value="{{c.on}}" hint-placeholder-val="{{false}}">
+                <label style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 9999px; background: var(--pb-violet); border: 1px solid var(--pf-violet); color: var(--text-1); font-size: 13px; font-weight: 600; cursor: pointer;">
+                  <input type="checkbox" checked style="width: 15px; height: 15px; margin: 0; accent-color: #7C5CE0;">
+                  {{c.name}}
+                </label>
+              </sc-if>
+              <sc-if value="{{c.off}}" hint-placeholder-val="{{true}}">
+                <label style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 9999px; background: transparent; border: 1px solid var(--line-strong); color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer;">
+                  <input type="checkbox" style="width: 15px; height: 15px; margin: 0; accent-color: #7C5CE0;">
+                  {{c.name}}
+                </label>
+              </sc-if>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+
+      <section class="glass" aria-labelledby="office-settings-title" style="padding: 22px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-wrap: wrap; gap: 24px;">
+        <div style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 id="office-settings-title" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 19px; font-weight: 700; color: var(--text-1);">Office location &amp; rules</h2>
+            <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--pb-gray); color: var(--pf-gray); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Admin</span>
+          </div>
+          <p style="margin: 0; font-size: 13px; color: var(--text-3);">Employees must be within this radius to check in or out from the mobile app or a geofenced web punch.</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label for="office-lat" style="font-size: 13px; font-weight: 600; color: var(--text-2);">Latitude</label>
+              <input id="office-lat" value="[OFFICE LATITUDE]" style="height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label for="office-long" style="font-size: 13px; font-weight: 600; color: var(--text-2);">Longitude</label>
+              <input id="office-long" value="[OFFICE LONGITUDE]" style="height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label for="office-radius" style="font-size: 13px; font-weight: 600; color: var(--text-2);">Radius (meters)</label>
+              <input id="office-radius" inputmode="numeric" value="200" style="height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label for="office-fine" style="font-size: 13px; font-weight: 600; color: var(--text-2);">Late fine amount (Rs.)</label>
+              <input id="office-fine" inputmode="numeric" value="50" style="height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label for="office-in-reminder" style="font-size: 13px; font-weight: 600; color: var(--text-2);">Missed check-in reminder</label>
+              <input id="office-in-reminder" type="time" value="10:00" style="height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label for="office-out-reminder" style="font-size: 13px; font-weight: 600; color: var(--text-2);">Missed check-out reminder</label>
+              <input id="office-out-reminder" type="time" value="18:30" style="height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+            </div>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+            <span style="flex: 1 1 260px; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-3);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+              Anyone not checked in or out by these times (Asia/Kathmandu) gets an email reminder.
+            </span>
+            <button class="btn-p" style="height: 40px; padding: 0 20px; border: 0; border-radius: 10px; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(61,99,240,.35);">Save</button>
+          </div>
+        </div>
+
+        <figure style="flex: 1 1 240px; margin: 0; min-height: 240px; border-radius: 14px; background: var(--raised); border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; box-sizing: border-box;">
+          <svg width="200" height="200" viewBox="0 0 200 200" fill="none" role="img" aria-label="Geofence: 200 m radius around the office, you are 38 m from the centre">
+            <circle cx="100" cy="100" r="88" stroke-width="1.5" stroke-dasharray="5 5" style="stroke: var(--cyan); fill: var(--pb-cyan);"></circle>
+            <circle cx="100" cy="100" r="52" stroke-width="1" style="stroke: var(--line-strong); fill: none;"></circle>
+            <path d="M100 100 L188 100" stroke-width="1" stroke-dasharray="2 3" style="stroke: var(--text-3);"></path>
+            <text x="144" y="94" text-anchor="middle" style="fill: var(--text-3); font-family: var(--f-mono); font-size: 12px;">200 m</text>
+            <circle cx="100" cy="100" r="7" stroke-width="2" style="fill: var(--primary); stroke: #FFFFFF;"></circle>
+            <circle cx="84" cy="116" r="6" stroke-width="2" style="fill: var(--pf-green); stroke: var(--surface-solid);"></circle>
+            <text x="84" y="138" text-anchor="middle" style="fill: var(--text-2); font-family: var(--f-body); font-size: 12px;">You</text>
+          </svg>
+          <figcaption style="font-size: 12px; color: var(--text-3); text-align: center;">Office pin and check-in radius</figcaption>
+        </figure>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":2240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const ST = {
+      present: ['Present', 'var(--pb-green)', 'var(--pf-green)'],
+      late: ['Late', 'var(--pb-amber)', 'var(--pf-amber)'],
+      absent: ['Absent', 'var(--pb-red)', 'var(--pf-red)'],
+      leave: ['Leave', 'var(--pb-violet)', 'var(--pf-violet)'],
+      holiday: ['Holiday', 'var(--pb-cyan)', 'var(--pf-cyan)'],
+      weekend: ['Weekend', 'var(--pb-gray)', 'var(--pf-gray)']
+    };
+    const day = (date, bs, status, checkIn, checkOut, hours, note, isToday) => {
+      const s = ST[status];
+      const hasRecord = checkIn !== '—';
+      const quiet = status === 'weekend' || status === 'holiday';
+      return {
+        date, bs, checkIn, checkOut, hours,
+        note: note || false,
+        today: isToday || false,
+        status: s[0], sBg: s[1], sFg: s[2],
+        hasRecord, noRecord: !hasRecord,
+        rowBg: isToday ? 'var(--primary-soft)' : 'transparent',
+        dateFg: quiet ? 'var(--text-3)' : 'var(--text-1)',
+        inFg: status === 'late' ? 'var(--pf-amber)' : 'var(--text-2)'
+      };
+    };
+    const chips = (onList) => ['Sanish', 'Aarav Shrestha', 'Anisha Rai', 'Bikash Thapa', 'Kriti Joshi', 'Nabin Tamang', 'Priya Maharjan', 'Rohan KC', 'Sita Gurung']
+      .map((name) => ({ name, on: onList.indexOf(name) !== -1, off: onList.indexOf(name) === -1 }));
+    return {
+      themeCls: light ? 'light' : '',
+      stats: [
+        { label: 'Present', value: '10', dot: '#22C55E' },
+        { label: 'Late', value: '2', dot: '#F5A524' },
+        { label: 'Absent', value: '0', dot: '#F43F5E' },
+        { label: 'Leave', value: '1', dot: '#A78BFA' },
+        { label: 'Hours worked', value: '95.8h', dot: '#2DD4EF' }
+      ],
+      days: [
+        day('Thu, Oct 8', '22 Ashwin 2083', 'present', '9:18 AM', '6:05 PM', '8.8h'),
+        day('Fri, Oct 9', '23 Ashwin 2083', 'late', '9:41 AM', '6:20 PM', '8.7h', '11 min late'),
+        day('Sat, Oct 10', '24 Ashwin 2083', 'weekend', '—', '—', '—'),
+        day('Sun, Oct 11', '25 Ashwin 2083', 'weekend', '—', '—', '—'),
+        day('Mon, Oct 12', '26 Ashwin 2083', 'present', '9:22 AM', '6:10 PM', '8.8h'),
+        day('Tue, Oct 13', '27 Ashwin 2083', 'leave', '—', '—', '—', 'Casual leave'),
+        day('Wed, Oct 14', '28 Ashwin 2083', 'present', '9:15 AM', '6:02 PM', '8.8h'),
+        day('Thu, Oct 15', '29 Ashwin 2083', 'late', '9:36 AM', '6:30 PM', '8.9h', '6 min late'),
+        day('Fri, Oct 16', '30 Ashwin 2083', 'present', '9:20 AM', '5:48 PM', '8.5h'),
+        day('Sat, Oct 17', '1 Kartik 2083', 'weekend', '—', '—', '—'),
+        day('Sun, Oct 18', '2 Kartik 2083', 'weekend', '—', '—', '—'),
+        day('Mon, Oct 19', '3 Kartik 2083', 'present', '9:24 AM', '—', '—', '', true),
+        day('Tue, Oct 20', '4 Kartik 2083', 'holiday', '—', '—', '—', 'Dashain'),
+        day('Wed, Oct 21', '5 Kartik 2083', 'holiday', '—', '—', '—', 'Dashain')
+      ],
+      officeChips: chips(['Sanish', 'Aarav Shrestha', 'Kriti Joshi', 'Priya Maharjan', 'Sita Gurung']),
+      wfhChips: chips(['Anisha Rai', 'Rohan KC'])
+    };
+  }
+}
+</script>
+</body>
+</html>

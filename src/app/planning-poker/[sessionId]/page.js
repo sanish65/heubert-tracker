@@ -2,14 +2,39 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
+import { PokerTable, PokerDeck, PokerResults, summariseVotes } from "@/components/PlanningPokerPage";
 
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, "?"];
+// This route sits outside the app shell, so it brings its own slim top bar.
+function StandaloneBar({ sessionId, live }) {
+  return (
+    <header className="glass poker-standalone-bar">
+      <div className="poker-standalone-brand">
+        <Image src="/logo.png" alt="" width={32} height={32} className="poker-bar-logo" />
+        <h1 className="poker-standalone-name">Planning poker</h1>
+        {live && (
+          <span className="pill pill-cyan poker-live">
+            <span className="poker-live-dot" aria-hidden="true" />
+            Live
+          </span>
+        )}
+      </div>
+      {sessionId && <code className="poker-id-code poker-standalone-id">{sessionId}</code>}
+      <Link href="/" className="btn btn-secondary poker-standalone-back">
+        <Icon name="arrow-left" size={16} strokeWidth={2} />
+        Back to Tracker
+      </Link>
+    </header>
+  );
+}
 
 export default function PokerSessionPage() {
   const { sessionId } = useParams();
-  const { user, currentEmployee } = useApp();
+  const { user, currentEmployee, animationsEnabled } = useApp();
   const { confirmDialog } = useDialog();
   const [session, setSession] = useState(null);
   const [votes, setVotes] = useState([]);
@@ -25,7 +50,7 @@ export default function PokerSessionPage() {
   // ── Poll for session updates ───────────────────────────
   const fetchSession = useCallback(async () => {
     try {
-      const res = await fetch(`/api/poker?sessionId=${sessionId}`);
+      const res = await fetch(`/api/poker?sessionId=${encodeURIComponent(sessionId)}`);
       if (!res.ok) {
         setError("Session not found or has expired.");
         setLoading(false);
@@ -34,7 +59,7 @@ export default function PokerSessionPage() {
       const data = await res.json();
       setSession(data.session);
       setVotes(data.votes || []);
-      
+
       if (participantName && data.session?.created_by === participantName) {
         setIsHost(true);
       }
@@ -97,13 +122,13 @@ export default function PokerSessionPage() {
   // ── Cast vote ─────────────────────────────────────────
   const handleVote = async (value) => {
     if (!session || session.revealed) return;
-    
+
     // Toggle off if clicking the already selected vote
     const isCurrentlyVoted = myVote === value || myVoteInSession?.vote === String(value);
     const newVote = isCurrentlyVoted ? 'waiting' : String(value);
-    
+
     setMyVote(isCurrentlyVoted ? null : value);
-    
+
     try {
       await fetch("/api/poker", {
         method: "POST",
@@ -118,27 +143,25 @@ export default function PokerSessionPage() {
     } catch (_) {}
   };
 
-  // ── Compute average ────────────────────────────────────
-  const numericVotes = votes.map((v) => Number(v.vote)).filter((n) => !isNaN(n) && n > 0);
-  const average =
-    numericVotes.length > 0
-      ? (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(1)
-      : null;
+  const handleEndSession = async () => {
+    if (!(await confirmDialog("End this session for everyone?", { danger: true, confirmText: "End Session" }))) return;
+    await fetch("/api/poker", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end", sessionId: session.id }) });
+    fetchSession();
+  };
 
-  const nearestFib =
-    average !== null
-      ? FIBONACCI.filter((f) => typeof f === "number").reduce((a, b) =>
-          Math.abs(b - parseFloat(average)) < Math.abs(a - parseFloat(average)) ? b : a
-        )
-      : null;
-
+  const summary = summariseVotes(votes);
   const myVoteInSession = votes.find((v) => v.participant_name === participantName.trim());
+  const myCurrentVote = myVoteInSession && myVoteInSession.vote && myVoteInSession.vote !== "waiting"
+    ? myVoteInSession.vote
+    : null;
+  const shellClass = `poker-standalone-shell${animationsEnabled !== false ? " is-animated" : ""}`;
 
   // ──────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="poker-standalone-shell">
-        <div className="poker-standalone-loading">
+      <div className={shellClass}>
+        <StandaloneBar sessionId={sessionId} />
+        <div className="poker-standalone-state">
           <div className="spinner" />
           <span>Loading session…</span>
         </div>
@@ -148,10 +171,11 @@ export default function PokerSessionPage() {
 
   if (error || !session) {
     return (
-      <div className="poker-standalone-shell">
-        <div className="poker-standalone-error">
-          <span className="poker-error-icon">🃏</span>
-          <h2>Session Not Found</h2>
+      <div className={shellClass}>
+        <StandaloneBar sessionId={sessionId} />
+        <div className="poker-standalone-state">
+          <span className="modal-icon modal-icon-red"><Icon name="alert" size={20} /></span>
+          <h2 className="section-title">Session Not Found</h2>
           <p>{error || "This planning poker session does not exist or has expired."}</p>
         </div>
       </div>
@@ -159,210 +183,110 @@ export default function PokerSessionPage() {
   }
 
   return (
-    <div className="poker-standalone-shell">
-      <header className="poker-standalone-header">
-        <div className="poker-standalone-logo">
-          <span>🃏</span>
-          <span className="poker-standalone-logo-text">Planning Poker</span>
-        </div>
-        <span className="poker-standalone-status">
-          {session.revealed ? "🔓 Results Published" : "🔒 Voting in Progress"}
-        </span>
-      </header>
+    <div className={shellClass}>
+      <StandaloneBar sessionId={sessionId} live />
 
       <main className="poker-standalone-main">
-        <div className="poker-standalone-card">
-          <div className="poker-standalone-header-row">
-            <h2 className="poker-standalone-story">{session.title}</h2>
-            {isHost && !session.is_ended && (
-              <button className="retro-end-session-btn" onClick={async () => {
-                if (!(await confirmDialog("End this session for everyone?", { danger: true, confirmText: "End Session" }))) return;
-                await fetch("/api/poker", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end", sessionId: session.id }) });
-                fetchSession();
-              }}>
-                🏁 End Session
-              </button>
+        <div className="poker-board">
+          <div className="poker-board-main">
+            <section className="glass-card poker-story" aria-label="Story being estimated">
+              <div className="poker-story-meta">
+                <span className={`pill ${session.revealed ? "pill-green" : "pill-amber"}`}>
+                  <span className="poker-status-dot" aria-hidden="true" />
+                  {session.revealed ? "Results Published" : "Voting in Progress"}
+                </span>
+                {isHost && !session.is_ended && (
+                  <button type="button" className="btn btn-secondary btn-sm poker-end-btn" onClick={handleEndSession}>
+                    <Icon name="flag" size={16} strokeWidth={2} />
+                    End Session
+                  </button>
+                )}
+              </div>
+              <h2 className="poker-story-title">{session.title}</h2>
+              <p className="poker-story-sub">Story / Ticket being estimated</p>
+            </section>
+
+            {/* Name Entry */}
+            {!nameEntered && (
+              <section className="glass-card poker-name-card">
+                <label htmlFor="poker-name" className="poker-field-label">Enter your name to participate</label>
+                <div className="poker-name-row">
+                  <input
+                    id="poker-name"
+                    placeholder="Your name…"
+                    value={participantName}
+                    onChange={(e) => setParticipantName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleJoin}
+                    disabled={!participantName.trim()}
+                  >
+                    Join
+                    <Icon name="chevron-right" size={16} strokeWidth={2} />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            <PokerTable
+              votes={votes}
+              revealed={session.revealed}
+              me={nameEntered ? participantName.trim() : ""}
+              nearestFib={summary.nearestFib}
+              statusLabel="Results Published"
+              emptyText="No votes yet — be the first!"
+            />
+
+            {nameEntered && !session.revealed && (
+              <PokerDeck
+                title={
+                  myCurrentVote !== null
+                    ? `You voted: ${myCurrentVote} — Change your vote?`
+                    : "Pick your story point estimate"
+                }
+                isSelected={(val) => myVote === val || myVoteInSession?.vote === String(val)}
+                onVote={handleVote}
+                showMore={showMorePoints}
+                onShowMore={() => setShowMorePoints(true)}
+              />
+            )}
+
+            {/* Waiting indicator when not revealed */}
+            {nameEntered && !session.revealed && myVoteInSession && (
+              <div className="poker-waiting">
+                <div className="poker-waiting-dots" aria-hidden="true">
+                  <span /><span /><span />
+                </div>
+                <p>Waiting for the host to reveal results…</p>
+              </div>
             )}
           </div>
-          <p className="poker-standalone-story-sub">Story / Ticket being estimated</p>
 
-          {session.is_ended && (
-             <div className="retro-ended-overlay">
-               <div className="retro-ended-message">
-                 <span className="retro-ended-icon">🏁</span>
-                 <h2>This Poker Session has ended</h2>
-                 <p>The host has concluded this session. Thank you for voting!</p>
-                 <p className="retro-ended-sub">Please wait for the next sprint's session to begin.</p>
-                 <button className="btn-poker-primary" onClick={() => { window.location.href = "/"; }}>
-                   Exit to Home
-                 </button>
-               </div>
-             </div>
+          {nameEntered && session.revealed && (
+            <aside className="poker-board-side">
+              <PokerResults votes={votes} summary={summary} />
+            </aside>
           )}
-
-          {/* Name Entry */}
-          {!nameEntered ? (
-            <div className="poker-standalone-name-form">
-              <label className="poker-form-label">Enter your name to participate</label>
-              <div className="poker-standalone-name-row">
-                <input
-                  className="poker-input"
-                  placeholder="Your name…"
-                  value={participantName}
-                  onChange={(e) => setParticipantName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-                  autoFocus
-                />
-                <button
-                  className="btn-poker-primary"
-                  onClick={handleJoin}
-                  disabled={!participantName.trim()}
-                >
-                  Join →
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Active Participants Tracking (Before Reveal) */}
-              {!session.revealed && votes.length > 0 && (
-                <div style={{ marginBottom: 24 }}>
-                  <div className="poker-vote-count" style={{ marginBottom: 12 }}>
-                    🗳️ {votes.filter(v => v.vote !== 'waiting').length} / {votes.length} voted
-                  </div>
-                  <div className="poker-vote-breakdown poker-participants-tracking">
-                    {votes.map((v) => {
-                      const hasVoted = v.vote && v.vote !== 'waiting';
-                      return (
-                        <div key={v.id} className={`poker-vote-chip ${hasVoted ? 'voted' : 'waiting'}`} style={{ opacity: hasVoted ? 1 : 0.65 }}>
-                          <span className="poker-vote-chip-name">{v.participant_name}</span>
-                          <span className="poker-vote-chip-val" style={{ fontSize: '0.8rem', color: hasVoted ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-                            {hasVoted ? '✅ Ready' : <span className="pulse-opacity">🤔 Thinking...</span>}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Revealed Results */}
-              {session.revealed && (
-                <div className="poker-results-panel" style={{ marginBottom: 24 }}>
-                  <div className="poker-results-glow" />
-                  <div className="poker-results-content">
-                    <div className="poker-results-avg-wrapper">
-                      <div className="poker-results-label">Average Story Points</div>
-                      <div className="poker-results-avg">
-                        {average !== null ? average : "—"}
-                      </div>
-                      {nearestFib !== null && (
-                        <div className="poker-results-nearest">
-                          Nearest Fibonacci: <strong>{nearestFib}</strong>
-                        </div>
-                      )}
-                    </div>
-                    <div className="poker-vote-breakdown">
-                      {votes.map((v) => (
-                        <div key={v.id} className="poker-vote-chip">
-                          <span className="poker-vote-chip-name">{v.participant_name}</span>
-                          <span className="poker-vote-chip-val">{v.vote}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Voting Cards */}
-              {!session.revealed && (
-                <div className="poker-vote-section">
-                  <h3 className="poker-vote-title">
-                    {myVoteInSession
-                      ? `✅ You voted: ${myVoteInSession.vote} — Change your vote?`
-                      : "Pick your story point estimate"}
-                  </h3>
-                  <div className="poker-cards-grid">
-                    {FIBONACCI.filter(val => showMorePoints || ![34, 55, 89].includes(val)).map((val) => (
-                      <button
-                        key={val}
-                        className={`poker-card ${
-                          myVote === val || myVoteInSession?.vote === String(val)
-                            ? "poker-card-selected"
-                            : ""
-                        }`}
-                        onClick={() => handleVote(val)}
-                      >
-                        <span className="poker-card-val">{val}</span>
-                        {typeof val === "number" && (
-                          <span className="poker-card-sub">pts</span>
-                        )}
-                      </button>
-                    ))}
-                    {!showMorePoints && (
-                      <button
-                        className="poker-card"
-                        onClick={() => setShowMorePoints(true)}
-                      >
-                        <span className="poker-card-val">...</span>
-                        <span className="poker-card-sub">Others</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Waiting indicator when not revealed */}
-              {!session.revealed && myVoteInSession && (
-                <div className="poker-waiting">
-                  <div className="poker-waiting-dots">
-                    <span /><span /><span />
-                  </div>
-                  <p>Waiting for the host to reveal results…</p>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Participants */}
-          <div className="poker-participants" style={{ marginTop: 24 }}>
-            <h4 className="poker-participants-title">
-              👥 Participants ({votes.length})
-            </h4>
-            <div className="poker-participants-list">
-              {votes.length === 0 && (
-                <span className="poker-empty-participants">
-                  No votes yet — be the first!
-                </span>
-              )}
-              {votes.map((v) => (
-                <div key={v.id} className="poker-participant-chip">
-                  <div className="poker-participant-avatar">
-                    {v.participant_name[0].toUpperCase()}
-                  </div>
-                  <span className="poker-participant-name">{v.participant_name}</span>
-                  {session.revealed ? (
-                    <span className="poker-participant-vote revealed">
-                      {v.vote === 'waiting' ? '—' : v.vote}
-                    </span>
-                  ) : (
-                    <span className={`poker-participant-vote ${v.vote === 'waiting' ? 'waiting' : 'hidden'}`}>
-                      {v.vote === 'waiting' ? '...' : '✓'}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </main>
 
-      <footer className="poker-standalone-footer">
-        <span>Heubert Tracker — Planning Poker</span>
-        <span className="poker-pulse">
-          <span className="pulse-dot" /> Live
-        </span>
-      </footer>
+      {session.is_ended && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="poker-ended-title">
+          <div className="modal-content poker-ended">
+            <span className="modal-icon"><Icon name="flag" size={20} /></span>
+            <h2 id="poker-ended-title">This Poker Session has ended</h2>
+            <p>The host has concluded this session. Thank you for voting!</p>
+            <p className="poker-ended-sub">Please wait for the next sprint&apos;s session to begin.</p>
+            <button type="button" className="btn btn-primary" onClick={() => { window.location.href = "/"; }}>
+              Exit to Home
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

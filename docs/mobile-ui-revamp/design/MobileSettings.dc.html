@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile — Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--tab-bg:rgba(15,20,34,.9);--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.82);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;overflow:hidden;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:20px 20px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--tab-bg:rgba(255,255,255,.88);--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.86);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.38),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.28),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(45,212,239,.16),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.12),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.22),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.16),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(6,182,212,.14),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="width: 390px; min-height: 1440px; box-sizing: border-box; padding: 0 0 40px;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header style="padding: 56px 16px 14px; display: flex; align-items: center; gap: 12px;">
+    <a href="MobileMore.dc.html" aria-label="Back" class="glass" style="width: 44px; height: 44px; flex-shrink: 0; box-sizing: border-box; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+    </a>
+    <h1 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-1);">Settings</h1>
+  </header>
+
+  <main style="padding: 0 16px; display: flex; flex-direction: column; gap: 14px;">
+
+    <section aria-labelledby="acct-h" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 14px;">
+      <h2 id="acct-h" style="margin: 0; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">Account</h2>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="width: 56px; height: 56px; flex-shrink: 0; border-radius: 9999px; background: var(--orange); color: #0A0E17; font-family: var(--f-display); font-size: 22px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;">S</span>
+        <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--text-1);">Sanish</span>
+          <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">sanish@[company-domain]</span>
+          <span style="align-self: flex-start; margin-top: 3px; height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--pb-blue); color: var(--pf-blue); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Admin
+          </span>
+        </div>
+      </div>
+      <button style="height: 48px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--pb-red); color: var(--pf-red); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+        Sign Out
+      </button>
+    </section>
+
+    <section aria-labelledby="pref-h" class="glass" style="padding: 16px 18px 6px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column;">
+      <h2 id="pref-h" style="margin: 0 0 12px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">Preferences</h2>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px;">
+        <span id="theme-l" style="font-size: 15px; font-weight: 500; color: var(--text-1);">Theme</span>
+        <div role="radiogroup" aria-labelledby="theme-l" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: var(--raised);">
+          <button role="radio" aria-checked="true" style="height: 44px; border: 0; border-radius: 10px; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 14px rgba(61,99,240,.35);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>Dark
+          </button>
+          <button role="radio" aria-checked="false" style="height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--text-2); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>Light
+          </button>
+          <button role="radio" aria-checked="false" style="height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--text-2); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M12 18h.01"></path></svg>System
+          </button>
+        </div>
+      </div>
+      <label style="min-height: 56px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); cursor: pointer;">
+        <span style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: var(--pb-violet); color: var(--pf-violet); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path></svg>
+        </span>
+        <span style="flex-grow: 1; display: flex; flex-direction: column;">
+          <span style="font-size: 15px; font-weight: 500; color: var(--text-1);">Animations</span>
+          <span style="font-size: 13px; color: var(--text-3);">Motion on cards and transitions</span>
+        </span>
+        <input type="checkbox" role="switch" checked="" style="width: 22px; height: 22px; margin: 0 4px 0 0; accent-color: #3D63F0;">
+      </label>
+      <label style="min-height: 56px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); cursor: pointer;">
+        <span style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: var(--pb-cyan); color: var(--pf-cyan); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+        </span>
+        <span style="flex-grow: 1; display: flex; flex-direction: column;">
+          <span style="font-size: 15px; font-weight: 500; color: var(--text-1);">Notifications</span>
+          <span style="font-size: 13px; color: var(--text-3);">Leaves, fines and standup reminders</span>
+        </span>
+        <input type="checkbox" role="switch" checked="" style="width: 22px; height: 22px; margin: 0 4px 0 0; accent-color: #3D63F0;">
+      </label>
+    </section>
+
+    <section aria-labelledby="office-h" class="glass" style="padding: 16px 18px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h2 id="office-h" style="margin: 0; flex-grow: 1; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">Admin · Office location</h2>
+        <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--pb-blue); color: var(--pf-blue); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Admin only</span>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: flex-start;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px; color: var(--text-3);"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        <p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-3);">Employees must be within this radius to check in or out from the mobile app.</p>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <label style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-2);">Latitude</span>
+          <input type="text" inputmode="decimal" placeholder="[OFFICE LATITUDE]" style="height: 48px; width: 100%; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-2);">Longitude</span>
+          <input type="text" inputmode="decimal" placeholder="[OFFICE LONGITUDE]" style="height: 48px; width: 100%; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-2);">Radius</span>
+          <span style="position: relative; display: block;">
+            <input type="text" inputmode="numeric" placeholder="[RADIUS]" style="height: 48px; width: 100%; box-sizing: border-box; padding: 0 34px 0 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+            <span aria-hidden="true" style="position: absolute; right: 12px; top: 15px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">m</span>
+          </span>
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-2);">Late fine</span>
+          <span style="position: relative; display: block;">
+            <span aria-hidden="true" style="position: absolute; left: 12px; top: 15px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">Rs.</span>
+            <input type="text" inputmode="numeric" placeholder="[AMOUNT]" style="height: 48px; width: 100%; box-sizing: border-box; padding: 0 12px 0 44px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 13px;">
+          </span>
+        </label>
+      </div>
+      <button style="height: 48px; border: 1px solid var(--line-strong); border-radius: 12px; background: transparent; color: var(--text-1); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"></path></svg>
+        Use My Current Location
+      </button>
+      <button style="height: 50px; border: 0; border-radius: 12px; background: var(--primary); color: #FFFFFF; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 6px 20px rgba(61,99,240,.35);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+        Save
+      </button>
+    </section>
+
+    <section aria-labelledby="about-h" class="glass" style="padding: 16px 18px 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column;">
+      <h2 id="about-h" style="margin: 0 0 8px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">About</h2>
+      <div style="min-height: 52px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line);">
+        <span style="flex-grow: 1; font-size: 15px; color: var(--text-1);">App version</span>
+        <span style="font-family: var(--f-mono); font-size: 13px; color: var(--text-2);">v1.0.0</span>
+      </div>
+      <div style="min-height: 52px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line);">
+        <span style="flex-grow: 1; font-size: 15px; color: var(--text-1);">Update channel</span>
+        <span style="font-family: var(--f-mono); font-size: 13px; color: var(--text-2);">preview</span>
+      </div>
+      <div style="min-height: 52px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); margin-bottom: 8px;">
+        <span style="flex-grow: 1; font-size: 15px; color: var(--text-1);">Last update</span>
+        <span style="font-family: var(--f-mono); font-size: 13px; color: var(--text-2);">[UPDATE ID] · Oct 17</span>
+      </div>
+      <button style="min-height: 52px; padding: 10px 14px; border: 0; border-radius: 14px; background: var(--primary); color: #FFFFFF; text-align: left; display: flex; align-items: center; gap: 12px; box-shadow: 0 6px 20px rgba(61,99,240,.35);">
+        <span style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: rgba(255,255,255,.16); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"></path></svg>
+        </span>
+        <span style="flex-grow: 1; display: flex; flex-direction: column;">
+          <span style="font-size: 15px; font-weight: 700;">Update ready — tap to restart</span>
+          <span style="font-size: 13px; color: rgba(255,255,255,.8);">Downloaded in the background</span>
+        </span>
+      </button>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1440}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    return {
+      themeCls: light ? 'light' : ''
+    };
+  }
+}
+</script>
+</body>
+</html>

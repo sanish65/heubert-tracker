@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { fineToday } from "@/lib/utils";
+import Icon from "@/components/Icon";
 
 export default function AddStandupFineModal({ isOpen, onClose }) {
   const { addStandupFine, employees, currentEmployee, standupFines } = useApp();
@@ -60,12 +61,13 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Missing Standup Report</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="clipboard" size={20} /></span>
+          <h2>Missing standup report</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-section">
-            <div className="form-section-title">📝 Record Details</div>
+            <div className="form-section-title">Record details</div>
             <div className="form-grid-horizontal">
               <div className="form-group-interactive">
                 <label htmlFor="standup-employee">Select Employee</label>
@@ -105,11 +107,11 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
 
           {isFutureDate && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">🚫</span>
+              <span className="duplicate-warning-icon"><Icon name="alert" size={18} /></span>
               <div className="duplicate-warning-text">
                 <strong>That day hasn&apos;t happened yet</strong>
                 <p>
@@ -122,7 +124,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
 
           {duplicateWarning && (
             <div className="duplicate-warning">
-              <span className="duplicate-warning-icon">⚠️</span>
+              <span className="duplicate-warning-icon"><Icon name="alert" size={18} /></span>
               <div className="duplicate-warning-text">
                 <strong>Duplicate entry detected</strong>
                 <p>A standup fine for <strong>{form.name}</strong> on <strong>{form.date}</strong> already exists. Add it anyway?</p>
@@ -131,7 +133,7 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
           )}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => { setDuplicateWarning(false); onClose(); }}>
+            <button type="button" className="btn btn-secondary" onClick={() => { setDuplicateWarning(false); onClose(); }}>
               Cancel
             </button>
             {duplicateWarning ? (

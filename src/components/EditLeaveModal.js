@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { buildWorkingDates, computeLeaveBalances } from "@/lib/utils";
+import Icon from "@/components/Icon";
 
 const LEAVE_TYPE_OPTIONS = [
-  { value: "full", label: "Full Day", icon: "📅" },
-  { value: "half", label: "Half Day", icon: "🌗" },
-  { value: "early", label: "Early Leave", icon: "🚪" },
+  { value: "full", label: "Full Day" },
+  { value: "half", label: "Half Day" },
+  { value: "early", label: "Early Leave" },
 ];
 
 function toDateStr(d) {
@@ -145,14 +146,15 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>🏖️ Edit Leave Record</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="calendar" size={20} /></span>
+          <h2>Edit leave record</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-sections-container">
             {/* Employee — read-only */}
             <div className="form-section">
-              <div className="form-section-title">👤 Employee</div>
+              <div className="form-section-title">Employee</div>
               <div className="form-group-interactive">
                 <label>Employee</label>
                 <input type="text" value={leave.employee_name} disabled className="input-disabled" />
@@ -161,7 +163,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
 
             {/* Type */}
             <div className="form-section">
-              <div className="form-section-title">🏖️ Leave Type</div>
+              <div className="form-section-title">Leave type</div>
               <div className="form-group-interactive">
                 <div className="leave-type-options">
                   {LEAVE_TYPE_OPTIONS.map((opt) => (
@@ -176,7 +178,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
                         checked={form.type === opt.value}
                         onChange={handleChange("type")}
                       />
-                      <span>{opt.icon} {opt.label}</span>
+                      <span>{opt.label}</span>
                     </label>
                   ))}
                 </div>
@@ -187,8 +189,8 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
                   <label>Half Day Segment</label>
                   <div className="leave-type-options">
                     {[
-                      { value: "first", label: "First Half", icon: "🌅" },
-                      { value: "second", label: "Second Half", icon: "🌇" },
+                      { value: "first", label: "First Half" },
+                      { value: "second", label: "Second Half" },
                     ].map((opt) => (
                       <label
                         key={opt.value}
@@ -201,7 +203,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
                           checked={form.segment === opt.value}
                           onChange={handleChange("segment")}
                         />
-                        <span>{opt.icon} {opt.label}</span>
+                        <span>{opt.label}</span>
                       </label>
                     ))}
                   </div>
@@ -239,7 +241,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
 
             {/* Dates */}
             <div className="form-section">
-              <div className="form-section-title">📅 Timeline</div>
+              <div className="form-section-title">Timeline</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="edit-leave-start">Leave Date</label>
@@ -297,7 +299,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
 
             {/* Reason */}
             <div className="form-section">
-              <div className="form-section-title">💬 Additional Information</div>
+              <div className="form-section-title">Additional information</div>
               <div className="form-group-interactive">
                 <label htmlFor="edit-leave-reason">Reason for Leave</label>
                 <input
@@ -311,10 +313,10 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
             </div>
           </div>
 
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "Saving..." : "Save Changes"}
             </button>

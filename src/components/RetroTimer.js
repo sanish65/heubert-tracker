@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Icon from "@/components/Icon";
 
 const YT_VIDEO_ID = "zkMDpAgqElM";
 const YT_ORIGIN   = "https://www.youtube.com";
@@ -196,8 +197,14 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
   const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const isPanic = isRunning && timeLeft > 0 && timeLeft <= 10;
 
+  // Facilitator timer (Retro.dc.html): clock, mono digits, length, start / stop, music.
+  // It sits in the board's session strip; its styles are in globals.css (RETROSPECTIVE).
   return (
-    <div className={`retro-timer-pill${isPanic ? " retro-timer-pill--panic" : ""}${isRunning && !isPanic ? " retro-timer-pill--running" : ""}`}>
+    <div
+      role="group"
+      aria-label="Facilitator timer"
+      className={`retro-timer${isRunning ? " is-running" : ""}${isPanic ? " is-panic" : ""}`}
+    >
 
       {/* Hidden YouTube iframe — allow="autoplay" grants audio permission without gesture chain */}
       {isHost && (
@@ -205,46 +212,43 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
           ref={iframeRef}
           src={`${YT_ORIGIN}/embed/${YT_VIDEO_ID}?enablejsapi=1&loop=1&playlist=${YT_VIDEO_ID}&controls=0&autoplay=0&origin=${encodeURIComponent(typeof window !== "undefined" ? window.location.origin : "")}`}
           allow="autoplay; encrypted-media"
-          style={{
-            position: "fixed",
-            width: "1px",
-            height: "1px",
-            opacity: 0,
-            pointerEvents: "none",
-            top: "-9999px",
-            left: "-9999px",
-            border: "none",
-          }}
+          className="retro-timer-yt"
+          tabIndex={-1}
+          aria-hidden="true"
           title="background-music"
         />
       )}
 
       {/* Countdown display */}
-      <div className="retro-timer-clock">
-        <span className="retro-timer-icon">⏱</span>
-        <span className="retro-timer-digits">{fmt(timeLeft)}</span>
-        {isRunning && (
-          <span className={`retro-timer-live-dot${isPanic ? " retro-timer-live-dot--panic" : ""}`} />
-        )}
-      </div>
+      <Icon name="clock" size={18} className="retro-timer-icon" />
+      <span role="timer" aria-label="Time left" className="retro-timer-digits">{fmt(timeLeft)}</span>
+      {isRunning && <span className="retro-timer-live" aria-hidden="true" />}
 
       {/* Host controls */}
       {isHost && (
         <div className="retro-timer-controls">
           {!isRunning ? (
             <>
-              <select className="retro-timer-select" value={selectedDuration} onChange={handleDurationChange}>
+              <select className="retro-timer-select" aria-label="Timer length" value={selectedDuration} onChange={handleDurationChange}>
                 <option value={60}>1 min</option>
                 <option value={120}>2 min</option>
                 <option value={180}>3 min</option>
                 <option value={300}>5 min</option>
                 <option value={600}>10 min</option>
               </select>
-              <button className="retro-timer-btn retro-timer-btn--start" onClick={handleStart}>▶ Start</button>
-              <button className="retro-timer-btn retro-timer-btn--ghost" onClick={handleReset}>↺</button>
+              <button type="button" className="btn btn-primary btn-sm retro-timer-btn" onClick={handleStart}>
+                <Icon name="play" size={14} strokeWidth={2} />
+                Start
+              </button>
+              <button type="button" className="btn-icon btn-sm retro-timer-ghost" onClick={handleReset} aria-label="Reset timer" title="Reset">
+                <Icon name="refresh" size={16} />
+              </button>
             </>
           ) : (
-            <button className="retro-timer-btn retro-timer-btn--stop" onClick={handleStop}>⏸ Stop</button>
+            <button type="button" className="btn btn-secondary btn-sm retro-timer-btn" onClick={handleStop}>
+              <Icon name="pause" size={14} strokeWidth={2} />
+              Stop
+            </button>
           )}
           <div
             className="retro-music-wrap"
@@ -252,11 +256,13 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
             onMouseLeave={() => setShowVolume(false)}
           >
             <button
-              className={`retro-timer-btn retro-timer-btn--music${musicEnabled ? " music-on" : ""}`}
+              type="button"
+              className={`btn-icon btn-sm retro-timer-ghost retro-music${musicEnabled ? "" : " is-off"}`}
               onClick={toggleMusic}
+              aria-label={musicEnabled ? "Mute background music" : "Enable background music"}
               title={musicEnabled ? "Mute background music" : "Enable background music"}
             >
-              {musicEnabled ? "🎵" : "🔇"}
+              <Icon name="bell" size={16} />
             </button>
             {showVolume && (
               <div className="retro-volume-popover">
@@ -267,6 +273,7 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
                   max="100"
                   value={volume}
                   onChange={handleVolumeChange}
+                  aria-label="Music volume"
                   className="retro-volume-slider"
                   style={{ "--val": volume }}
                 />
@@ -280,126 +287,6 @@ export default function RetroTimer({ session, isHost, timerState, onUpdate }) {
       {!isHost && isRunning && (
         <span className="retro-timer-observer">timing…</span>
       )}
-
-      <style jsx>{`
-        .retro-timer-pill {
-          position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000;
-          display: flex; align-items: center; gap: 12px;
-          padding: 8px 16px;
-          border-radius: var(--radius-xl, 20px);
-          border: 1px solid var(--border-color, rgba(255,255,255,0.08));
-          background: var(--bg-card, rgba(17,24,39,0.9));
-          backdrop-filter: blur(20px);
-          box-shadow: var(--shadow-md, 0 4px 20px rgba(0,0,0,0.5));
-          transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
-          white-space: nowrap;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        .retro-timer-pill--running { border-color: rgba(99,102,241,0.35); box-shadow: var(--shadow-md), 0 0 20px rgba(99,102,241,0.15); }
-        .retro-timer-pill--panic { border-color: rgba(239,68,68,0.5) !important; background: rgba(239,68,68,0.12) !important; animation: retro-panic-pulse 1s ease-in-out infinite; }
-        @keyframes retro-panic-pulse {
-          0%, 100% { box-shadow: var(--shadow-md), 0 0 0 0 rgba(239,68,68,0.4); }
-          50%       { box-shadow: var(--shadow-md), 0 0 0 6px rgba(239,68,68,0); }
-        }
-        .retro-timer-clock { display: flex; align-items: center; gap: 7px; }
-        .retro-timer-icon { font-size: 0.95rem; line-height: 1; opacity: 0.8; }
-        .retro-timer-digits { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.5px; min-width: 48px; color: var(--text-primary, #f3f4f6); font-variant-numeric: tabular-nums; }
-        .retro-timer-pill--panic .retro-timer-digits { color: #f87171; }
-        .retro-timer-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-indigo, #6366f1); animation: retro-live-blink 1.2s ease-in-out infinite; flex-shrink: 0; }
-        .retro-timer-live-dot--panic { background: var(--accent-red, #ef4444); }
-        @keyframes retro-live-blink {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50%       { opacity: 0.4; transform: scale(0.75); }
-        }
-        .retro-timer-controls { display: flex; align-items: center; gap: 7px; padding-left: 12px; border-left: 1px solid var(--border-color, rgba(255,255,255,0.08)); }
-        .retro-timer-select { background: #111827; border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 4px 8px; border-radius: var(--radius-sm, 8px); font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer; outline: none; transition: border-color 0.2s, color 0.2s; color-scheme: dark; }
-        .retro-timer-select:hover { border-color: rgba(255,255,255,0.2); color: #f1f5f9; }
-        .retro-timer-select:focus { border-color: var(--accent-indigo, #6366f1); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); color: #f1f5f9; }
-        .retro-timer-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: var(--radius-sm, 8px); font-size: 0.78rem; font-weight: 700; font-family: inherit; cursor: pointer; border: none; transition: transform 0.15s, opacity 0.15s, box-shadow 0.15s; line-height: 1; }
-        .retro-timer-btn:hover { transform: translateY(-1px); opacity: 0.9; }
-        .retro-timer-btn--start { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; box-shadow: 0 0 12px rgba(34,197,94,0.3); }
-        .retro-timer-btn--start:hover { box-shadow: 0 0 20px rgba(34,197,94,0.5); }
-        .retro-timer-btn--stop { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-        .retro-timer-btn--stop:hover { background: rgba(239,68,68,0.25); }
-        .retro-timer-btn--ghost { background: rgba(255,255,255,0.04); color: var(--text-secondary, #9ca3af); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); padding: 5px 9px; font-size: 0.9rem; }
-        .retro-timer-btn--ghost:hover { color: var(--text-primary, #f3f4f6); border-color: rgba(255,255,255,0.15); }
-        .retro-timer-btn--music { background: rgba(255,255,255,0.04); color: var(--text-muted, #6b7280); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); padding: 5px 9px; font-size: 0.88rem; }
-        .retro-timer-btn--music:hover { color: var(--text-primary, #f3f4f6); border-color: rgba(255,255,255,0.15); }
-        .retro-timer-btn--music.music-on { color: #a78bfa; border-color: rgba(167,139,250,0.35); background: rgba(167,139,250,0.08); }
-        .retro-music-wrap { position: relative; display: inline-flex; }
-        .retro-music-wrap::before {
-          content: '';
-          position: absolute;
-          left: 50%;
-          bottom: 100%;
-          transform: translateX(-50%);
-          width: 130px;
-          height: 10px;
-        }
-        .retro-volume-popover {
-          position: absolute;
-          bottom: calc(100% + 10px);
-          left: 50%;
-          transform: translateX(-50%);
-          background: var(--bg-card, rgba(17,24,39,0.97));
-          border: 1px solid var(--border-color, rgba(255,255,255,0.12));
-          border-radius: var(--radius-sm, 8px);
-          padding: 10px 14px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-          min-width: 120px;
-          z-index: 10;
-        }
-        .retro-volume-popover::after {
-          content: '';
-          position: absolute;
-          top: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          border: 5px solid transparent;
-          border-top-color: var(--border-color, rgba(255,255,255,0.12));
-        }
-        .retro-volume-pct {
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: #a78bfa;
-          letter-spacing: 0.04em;
-        }
-        .retro-volume-slider {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 100px;
-          height: 4px;
-          border-radius: 2px;
-          background: linear-gradient(to right, #a78bfa calc(var(--val, 20) * 1%), rgba(255,255,255,0.1) calc(var(--val, 20) * 1%));
-          outline: none;
-          cursor: pointer;
-        }
-        .retro-volume-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: #a78bfa;
-          cursor: pointer;
-          box-shadow: 0 0 6px rgba(167,139,250,0.6);
-          transition: transform 0.15s;
-        }
-        .retro-volume-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-        .retro-volume-slider::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: #a78bfa;
-          cursor: pointer;
-          border: none;
-          box-shadow: 0 0 6px rgba(167,139,250,0.6);
-        }
-        .retro-timer-observer { font-size: 0.72rem; color: var(--text-muted, #6b7280); font-style: italic; padding-left: 12px; border-left: 1px solid var(--border-color, rgba(255,255,255,0.08)); letter-spacing: 0.02em; }
-      `}</style>
     </div>
   );
 }

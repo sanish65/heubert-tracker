@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile — Planning poker</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--tab-bg:rgba(15,20,34,.9);--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.82);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;overflow:hidden;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:20px 20px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--tab-bg:rgba(255,255,255,.88);--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.86);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.38),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.28),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(45,212,239,.16),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.12),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.22),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.16),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(6,182,212,.14),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="width: 390px; min-height: 1760px; box-sizing: border-box; padding: 0 0 120px;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header style="padding: 56px 16px 14px; display: flex; align-items: center; gap: 12px;">
+    <a href="MobileMore.dc.html" class="glass" aria-label="Back" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </a>
+    <h1 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 20px; font-weight: 700; color: var(--text-1);">Planning poker</h1>
+    <button class="glass" aria-label="Share session link" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"></path></svg>
+    </button>
+  </header>
+
+  <main style="padding: 0 16px; display: flex; flex-direction: column; gap: 14px;">
+    <section aria-label="Story being estimated" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-family: var(--f-mono); font-size: 13px; font-weight: 500; color: var(--cyan-text);">HT-52</span>
+        <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: {{statusBg}}; color: {{statusFg}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+          <span aria-hidden="true" style="width: 6px; height: 6px; border-radius: 9999px; background: currentColor;"></span>{{statusText}}
+        </span>
+        <span style="margin-left: auto; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">Story 2 of 5</span>
+      </div>
+      <h2 style="margin: 0; font-family: var(--f-display); font-size: 21px; line-height: 1.25; font-weight: 700; color: var(--text-1);">Copy poker estimate onto task card</h2>
+      <div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line);">
+        <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 13px; color: var(--text-2);">Sprint 42 · You are the host</span>
+          <code style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">ID b81e44d0-2c7a-4f19-8e3d</code>
+        </div>
+        <button aria-label="Copy session ID" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2zM4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2"></path></svg>
+        </button>
+      </div>
+    </section>
+
+    <section aria-label="Participants" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Participants</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-2);">{{votedText}}</span>
+      </div>
+      <div role="list" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 8px;">
+        <sc-for list="{{people}}" as="p" hint-placeholder-count="8">
+          <div role="listitem" aria-label="{{p.aria}}" style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+            <span style="position: relative; width: 46px; height: 46px; border-radius: 9999px; background: {{p.av}}; color: {{p.fg}}; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px {{p.ring}};">
+              {{p.initials}}
+              <sc-if value="{{p.showCheck}}" hint-placeholder-val="{{true}}">
+                <span aria-hidden="true" style="position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 9999px; background: var(--surface-solid); border: 1px solid var(--line-strong); color: var(--pf-green); display: inline-flex; align-items: center; justify-content: center;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+                </span>
+              </sc-if>
+              <sc-if value="{{p.showThinking}}" hint-placeholder-val="{{false}}">
+                <span aria-hidden="true" style="position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 9999px; background: var(--surface-solid); border: 1px solid var(--line-strong); color: var(--pf-amber); display: inline-flex; align-items: center; justify-content: center;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg>
+                </span>
+              </sc-if>
+              <sc-if value="{{p.showVote}}" hint-placeholder-val="{{false}}">
+                <span aria-hidden="true" style="position: absolute; right: -6px; bottom: -6px; min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 7px; background: var(--surface-solid); border: 1px solid var(--cyan); color: var(--text-1); font-family: var(--f-display); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;">{{p.vote}}</span>
+              </sc-if>
+            </span>
+            <span style="font-size: 13px; font-weight: 500; color: {{p.nameColor}};">{{p.first}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-label="Your estimate" class="glass" style="padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; align-items: center; gap: 18px;">
+      <div aria-hidden="true" style="position: relative; width: 112px; height: 156px; flex-shrink: 0; box-sizing: border-box; border-radius: 16px; border: 2px solid {{previewBorder}}; background: {{previewBg}}; box-shadow: {{previewShadow}}; display: flex; align-items: center; justify-content: center;">
+        <span style="position: absolute; top: 8px; left: 10px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{previewVal}}</span>
+        <span style="font-family: var(--f-display); font-size: 60px; line-height: 1; font-weight: 700; color: var(--text-1);">{{previewVal}}</span>
+        <span style="position: absolute; bottom: 8px; right: 10px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3); transform: rotate(180deg);">{{previewVal}}</span>
+      </div>
+      <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--cyan-text);">Your estimate</span>
+        <span style="font-family: var(--f-display); font-size: 22px; line-height: 1.2; font-weight: 700; color: var(--text-1);">{{previewTitle}}</span>
+        <span style="font-size: 13px; line-height: 1.5; color: var(--text-3);">{{previewHint}}</span>
+      </div>
+    </section>
+
+    <section aria-label="Card deck" style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 0 2px;">
+        <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Pick a card</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">Fibonacci</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, 76px); justify-content: space-between; row-gap: 16px; padding-top: 10px;">
+        <sc-for list="{{deck}}" as="c" hint-placeholder-count="11">
+          <button aria-pressed="{{c.pressed}}" aria-label="{{c.aria}}" onClick="{{c.pick}}" style="position: relative; width: 76px; height: 104px; box-sizing: border-box; padding: 0; border-radius: 14px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: var(--text-1); box-shadow: {{c.shadow}}; transform: translateY({{c.lift}}); transition: transform .15s ease, box-shadow .15s ease; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <span aria-hidden="true" style="position: absolute; top: 6px; left: 8px; font-family: var(--f-mono); font-size: 12px; color: {{c.corner}};">{{c.v}}</span>
+            <span aria-hidden="true" style="font-family: var(--f-display); font-size: 30px; line-height: 1; font-weight: 700;">{{c.v}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-label="Results" class="glass" style="padding: 16px 18px; border: 1px solid {{resBorder}}; border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h2 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Results</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{resLabel}}</span>
+      </div>
+      <div style="display: flex; align-items: flex-end; gap: 12px;">
+        <span style="font-family: var(--f-display); font-size: 44px; line-height: 1; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums;">{{avg}}</span>
+        <div style="display: flex; flex-direction: column; gap: 2px; padding-bottom: 4px;">
+          <span style="font-size: 13px; color: var(--text-3);">Average story points</span>
+          <span style="font-size: 13px; color: var(--text-2);">Nearest card <span style="font-family: var(--f-mono); color: var(--cyan-text);">{{nearest}}</span></span>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <div style="padding: 10px 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">AVG</span>
+          <span style="font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--text-1);">{{avg}}</span>
+        </div>
+        <div style="padding: 10px 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">CONSENSUS</span>
+          <span style="font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--text-1);">{{consensus}}</span>
+        </div>
+        <div style="padding: 10px 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">SPREAD</span>
+          <span style="font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--text-1);">{{spread}}</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <sc-for list="{{dist}}" as="d" hint-placeholder-count="4">
+          <div style="display: grid; grid-template-columns: 34px minmax(0, 1fr) 62px; align-items: center; gap: 10px;">
+            <span style="height: 28px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--raised); font-family: var(--f-display); font-size: 14px; font-weight: 700; color: var(--text-1); display: inline-flex; align-items: center; justify-content: center;">{{d.v}}</span>
+            <div style="height: 10px; border-radius: 9999px; background: var(--raised); overflow: hidden;">
+              <div style="width: {{d.w}}; height: 100%; border-radius: 9999px; background: {{d.color}}; box-shadow: {{d.glow}};"></div>
+            </div>
+            <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-2); text-align: right;">{{d.count}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{revealed}}" hint-placeholder-val="{{false}}">
+        <button style="height: 48px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-1); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>{{saveText}}
+        </button>
+      </sc-if>
+    </section>
+  </main>
+
+  <div class="glass" style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 28px; background: var(--surface-strong); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px;">
+    <sc-if value="{{notRevealed}}" hint-placeholder-val="{{true}}">
+      <button onClick="{{reveal}}" style="width: 100%; height: 52px; border: 0; border-radius: 14px; background: var(--primary); color: #FFFFFF; font-size: 16px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 6px 20px rgba(61,99,240,.35); cursor: pointer;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"></path></svg>
+        Reveal votes
+      </button>
+    </sc-if>
+    <sc-if value="{{revealed}}" hint-placeholder-val="{{false}}">
+      <button onClick="{{newRound}}" style="width: 100%; height: 52px; border: 0; border-radius: 14px; background: var(--primary); color: #FFFFFF; font-size: 16px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 6px 20px rgba(61,99,240,.35); cursor: pointer;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"></path></svg>
+        Start new round
+      </button>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"revealed":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const st = this.state || {};
+    const sel = st.sel === undefined ? 5 : st.sel;
+    const revealed = st.revealed === undefined ? (this.props.revealed ?? false) : st.revealed;
+    const hasSel = sel !== null && sel !== undefined;
+    const deckVals = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, '?'];
+    const fibs = deckVals.filter((v) => typeof v === 'number');
+
+    const raw = [
+      { initials: 'S', name: 'Sanish', av: 'var(--orange)', fg: '#0A0E17', vote: hasSel ? sel : null, you: true },
+      { initials: 'AS', name: 'Aarav Shrestha', av: '#3D63F0', fg: '#FFFFFF', vote: 5 },
+      { initials: 'SG', name: 'Sita Gurung', av: '#7C5CE0', fg: '#FFFFFF', vote: 3 },
+      { initials: 'BT', name: 'Bikash Thapa', av: '#0B7F90', fg: '#FFFFFF', vote: 5 },
+      { initials: 'PM', name: 'Priya Maharjan', av: '#B4471A', fg: '#FFFFFF', vote: null },
+      { initials: 'RK', name: 'Rohan KC', av: '#3D63F0', fg: '#FFFFFF', vote: 8 },
+      { initials: 'KJ', name: 'Kriti Joshi', av: '#7C5CE0', fg: '#FFFFFF', vote: 3 },
+      { initials: 'NT', name: 'Nabin Tamang', av: '#0B7F90', fg: '#FFFFFF', vote: null }
+    ];
+    const people = raw.map((p) => {
+      const voted = p.vote !== null && p.vote !== undefined;
+      return {
+        initials: p.initials, av: p.av, fg: p.fg,
+        first: p.you ? 'You' : p.name.split(' ')[0],
+        nameColor: voted ? 'var(--text-1)' : 'var(--text-3)',
+        ring: p.you ? 'var(--orange-soft)' : 'transparent',
+        vote: voted ? String(p.vote) : '',
+        showVote: revealed && voted,
+        showCheck: !revealed && voted,
+        showThinking: !voted,
+        aria: p.name + (voted ? (revealed ? ', voted ' + p.vote : ', has voted') : ', still thinking')
+      };
+    });
+
+    const summarise = (votes) => {
+      const nums = votes.filter((v) => typeof v === 'number');
+      const avg = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+      const nearest = avg === null ? '—' : fibs.reduce((a, b) => (Math.abs(b - avg) < Math.abs(a - avg) ? b : a));
+      const counts = {};
+      votes.forEach((v) => { counts[v] = (counts[v] || 0) + 1; });
+      const top = Object.keys(counts).reduce((m, k) => (counts[k] > m ? counts[k] : m), 0);
+      const order = deckVals.map(String).filter((k) => counts[k]);
+      return {
+        avg: avg === null ? '—' : avg.toFixed(1),
+        nearest: String(nearest),
+        consensus: votes.length ? Math.round((top / votes.length) * 100) + '%' : '—',
+        spread: nums.length ? Math.min.apply(null, nums) + '–' + Math.max.apply(null, nums) : '—',
+        dist: order.map((k) => ({
+          v: k,
+          count: counts[k] + (counts[k] === 1 ? ' vote' : ' votes'),
+          w: Math.round((counts[k] / top) * 100) + '%',
+          color: counts[k] === top ? 'var(--cyan)' : 'var(--primary)',
+          glow: counts[k] === top ? 'var(--glow)' : 'none'
+        }))
+      };
+    };
+
+    const votedList = raw.filter((p) => p.vote !== null && p.vote !== undefined);
+    const res = revealed ? summarise(votedList.map((p) => p.vote)) : summarise([3, 3, 2, 3, 5, 3, 3, 2]);
+
+    return {
+      themeCls: light ? 'light' : '',
+      revealed: revealed,
+      notRevealed: !revealed,
+      statusText: revealed ? 'Revealed' : 'Voting',
+      statusBg: revealed ? 'var(--pb-green)' : 'var(--pb-amber)',
+      statusFg: revealed ? 'var(--pf-green)' : 'var(--pf-amber)',
+      votedText: votedList.length + ' of ' + raw.length + ' voted',
+      people,
+      previewVal: hasSel ? String(sel) : '–',
+      previewTitle: hasSel ? (sel === '?' ? 'Not sure yet' : sel + (sel === 1 ? ' point' : ' points')) : 'No card yet',
+      previewHint: revealed ? 'Votes are revealed. Start a new round to vote again.' : (hasSel ? 'Hidden until the host reveals. Tap another card to change.' : 'Pick a card below. Nobody sees it until the reveal.'),
+      previewBorder: hasSel ? 'var(--cyan)' : 'var(--line-strong)',
+      previewBg: hasSel ? 'var(--primary-soft)' : 'var(--raised)',
+      previewShadow: hasSel ? 'var(--glow), var(--shadow-lift)' : 'none',
+      deck: deckVals.map((v) => {
+        const on = hasSel && sel === v;
+        return {
+          v: String(v),
+          pressed: on ? 'true' : 'false',
+          aria: v === '?' ? 'Not sure' : v + (v === 1 ? ' point' : ' points'),
+          border: on ? 'var(--cyan)' : 'var(--line-strong)',
+          bg: on ? 'var(--primary-soft)' : 'var(--surface)',
+          corner: on ? 'var(--cyan-text)' : 'var(--text-3)',
+          shadow: on ? 'var(--glow), var(--shadow-lift)' : 'var(--glass-hi), var(--shadow)',
+          lift: on ? '-8px' : '0px',
+          pick: () => this.setState({ sel: v })
+        };
+      }),
+      resLabel: revealed ? 'This round · HT-52' : 'Last round · HT-49',
+      resBorder: revealed ? 'var(--cyan)' : 'var(--line)',
+      avg: res.avg,
+      nearest: res.nearest,
+      consensus: res.consensus,
+      spread: res.spread,
+      dist: res.dist,
+      saveText: 'Save ' + res.nearest + ' pts to HT-52',
+      reveal: () => this.setState({ revealed: true }),
+      newRound: () => this.setState({ revealed: false, sel: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

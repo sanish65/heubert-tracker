@@ -1,149 +1,188 @@
 "use client";
 
-import { useMemo } from "react";
-import { useApp } from "@/context/AppContext";
-import { computeLeaveBalances } from "@/lib/utils";
+import Avatar from "@/components/Avatar";
+import Icon from "@/components/Icon";
 
-const JAR_PALETTE = [
-  { top: "#60a5fa", bottom: "#2563eb" },
-  { top: "#f87171", bottom: "#dc2626" },
-  { top: "#c084fc", bottom: "#9333ea" },
-  { top: "#34d399", bottom: "#059669" },
-  { top: "#fbbf24", bottom: "#d97706" },
-  { top: "#22d3ee", bottom: "#0891b2" },
-  { top: "#fb923c", bottom: "#ea580c" },
-  { top: "#94a3b8", bottom: "#475569" },
-];
+// The statuses the employee form stores (EditEmployeeModal), each with its pill colour.
+const STATUSES = {
+  active: { label: "Active", pill: "pill-green" },
+  "on-leave": { label: "On Leave", pill: "pill-cyan" },
+  resigned: { label: "Resigned", pill: "pill-gray" },
+};
 
-function LeaveJar({ label, remaining, total, colors, isUnpaid }) {
-  const pct = total > 0 ? Math.max(0, Math.min(100, (remaining / total) * 100)) : 0;
+export const EMPLOYEE_STATUSES = Object.entries(STATUSES).map(([id, s]) => ({ id, ...s }));
 
-  return (
-    <div className="leave-jar-card">
-      <div className="leave-jar">
-        <div
-          className="leave-jar-fill"
-          style={{
-            height: `${pct}%`,
-            background: `linear-gradient(180deg, ${colors.top}, ${colors.bottom})`,
-          }}
-        />
-      </div>
-      <span className="leave-jar-label">{label}{isUnpaid ? " (Unpaid)" : ""}</span>
-      <span className="leave-jar-stat">{remaining} / {total} days left</span>
-    </div>
-  );
+// No status means active, as everywhere else in the app.
+export function employeeStatus(employee) {
+  const id = employee?.status || "active";
+  return { id, ...(STATUSES[id] || { label: id, pill: "pill-gray" }) };
 }
 
-export default function EmployeeDetailModal({ isOpen, onClose, employee }) {
-  const { leaves, leaveTypes, leaveSeasons, publicHolidays } = useApp();
+// A leave type's meter turns amber from this share of its quota used, as on Leaves.
+const WARN_SHARE = 0.8;
 
-  const holidaySet = useMemo(
-    () => new Set((publicHolidays || []).map((h) => h.date?.split("T")[0])),
-    [publicHolidays]
-  );
+function meterState(used, quota) {
+  if (used > quota) return "over";
+  if (quota > 0 && used / quota >= WARN_SHARE) return "warn";
+  return "ok";
+}
 
-  const latestLeaveSeason = useMemo(() => {
-    if (!leaveSeasons || leaveSeasons.length === 0) return null;
-    return [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0];
-  }, [leaveSeasons]);
+const rs = (n) => `Rs. ${n.toLocaleString()}`;
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-  const balances = useMemo(() => {
-    if (!employee) return [];
-    return computeLeaveBalances(employee.name, leaves, leaveTypes, latestLeaveSeason?.id ?? null, holidaySet);
-  }, [employee, leaves, leaveTypes, latestLeaveSeason, holidaySet]);
+function formatDate(dateStr) {
+  if (!dateStr) return "N/A";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
+function fineNote({ records, unpaid }) {
+  if (records === 0) return "No late fines";
+  return `${plural(records, "late fine record")}${unpaid === 0 ? " · all paid" : ""}`;
+}
+
+// `balances` (computeLeaveBalances for the latest leave season), `seasonTitle` and
+// `stats` (getEmployeeStats) come from EmployeeList, which already has them for its table.
+export default function EmployeeDetailModal({ isOpen, onClose, employee, balances = [], seasonTitle = "", stats }) {
   if (!isOpen || !employee) return null;
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "N/A";
-    const d = new Date(dateStr + "T00:00:00");
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  };
+  const status = employeeStatus(employee);
+  const empId = employee.emp_no || `EMP-${employee.id}`;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content modal-large emp-detail"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="emp-detail-name"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h2>Employee Details</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-
-        <div className="emp-detail-header">
-          <div className="emp-avatar emp-avatar-lg">{employee.name?.charAt(0)}</div>
-          <div>
-            <h3 className="emp-detail-name">{employee.name}</h3>
-            <span className={`status-badge ${employee.status || "active"}`}>
-              {employee.status || "active"}
-            </span>
+          <Avatar name={employee.name} className="avatar emp-detail-avatar" aria-hidden="true" />
+          <div className="modal-title-group">
+            <span className="modal-eyebrow">Employee details</span>
+            <h2 id="emp-detail-name">{employee.name}</h2>
+            <div className="emp-detail-meta">
+              <span className={`pill ${status.pill}`}>{status.label}</span>
+              <span className="emp-detail-id mono">{empId}</span>
+            </div>
           </div>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+            <Icon name="x" size={18} />
+          </button>
         </div>
 
-        <div className="form-section">
-          <div className="form-section-title">👤 Profile</div>
-          <div className="emp-detail-grid">
-            <div className="emp-detail-item">
-              <span className="emp-detail-label">Employee ID</span>
-              <span className="emp-detail-value">{employee.emp_no || `EMP-${employee.id}`}</span>
+        <section className="emp-detail-section" aria-labelledby="emp-detail-profile">
+          <h3 id="emp-detail-profile" className="emp-detail-title">
+            <Icon name="user" size={16} />
+            Profile
+          </h3>
+          <dl className="emp-detail-tiles">
+            <div className="emp-detail-tile">
+              <dt>Employee ID</dt>
+              <dd>{empId}</dd>
             </div>
-            <div className="emp-detail-item">
-              <span className="emp-detail-label">Date of Birth</span>
-              <span className="emp-detail-value">{formatDate(employee.dob)}</span>
+            <div className="emp-detail-tile">
+              <dt>Date of Birth</dt>
+              <dd>{formatDate(employee.dob)}</dd>
             </div>
-            <div className="emp-detail-item">
-              <span className="emp-detail-label">Joined Date</span>
-              <span className="emp-detail-value">{formatDate(employee.joined_date)}</span>
+            <div className="emp-detail-tile">
+              <dt>Joined Date</dt>
+              <dd>{formatDate(employee.joined_date)}</dd>
             </div>
-            {(employee.status || "active") !== "active" && (
-              <div className="emp-detail-item">
-                <span className="emp-detail-label">Left Date</span>
-                <span className="emp-detail-value">{formatDate(employee.left_date)}</span>
+            {status.id !== "active" && (
+              <div className="emp-detail-tile">
+                <dt>Left Date</dt>
+                <dd>{formatDate(employee.left_date)}</dd>
               </div>
             )}
-          </div>
-        </div>
+          </dl>
+        </section>
 
-        <div className="form-section">
-          <div className="form-section-title">📞 Contact</div>
-          <div className="emp-detail-grid">
-            <div className="emp-detail-item">
-              <span className="emp-detail-label">Phone</span>
-              <span className="emp-detail-value">{employee.phone || "N/A"}</span>
+        <section className="emp-detail-section" aria-labelledby="emp-detail-contact">
+          <h3 id="emp-detail-contact" className="emp-detail-title">
+            <Icon name="mail" size={16} />
+            Contact
+          </h3>
+          <dl className="emp-detail-rows">
+            <div className="emp-detail-row">
+              <dt>Work Email</dt>
+              <dd className="mono">{employee.work_email || "N/A"}</dd>
             </div>
-            <div className="emp-detail-item">
-              <span className="emp-detail-label">Work Email</span>
-              <span className="emp-detail-value">{employee.work_email || "N/A"}</span>
+            <div className="emp-detail-row">
+              <dt>Personal Email</dt>
+              <dd className="mono">{employee.personal_email || "N/A"}</dd>
             </div>
-            <div className="emp-detail-item">
-              <span className="emp-detail-label">Personal Email</span>
-              <span className="emp-detail-value">{employee.personal_email || "N/A"}</span>
+            <div className="emp-detail-row">
+              <dt>Phone</dt>
+              <dd className="mono">{employee.phone || "N/A"}</dd>
             </div>
-            <div className="emp-detail-item">
-              <span className="emp-detail-label">Address</span>
-              <span className="emp-detail-value">{employee.address || "N/A"}</span>
+            <div className="emp-detail-row">
+              <dt>Address</dt>
+              <dd>{employee.address || "N/A"}</dd>
             </div>
-          </div>
-        </div>
+          </dl>
+        </section>
 
-        <div className="form-section" style={{ border: "none", marginBottom: 0 }}>
-          <div className="form-section-title">🫙 Leave Balances{latestLeaveSeason ? ` (${latestLeaveSeason.title})` : ""}</div>
+        <section className="emp-detail-section" aria-labelledby="emp-detail-leave">
+          <div className="emp-detail-head">
+            <h3 id="emp-detail-leave" className="emp-detail-title">
+              <Icon name="calendar" size={16} />
+              Leave balances
+            </h3>
+            {seasonTitle && <span className="emp-detail-season mono">{seasonTitle}</span>}
+          </div>
           {balances.length === 0 ? (
             <p className="empty-msg">No active leave types configured yet.</p>
           ) : (
-            <div className="leave-jar-grid">
-              {balances.map((b, idx) => (
-                <LeaveJar
-                  key={b.id}
-                  label={b.name}
-                  remaining={b.remaining}
-                  total={b.annual_days}
-                  isUnpaid={b.is_unpaid}
-                  colors={JAR_PALETTE[idx % JAR_PALETTE.length]}
-                />
-              ))}
+            <div className="leave-meters emp-detail-meters">
+              {balances.map((b) => {
+                const state = meterState(b.used, b.annual_days);
+                const width = b.annual_days > 0 ? Math.min(100, (b.used / b.annual_days) * 100) : b.used > 0 ? 100 : 0;
+                const left = state === "over"
+                  ? `${b.used - b.annual_days} over`
+                  : b.remaining === 0 ? "None left" : `${b.remaining} left`;
+                return (
+                  <div key={b.id} className={`leave-meter is-${state}`}>
+                    <div className="leave-meter-row">
+                      <span className="leave-meter-name">{b.name}{b.is_unpaid ? " (Unpaid)" : ""}</span>
+                      <span className="leave-meter-used mono">{b.used} / {b.annual_days}</span>
+                      <span className="leave-meter-left">{left}</span>
+                    </div>
+                    <div className="leave-meter-track" aria-hidden="true">
+                      <div className="leave-meter-fill" style={{ width: `${width}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
+        </section>
+
+        {stats && (
+          <section className="emp-detail-section" aria-labelledby="emp-detail-fines">
+            <h3 id="emp-detail-fines" className="emp-detail-title">
+              <Icon name="wallet" size={16} />
+              Fines
+            </h3>
+            <div className="emp-detail-fines">
+              <div className="emp-detail-tile">
+                <span className="emp-detail-label">Total</span>
+                <span className="emp-detail-figure">{rs(stats.total)}</span>
+              </div>
+              <div className="emp-detail-tile">
+                <span className="emp-detail-label">Paid</span>
+                <span className={`emp-detail-figure ${stats.paid > 0 ? "is-paid" : "is-none"}`}>{rs(stats.paid)}</span>
+              </div>
+              <div className="emp-detail-tile">
+                <span className="emp-detail-label">Unpaid</span>
+                <span className={`emp-detail-figure ${stats.unpaid > 0 ? "is-unpaid" : "is-none"}`}>{rs(stats.unpaid)}</span>
+              </div>
+            </div>
+            <span className="emp-detail-note">{fineNote(stats)}</span>
+          </section>
+        )}
       </div>
     </div>
   );

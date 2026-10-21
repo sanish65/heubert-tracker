@@ -27,6 +27,42 @@ function latestSeasonId(seasons) {
   return [...seasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id;
 }
 
+// No one's photo: the value until the photos load, when they fail and when signed out. One frozen
+// object, so consumers never see a "new" empty map.
+const NO_PHOTOS = Object.freeze({});
+// As the web app's: a load that has not answered in 12s is given up, and the avatars keep initials.
+const PHOTOS_TIMEOUT_MS = 12000;
+
+// Everyone's Google photo by employee name, from the web app's GET /api/avatars: other people's
+// photos live in Supabase Auth, which only the server can read. It takes the session token, as the
+// memories calls below do, and answers only an active employee. Never throws; on any failure the
+// avatars keep their initials. Every URL is checked again where it is drawn (lib/avatar.js).
+// Ship order: the route is part of the web app, so an update with this call goes out only after the
+// web app that serves /api/avatars is deployed; before that it answers 404 and every avatar keeps
+// its initials (mobile/README.md, "Building for real devices / stores").
+async function fetchEmployeePhotos(signal) {
+  try {
+    if (!API_BASE_URL) return NO_PHOTOS;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return NO_PHOTOS;
+    const res = await fetch(`${API_BASE_URL}/api/avatars`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      signal,
+    });
+    if (!res.ok) {
+      console.warn(`Profile photos were not loaded (HTTP ${res.status}).`);
+      return NO_PHOTOS;
+    }
+    const { photos } = await res.json();
+    return photos && typeof photos === "object" && !Array.isArray(photos) ? photos : NO_PHOTOS;
+  } catch (err) {
+    if (!signal?.aborted) console.warn("Profile photos could not be loaded:", err?.message || err);
+    return NO_PHOTOS;
+  }
+}
+
 
 const AppContext = createContext(null);
 
@@ -60,6 +96,7 @@ export function AppProvider({ children }) {
   const [projectLinks, setProjectLinks] = useState([]);
   const [projectEnvironments, setProjectEnvironments] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
+  const [photoLoad, setPhotoLoad] = useState({ userId: null, photos: NO_PHOTOS });
 
   // Roles come from the employee record, the same flags the RLS policies in
   // scripts/admin-write-permissions-rls.sql check. They used to be hardcoded email
@@ -256,6 +293,25 @@ export function AppProvider({ children }) {
 
     return () => subscription.unsubscribe();
   }, [fetchData]);
+
+  // Everyone's photo, loaded once per signed-in user. It is held with the id it was loaded for, so
+  // a sign-out or a change of account drops it at once with no reset in the effect, and signing out
+  // cancels a load still in flight.
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    if (!userId) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PHOTOS_TIMEOUT_MS);
+    fetchEmployeePhotos(controller.signal).then((photos) => {
+      clearTimeout(timer);
+      if (!controller.signal.aborted) setPhotoLoad({ userId, photos });
+    });
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [userId]);
+  const employeePhotos = userId && photoLoad.userId === userId ? photoLoad.photos : NO_PHOTOS;
 
   // Find the employee record that matches the current logged-in user
   useEffect(() => {
@@ -1132,6 +1188,7 @@ export function AppProvider({ children }) {
         user,
         isAuthReady,
         signOut,
+        employeePhotos,
         currentEmployee,
         isAdmin,
         isFineAdmin,

@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Button } from "./ui";
+import { FormModal, TextField } from "./ui";
+import { SheetActions } from "./SheetParts";
 
+// Edit a word, in the record sheet's look (MobileRecordFine.dc.html).
 export default function EditWordModal({ isOpen, onClose, word }) {
   const { updateWord } = useApp();
   const [form, setForm] = useState(null);
@@ -35,13 +37,13 @@ export default function EditWordModal({ isOpen, onClose, word }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="📖 Edit Word">
+    <FormModal visible={isOpen} onClose={onClose} title="Edit Word">
       <TextField label="Word" value={form.word} onChangeText={set("word")} />
       <TextField label="Type / Phonetic" value={form.phonetic} onChangeText={set("phonetic")} />
       <TextField label="Translation (Optional)" value={form.translation} onChangeText={set("translation")} />
       <TextField label="Definition" value={form.definition} onChangeText={set("definition")} multiline />
       <TextField label="Example Sentence" value={form.example} onChangeText={set("example")} multiline />
-      <Button title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} />
+      <SheetActions title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} onCancel={onClose} />
     </FormModal>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
 
 export default function AddMemoryModal({ isOpen, onClose }) {
   const { addMemory, user } = useApp();
@@ -35,104 +36,95 @@ export default function AddMemoryModal({ isOpen, onClose }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content modal-md premium-modal">
-        <div className="modal-header-lux">
-          <div className="header-title-wrapper">
-            <span className="header-icon">✨</span>
-            <h2>Share a Team Memory</h2>
-          </div>
-          <button className="close-btn-lux" onClick={onClose}>×</button>
+      <div className="modal-content modal-md">
+        <div className="modal-header">
+          <span className="modal-icon"><Icon name="image" size={20} /></span>
+          <h2>Share a team memory</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="modal-body-lux">
-          <div className="form-group mb-6">
-            <label className="form-label-lux">What kind of memory?</label>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group-interactive">
+            <label>What kind of memory?</label>
             <div className="memory-type-selector">
-              <button 
+              <button
                 type="button"
                 className={`type-option ${type === 'image' ? 'active' : ''}`}
                 onClick={() => setType('image')}
               >
-                <span className="type-icon">🖼️</span>
+                <span className="type-icon"><Icon name="image" size={22} /></span>
                 <span className="type-label">Image</span>
-                {type === 'image' && <div className="type-indicator"></div>}
               </button>
-              <button 
+              <button
                 type="button"
                 className={`type-option ${type === 'video' ? 'active' : ''}`}
                 onClick={() => setType('video')}
               >
-                <span className="type-icon">🎥</span>
+                <span className="type-icon"><Icon name="video" size={22} /></span>
                 <span className="type-label">Video</span>
-                {type === 'video' && <div className="type-indicator"></div>}
               </button>
-              <button 
+              <button
                 type="button"
                 className={`type-option ${type === 'text' ? 'active' : ''}`}
                 onClick={() => setType('text')}
               >
-                <span className="type-icon">✍️</span>
+                <span className="type-icon"><Icon name="message" size={22} /></span>
                 <span className="type-label">Message</span>
-                {type === 'text' && <div className="type-indicator"></div>}
               </button>
             </div>
           </div>
 
-          <div className="form-group mb-6">
-            <label className="form-label-lux">
+          <div className="form-group-interactive">
+            <label>
               {type === 'text' ? 'Your Message' : 'Media URL'}
             </label>
-            <div className="input-with-icon-lux">
-              {type === 'text' ? (
-                <textarea 
-                  value={content}
-                  onChange={e => setContent(e.target.value)}
-                  placeholder="Share a funny moment, a quote, or a nice note..."
-                  required
-                  className="premium-textarea-lux"
-                />
-              ) : (
-                <input 
-                  type="url"
-                  value={content}
-                  onChange={e => setContent(e.target.value)}
-                  placeholder={type === 'image' ? "Direct image link or Google Drive link" : "Direct video link (MP4)"}
-                  required
-                  className="premium-input-lux"
-                />
-              )}
-            </div>
+            {type === 'text' ? (
+              <textarea
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                placeholder="Share a funny moment, a quote, or a nice note..."
+                required
+                rows={5}
+              />
+            ) : (
+              <input
+                type="url"
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                placeholder={type === 'image' ? "Direct image link or Google Drive link" : "Direct video link (MP4)"}
+                required
+              />
+            )}
             {type !== 'text' && (
               <div className="url-tip-lux">
-                <span className="tip-icon">💡</span>
+                <Icon name="alert" size={16} />
                 <p className="tip-text">
-                  <strong>Drive Tip:</strong> Ensure your file is shared as "Anyone with the link".
+                  <strong>Drive Tip:</strong> Ensure your file is shared as &quot;Anyone with the link&quot;.
                 </p>
               </div>
             )}
           </div>
 
-          <div className="form-group mb-8">
-            <label className="form-label-lux">Add a Caption (optional)</label>
-            <input 
+          <div className="form-group-interactive">
+            <label>Add a Caption (optional)</label>
+            <input
               type="text"
               value={caption}
               onChange={e => setCaption(e.target.value)}
               placeholder="What's the story behind this?"
-              className="premium-input-lux"
             />
           </div>
 
-          <div className="modal-footer-lux">
-            <button type="button" className="btn-cancel-lux" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-submit-lux" disabled={isSubmitting}>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
               {isSubmitting ? (
-                <div className="submit-loading">
-                  <div className="spinner-lux"></div>
+                <span className="submit-loading">
+                  <span className="spinner-lux"></span>
                   <span>Sharing...</span>
-                </div>
+                </span>
               ) : (
-                <span>✨ Post to Memories</span>
+                <span>Post to Memories</span>
               )}
             </button>
           </div>

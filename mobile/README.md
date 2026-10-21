@@ -83,3 +83,9 @@ Next.js API routes on the deployed web app.
 producing installable builds and publishing to the App Store / Play Store needs your own Apple
 Developer and Google Play Console accounts (`eas build`, then `eas submit`) — that part can't be
 done from here.
+
+Publishing an update (`eas update --branch preview --environment preview`) carries two risks:
+
+- `app.config.js` gives the runtime "development" to any process with `HT_DEV_CLIENT_RUNTIME=1` (an EAS "development"-environment variable, meant for development builds), and the eas CLI resolves an update's runtime from the same variables as a build's, so no guard in the config can tell them apart.
+  Publish only with `--environment preview` from a shell where `HT_DEV_CLIENT_RUNTIME` is unset, and check the runtime `eas update` prints is the fingerprint, never "development".
+- Profile photos come from the web app's `GET /api/avatars` (`context/AppContext.js`): publish an update that fetches them only after the web app with that route is deployed, or every avatar shows initials until it is.

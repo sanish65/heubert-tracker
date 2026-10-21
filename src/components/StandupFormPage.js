@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useApp } from "@/context/AppContext";
+import Icon from "./Icon";
+import { formatBs } from "@/lib/nepaliDate";
 import {
   getNepalParts,
   isStandupWindowOpen,
@@ -11,6 +13,31 @@ import {
 
 function pad(n) {
   return String(n).padStart(2, "0");
+}
+
+// "Mon, Oct 19 · 3 Kartik 2083" for a Nepal calendar date.
+function dateLine(dateStr) {
+  const ad = new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+  return [ad, formatBs(dateStr)].filter(Boolean).join(" · ");
+}
+
+// Card head: today's date on the left, the live Nepal clock on the right. The page
+// title comes from the shared page heading.
+function StandupHead({ dateStr, clockLabel }) {
+  return (
+    <div className="standup-page-head">
+      <span className="standup-page-date mono">{dateLine(dateStr)}</span>
+      <span className="standup-page-clock">
+        <span className="standup-page-time mono">{clockLabel}</span>
+        <span className="standup-page-zone mono">Nepal time</span>
+      </span>
+    </div>
+  );
 }
 
 export default function StandupFormPage() {
@@ -98,19 +125,19 @@ export default function StandupFormPage() {
   // Window closed and nothing to edit anymore — read-only view of what was submitted.
   if (!isOpen && todaysSubmission) {
     return (
-      <div className="standup-page">
-        <div className="standup-page-header">
-          <h2 className="standup-page-title">Daily Standup</h2>
-          <span className="standup-page-clock">Nepal time {clockLabel}</span>
-        </div>
+      <section className="standup-page glass-card" aria-label="Today's standup">
+        <StandupHead dateStr={nepal.dateStr} clockLabel={clockLabel} />
         <div className="standup-window-banner standup-window-done">
-          ✅ You submitted today&apos;s standup at{" "}
-          {new Date(todaysSubmission.responded_at).toLocaleTimeString("en-US", {
-            timeZone: "Asia/Kathmandu",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-          .
+          <Icon name="check" size={16} strokeWidth={2.2} />
+          <span>
+            You submitted today&apos;s standup at{" "}
+            {new Date(todaysSubmission.responded_at).toLocaleTimeString("en-US", {
+              timeZone: "Asia/Kathmandu",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            .
+          </span>
         </div>
         <div className="standup-page-review">
           {sortedQuestions.map((q) => {
@@ -126,33 +153,37 @@ export default function StandupFormPage() {
             );
           })}
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="standup-page">
-      <div className="standup-page-header">
-        <h2 className="standup-page-title">Daily Standup</h2>
-        <span className="standup-page-clock">Nepal time {clockLabel}</span>
-      </div>
+    <section className="standup-page glass-card" aria-label="Today's standup">
+      <StandupHead dateStr={nepal.dateStr} clockLabel={clockLabel} />
 
       {!isOpen ? (
         <div className={`standup-window-banner ${isBefore ? "standup-window-before" : "standup-window-after"}`}>
-          {isBefore
-            ? "The standup form opens at 9:00 AM Nepal time. Come back then."
-            : "Today's standup window (9:00 – 9:30 AM Nepal time) has closed."}
+          <Icon name="clock" size={16} strokeWidth={2} />
+          <span>
+            {isBefore
+              ? "The standup form opens at 9:00 AM Nepal time. Come back then."
+              : "Today's standup window (9:00 – 9:30 AM Nepal time) has closed."}
+          </span>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="standup-page-form">
           <div className="standup-window-banner standup-window-open">
-            {isEditing
-              ? "🟢 You can still edit your answers — window closes at 9:30 AM Nepal time."
-              : "🟢 Standup window is open — closes at 9:30 AM Nepal time."}
+            <span className="standup-window-dot" aria-hidden="true" />
+            <span>
+              {isEditing
+                ? "You can still edit your answers — window closes at 9:30 AM Nepal time."
+                : "Standup window is open — closes at 9:30 AM Nepal time."}
+            </span>
           </div>
           {savedAction && (
             <div className="standup-window-banner standup-window-done" role="status">
-              ✅ Standup {savedAction}!
+              <Icon name="check" size={16} strokeWidth={2.2} />
+              <span>Standup {savedAction}!</span>
             </div>
           )}
           {sortedQuestions.length === 0 ? (
@@ -173,7 +204,7 @@ export default function StandupFormPage() {
             ))
           )}
 
-          {error && <span className="standup-page-error">{error}</span>}
+          {error && <span className="standup-page-error" role="alert">{error}</span>}
 
           <div className="standup-page-actions">
             <button type="submit" className="btn btn-primary" disabled={!allAnswered || submitting}>
@@ -182,6 +213,6 @@ export default function StandupFormPage() {
           </div>
         </form>
       )}
-    </div>
+    </section>
   );
 }

@@ -6,6 +6,7 @@ import { useDialog } from "@/context/DialogContext";
 import { nepalLocalToUtcIso, isoToNepalTimeInput } from "@/lib/attendanceTime";
 import { formatBs, formatBsDevanagari } from "@/lib/nepaliDate";
 import Modal from "./Modal";
+import Icon from "@/components/Icon";
 
 function formatLongDate(dateStr) {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
@@ -85,9 +86,10 @@ export default function EditAttendanceModal({ isOpen, onClose, employeeName, day
       {day && (
         <>
           <div className="modal-header">
-            <h2>📍 {record ? "Edit Attendance" : "Add Attendance"}</h2>
-            <button className="modal-close" onClick={onClose}>
-              ×
+            <span className="modal-icon"><Icon name="pin" size={20} /></span>
+            <h2>{record ? "Edit attendance" : "Add attendance"}</h2>
+            <button className="modal-close" onClick={onClose} aria-label="Close">
+              <Icon name="x" size={18} />
             </button>
           </div>
           <form onSubmit={handleSubmit}>
@@ -122,7 +124,7 @@ export default function EditAttendanceModal({ isOpen, onClose, employeeName, day
                   Clear day
                 </button>
               )}
-              <button type="button" className="btn btn-ghost" onClick={onClose}>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>

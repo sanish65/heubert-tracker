@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Text } from "react-native";
+import { Text, StyleSheet } from "react-native";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Button } from "./ui";
-import { useThemeColors } from "../lib/theme";
+import { FormModal, TextField } from "./ui";
+import { SheetActions } from "./SheetParts";
+import { useThemeColors, fonts } from "../lib/theme";
 
+// A new leave season, in the record sheet's look (MobileRecordLeave.dc.html).
 export default function AddLeaveSeasonModal({ isOpen, onClose }) {
   const { addLeaveSeason } = useApp();
   const t = useThemeColors();
@@ -23,12 +25,16 @@ export default function AddLeaveSeasonModal({ isOpen, onClose }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="🏖️ New Leave Season">
+    <FormModal visible={isOpen} onClose={onClose} title="New Leave Season">
       <TextField label="Season Title" value={title} onChangeText={setTitle} placeholder="e.g. Fiscal Year 2026" />
-      <Text style={{ color: t.textMuted, fontSize: 13, marginBottom: 14 }}>
-        Every employee's leave balances reset to their full annual quota under a new season.
+      <Text style={[styles.note, { color: t.text3 }]}>
+        {"Every employee's leave balances reset to their full annual quota under a new season."}
       </Text>
-      <Button title={submitting ? "Creating..." : "Create Season"} onPress={handleSubmit} disabled={submitting} />
+      <SheetActions title={submitting ? "Creating..." : "Create Season"} onPress={handleSubmit} disabled={submitting} onCancel={onClose} />
     </FormModal>
   );
 }
+
+const styles = StyleSheet.create({
+  note: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, marginTop: -4, marginBottom: 16 },
+});

@@ -1,17 +1,23 @@
-import { useEffect, useRef, useState } from "react";
-import { View, Text, Image, Animated, Easing, ActivityIndicator, StyleSheet } from "react-native";
-import Svg, { Rect, Line, Ellipse, Circle } from "react-native-svg";
+import { useEffect, useState } from "react";
+import { View, Text, Image, Animated, Easing, StyleSheet } from "react-native";
+import Svg, { Defs, LinearGradient, Stop, Rect, Line, Ellipse, Circle, Path } from "react-native-svg";
 import { useApp } from "../context/AppContext";
-import { useThemeColors } from "../lib/theme";
+import { useThemeColors, fonts, radius } from "../lib/theme";
+import useMotionAllowed from "../lib/useMotionAllowed";
+import Aurora from "./Aurora";
 
-const AVATAR_SIZE = 72;
-// Web draws the avatar at 100px and positions every prop against that box; keep the
-// offsets proportional so the flute and the emoji land in the same spot relative to it.
-const WEB_AVATAR = 100;
-const SCALE = AVATAR_SIZE / WEB_AVATAR;
+// The loader, as the web app's splash card (docs/mobile-ui-revamp/design/Splash.dc.html and
+// src/components/HumanLoader.js), sized for a phone: one glass card over the ink and the aurora,
+// holding the brand, the teammate walking through in a raised disc with a cyan ring, a
+// blue-to-cyan progress strip and the "Loading your workspace" caption. With motion off (the
+// Animations setting or the phone's reduce-motion) the card is still: no teammate, the strip
+// resting at 40%, the dot steady.
 
-const TRACK_WIDTH = 200;
-const TRACK_HEIGHT = 4;
+// The web app's logo (public/logo.png); the same file as the Android adaptive icon's foreground.
+const LOGO = require("../assets/android-icon-foreground.png");
+
+const DISC = 120;
+const FIGURE = 96;
 
 const greetings = ["Hi!", "Hello!", "Hey there!", "Welcome!", "Greetings!"];
 
@@ -48,38 +54,86 @@ const wearsGlasses = [
 ];
 const hasBeard = ["sanish", "dinesh"];
 
-// One decorative prop per person, matching the web app's per-name CSS keyframes. Durations
-// are that animation's cycle length in ms. Sanish's is a drawn flute rather than an emoji.
-const props = {
-  aashish: { emoji: "🎸", duration: 300 },
-  nikhil: { emoji: "🎤", duration: 500 },
-  nitesh: { emoji: "🥁", duration: 300 },
-  jenish: { emoji: "🏋️‍♂️", duration: 1000 },
-  prativa: { emoji: "📈", duration: 1500 },
-  dinesh: { emoji: "🥚", duration: 800 },
-  pratisha: { emoji: "📋", duration: 1200 },
-  bikesh: { emoji: "🚴", duration: 500 },
-  pranay: { emoji: "🧘", duration: 2000 },
-  sanish: { flute: true, duration: 600 },
-};
+
+const DECORATIVE = { accessible: false, importantForAccessibility: "no-hide-descendants", accessibilityElementsHidden: true };
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
 }
 
+const EASE_IN_OUT = Easing.inOut(Easing.ease);
+const EASE_OUT = Easing.out(Easing.ease);
+
+// One Animated.Value for the life of the component.
+function useAnimatedValue() {
+  const [value] = useState(() => new Animated.Value(0));
+  return value;
+}
+
+// A looping 0 -> 1 value that runs only while `active`.
+function useLoop(active, duration, easing = Easing.linear) {
+  const value = useAnimatedValue();
+  useEffect(() => {
+    if (!active) return;
+    value.setValue(0);
+    const loop = Animated.loop(Animated.timing(value, { toValue: 1, duration, easing, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [value, active, duration, easing]);
+  return value;
+}
+
 export default function HumanLoader() {
-  const { employees, animationsEnabled } = useApp() || { employees: [], animationsEnabled: true };
+  const { employees } = useApp() || { employees: [] };
+  const t = useThemeColors();
+  const moving = useMotionAllowed();
+  // The splash card's lift and the live dot's glow, as Splash.dc.html draws them (tokens.js).
+  const shadows = { lift: t.shadowLift, card: t.shadowCard, glow: t.glow };
+
+  return (
+    <View style={[styles.page, { backgroundColor: t.ink }]}>
+      <Aurora />
+      <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel="Loading Heubert Tracker"
+        style={[
+          styles.card,
+          { backgroundColor: t.surfaceStrong, borderColor: t.lineStrong, borderTopColor: t.glassHi, boxShadow: shadows.lift },
+        ]}
+      >
+        <View style={styles.brand}>
+          <Image source={LOGO} alt="" style={styles.logo} />
+          <View>
+            <Text style={[styles.brandName, { color: t.text1 }]}>Heubert Tracker</Text>
+            <Text style={[styles.brandSub, { color: t.text3 }]}>team.heubert</Text>
+          </View>
+        </View>
+
+        {moving ? <Teammate employees={employees} shadows={shadows} /> : null}
+
+        <ProgressStrip moving={moving} />
+
+        <View style={styles.caption}>
+          <LiveDot moving={moving} glow={shadows.glow} />
+          <Text style={[styles.captionText, { color: t.text3 }]}>Loading your workspace</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// The teammate walking through: a greeting bubble, the avatar in its disc and ring, the name. Only
+// mounted while motion is allowed, so its timers and loops never run in the still card.
+function Teammate({ employees, shadows }) {
   const t = useThemeColors();
   const [index, setIndex] = useState(0);
   const [greetingIndex, setGreetingIndex] = useState(0);
-  const [shuffledDefaults, setShuffledDefaults] = useState(defaultNames);
+  const [shuffledDefaults] = useState(() => shuffle(defaultNames));
 
-  const bubbleOpacity = useRef(new Animated.Value(0)).current;
-  const bounce = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    setShuffledDefaults(shuffle(defaultNames));
-  }, []);
+  const bubbleIn = useAnimatedValue();
+  const walk = useLoop(true, 2000, EASE_IN_OUT);
+  const spin = useLoop(true, 1600);
 
   const names =
     employees && employees.length > 0
@@ -92,36 +146,23 @@ export default function HumanLoader() {
       : shuffledDefaults;
 
   useEffect(() => {
-    if (animationsEnabled === false) return;
     const cycleInterval = setInterval(() => setIndex((prev) => (prev + 1) % names.length), 1500);
     const greetInterval = setInterval(() => setGreetingIndex((prev) => (prev + 1) % greetings.length), 3000);
     return () => {
       clearInterval(cycleInterval);
       clearInterval(greetInterval);
     };
-  }, [names.length, animationsEnabled]);
+  }, [names.length]);
 
-  useEffect(() => {
-    bubbleOpacity.setValue(0);
-    Animated.timing(bubbleOpacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-  }, [greetingIndex, index]);
-
-  const currentName = names[index] || "Employee";
+  const currentName = names[index % names.length] || "Employee";
   const nameKey = currentName.toLowerCase();
-  const personProps = props[nameKey];
+  const displayGreeting = customGreetings[nameKey] || greetings[greetingIndex];
 
+  // The bubble's ht-in: 320ms from 4px low and 96% to in place, each time the line changes.
   useEffect(() => {
-    if (animationsEnabled === false || !personProps) return;
-    bounce.setValue(0);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounce, { toValue: 1, duration: personProps.duration, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(bounce, { toValue: 0, duration: personProps.duration, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [nameKey, animationsEnabled]);
+    bubbleIn.setValue(0);
+    Animated.timing(bubbleIn, { toValue: 1, duration: 320, easing: EASE_OUT, useNativeDriver: true }).start();
+  }, [bubbleIn, displayGreeting]);
 
   const isGirl = knownGirls.includes(nameKey);
   const hairParam = isGirl ? "full,pixie" : "fonze,mrT,dannyPhantom";
@@ -129,79 +170,94 @@ export default function HumanLoader() {
   const facialHairParam = hasBeard.includes(nameKey)
     ? "&facialHair=beard,scruff&facialHairProbability=100"
     : "&facialHairProbability=0";
-  const avatarUri = `https://api.dicebear.com/7.x/micah/png?seed=${nameKey}&hair=${hairParam}&hairProbability=100&mouth=smile,laughing${glassesParam}&baseColor=ffffff${facialHairParam}&size=${AVATAR_SIZE * 3}`;
+  const avatarUri = `https://api.dicebear.com/7.x/micah/png?seed=${encodeURIComponent(nameKey)}&hair=${hairParam}&hairProbability=100&mouth=smile,laughing${glassesParam}&baseColor=ffffff${facialHairParam}&size=${FIGURE * 3}`;
 
-  const displayGreeting = customGreetings[nameKey] || greetings[greetingIndex];
-
-  if (animationsEnabled === false) {
-    return (
-      <View style={[styles.container, { backgroundColor: t.bg }]}>
-        <View style={{ marginBottom: 24, opacity: 0.7 }}>
-          <ActivityIndicator size="large" color={t.textPrimary} />
-        </View>
-        <Text style={[styles.title, { color: t.textPrimary }]}>Heubert Tracker</Text>
-        <View style={[styles.loaderTrack, { backgroundColor: t.border }]}>
-          <LoaderBar color={t.accentIndigo} />
-        </View>
-      </View>
-    );
-  }
-
-  // play-flute in the web app tilts 0deg -> 5deg and lifts 2px at a constant 1.1 scale;
-  // every other prop uses the shared bounce-and-rock.
-  const fluteRotate = bounce.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "5deg"] });
-  const fluteLift = bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
-  const translateY = bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
-  const rotate = bounce.interpolate({ inputRange: [0, 1], outputRange: ["-8deg", "8deg"] });
+  // ht-walk: rock -8deg to 8deg about the feet, lifting 6px on each step.
+  const walkRotate = walk.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: ["-8deg", "0deg", "8deg", "0deg", "-8deg"],
+  });
+  const walkLift = walk.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -6, 0, -6, 0] });
+  const ringRotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const bubbleLift = bubbleIn.interpolate({ inputRange: [0, 1], outputRange: [4, 0] });
+  const bubbleScale = bubbleIn.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] });
 
   return (
-    <View style={[styles.container, { backgroundColor: t.bg }]}>
+    <View style={[styles.stage, { borderTopColor: t.line }]}>
       <Animated.View
         style={[
           styles.bubble,
-          // Always white/teal regardless of theme, matching web's speech bubble — its
-          // --bg-layer-2/--accent CSS vars are never defined, so it always falls back
-          // to these literal colors rather than adapting to dark mode.
-          { backgroundColor: "#ffffff", borderColor: t.border, opacity: bubbleOpacity },
+          {
+            backgroundColor: t.surfaceSolid,
+            borderColor: t.lineStrong,
+            borderTopColor: t.glassHi,
+            boxShadow: shadows.card,
+            opacity: bubbleIn,
+            transform: [{ translateY: bubbleLift }, { scale: bubbleScale }],
+          },
         ]}
       >
-        <Text style={[styles.bubbleText, { color: "#00796b" }]}>{displayGreeting}</Text>
+        <Text style={[styles.bubbleText, { color: t.text1 }]}>{displayGreeting}</Text>
+        <View {...DECORATIVE} style={[styles.bubbleTail, { backgroundColor: t.surfaceSolid, borderColor: t.lineStrong }]} />
       </Animated.View>
 
-      <View style={styles.avatarWrap}>
-        <Image source={{ uri: avatarUri }} style={styles.avatar} />
-
-        {personProps?.flute ? (
-          <Animated.View
-            style={[
-              styles.flute,
-              { transform: [{ translateY: fluteLift }, { rotate: fluteRotate }, { scale: 1.1 }] },
-            ]}
-          >
+      <View style={[styles.disc, { backgroundColor: t.raised, borderColor: t.line }]}>
+        <Animated.View {...DECORATIVE} style={[styles.ring, { transform: [{ rotate: ringRotate }] }]}>
+          <Ring color={t.cyan} />
+        </Animated.View>
+        <Animated.View style={[styles.figure, { transform: [{ translateY: walkLift }, { rotate: walkRotate }] }]}>
+          <Image source={{ uri: avatarUri }} alt={`${currentName}'s avatar`} style={styles.avatar} />
+        </Animated.View>
+        {nameKey === "sanish" ? (
+          <View {...DECORATIVE} style={styles.flute}>
             <Flute />
-          </Animated.View>
-        ) : personProps ? (
-          <Animated.Text style={[styles.decoration, { transform: [{ translateY }, { rotate }] }]}>
-            {personProps.emoji}
-          </Animated.Text>
+          </View>
         ) : null}
-
-        {/* Same fixed light tag as the bubble above — web's --text-main var is also undefined. */}
-        <Text style={[styles.name, { color: "#333", backgroundColor: "rgba(255,255,255,0.7)" }]}>{currentName}</Text>
       </View>
 
-      <Text style={[styles.title, { color: t.textPrimary }]}>Heubert Tracker</Text>
-      <View style={[styles.loaderTrack, { backgroundColor: t.border }]}>
-        <LoaderBar color={t.accentIndigo} />
-      </View>
+      <Text style={[styles.name, { color: t.text2 }]}>{currentName}</Text>
     </View>
   );
 }
 
-// The bansuri the web app hand-draws in SVG, at the same proportions.
+// The ring's conic sweep (transparent for the first 65% of the turn, then up to cyan), 2px wide,
+// 4px outside the disc's inner edge as the artboard's `inset: -4px`. react-native-svg has no conic gradient, so the sweep is drawn as short
+// arcs that grow more opaque towards its head.
+const RING = DISC - 2 + 8;
+const RING_RADIUS = RING / 2 - 1;
+const SWEEP_START = 0.65;
+const SWEEP_STEPS = 14;
+
+function arcPath(from, to) {
+  const point = (turn) => {
+    const angle = turn * 2 * Math.PI - Math.PI / 2;
+    return `${RING / 2 + RING_RADIUS * Math.cos(angle)} ${RING / 2 + RING_RADIUS * Math.sin(angle)}`;
+  };
+  return `M${point(from)} A${RING_RADIUS} ${RING_RADIUS} 0 0 1 ${point(to)}`;
+}
+
+function Ring({ color }) {
+  const step = (1 - SWEEP_START) / SWEEP_STEPS;
+  return (
+    <Svg width={RING} height={RING}>
+      {Array.from({ length: SWEEP_STEPS }, (_, i) => (
+        <Path
+          key={i}
+          d={arcPath(SWEEP_START + i * step, SWEEP_START + (i + 1) * step)}
+          stroke={color}
+          strokeOpacity={(i + 1) / SWEEP_STEPS}
+          strokeWidth={2}
+          fill="none"
+        />
+      ))}
+    </Svg>
+  );
+}
+
+// The bansuri the web app hand-draws in SVG, at the same size, beside Sanish.
 function Flute() {
   return (
-    <Svg viewBox="0 0 100 20" width={70 * SCALE} height={15 * SCALE} style={{ transform: [{ rotate: "-25deg" }] }}>
+    <Svg viewBox="0 0 100 20" width={70} height={15} style={{ transform: [{ rotate: "-25deg" }] }}>
       <Rect x="0" y="2" width="100" height="12" rx="3" fill="#e6c280" stroke="#8b5a2b" strokeWidth="1" />
       <Line x1="20" y1="2" x2="20" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
       <Line x1="45" y1="2" x2="45" y2="14" stroke="#8b5a2b" strokeWidth="1.5" />
@@ -215,58 +271,100 @@ function Flute() {
   );
 }
 
-// web's slide-load: the bar enters full width from the left, pinches to a tenth as it
-// crosses, then leaves full width to the right.
-function LoaderBar({ color }) {
-  const progress = useRef(new Animated.Value(0)).current;
+// The blue-to-cyan strip. Moving, it is the web's ht-slide: in from the left at full width,
+// pinched to a tenth at the start, out to the right at full width, every 1.5s. Still, it rests at
+// the left at 40%.
+function ProgressStrip({ moving }) {
+  const t = useThemeColors();
+  const [width, setWidth] = useState(0);
+  const slide = useLoop(moving && width > 0, 1500, EASE_IN_OUT);
 
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(progress, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, []);
+  // The bar is the track's width; scaled about its centre, so its centre is moved to where the
+  // keyframe's left edge plus half its width puts it.
+  const translateX = slide.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-width, -0.45 * width, width] });
+  const scaleX = slide.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.1, 1] });
 
-  const translateX = progress.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [-TRACK_WIDTH, 0, TRACK_WIDTH],
-  });
-  const scaleX = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.1, 1] });
+  const bar = width > 0 ? <GradientBar width={moving ? width : width * 0.4} /> : null;
 
   return (
-    <Animated.View
-      style={{
-        width: TRACK_WIDTH,
-        height: "100%",
-        borderRadius: 10,
-        backgroundColor: color,
-        transform: [{ translateX }, { scaleX }],
-      }}
-    />
+    <View {...DECORATIVE} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[styles.track, { backgroundColor: t.raised }]}>
+      {moving ? <Animated.View style={[styles.bar, { transform: [{ translateX }, { scaleX }] }]}>{bar}</Animated.View> : <View style={styles.bar}>{bar}</View>}
+    </View>
   );
 }
 
+function GradientBar({ width }) {
+  const t = useThemeColors();
+  return (
+    <Svg width={width} height={4}>
+      <Defs>
+        <LinearGradient id="loader-strip" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor={t.primary} />
+          <Stop offset="1" stopColor={t.cyan} />
+        </LinearGradient>
+      </Defs>
+      <Rect width={width} height={4} rx={2} fill="url(#loader-strip)" />
+    </Svg>
+  );
+}
+
+// The caption's cyan dot: ht-pulse (full, a third, full every 1.4s) while moving, steady when still.
+function LiveDot({ moving, glow }) {
+  const t = useThemeColors();
+  const pulse = useLoop(moving, 1400, EASE_IN_OUT);
+  const opacity = moving ? pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.35, 1] }) : 1;
+  return <Animated.View {...DECORATIVE} style={[styles.dot, { backgroundColor: t.cyan, boxShadow: glow, opacity }]} />;
+}
+
+// Sizes, gaps and type from Splash.dc.html; letter-spacing in px at the font size (.08em at 12px,
+// -0.01em at 20px).
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  bubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
+  page: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 48, paddingHorizontal: 16 },
+  card: {
+    width: "100%",
+    maxWidth: 400,
+    paddingTop: 32,
+    paddingHorizontal: 32,
+    paddingBottom: 26,
     borderWidth: 1,
-    marginBottom: 12,
-    minWidth: 100,
-    maxWidth: "100%",
+    borderRadius: radius.sheet,
     alignItems: "center",
+    gap: 20,
   },
-  bubbleText: { fontWeight: "700", fontSize: 16, textAlign: "center" },
-  avatarWrap: { alignItems: "center", marginBottom: 16 },
-  avatar: { width: AVATAR_SIZE, height: AVATAR_SIZE },
-  decoration: { position: "absolute", bottom: 35 * SCALE, right: 0, fontSize: 22 },
-  flute: { position: "absolute", bottom: 30 * SCALE, right: -20 * SCALE },
-  name: { marginTop: 8, fontSize: 15, fontWeight: "700", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  // web's .splash-text — uppercase, heavily tracked. The gradient fill it uses needs a
-  // mask layer RN has no dependency for here, so it takes the theme's primary text color.
-  title: { fontSize: 20, fontWeight: "800", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 },
-  loaderTrack: { width: TRACK_WIDTH, height: TRACK_HEIGHT, borderRadius: 10, overflow: "hidden", marginTop: 12 },
+  brand: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 },
+  logo: { width: 40, height: 40, borderRadius: radius.sm },
+  brandName: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, letterSpacing: -0.2 },
+  brandSub: { fontFamily: fonts.mono, fontSize: 12, lineHeight: 15 },
+  stage: { alignSelf: "stretch", alignItems: "center", gap: 10, paddingTop: 18, paddingBottom: 4, borderTopWidth: 1 },
+  bubble: { maxWidth: "100%", paddingVertical: 6, paddingHorizontal: 14, borderWidth: 1, borderRadius: 14 },
+  bubbleText: { fontFamily: fonts.bodySemibold, fontSize: 14, textAlign: "center" },
+  bubbleTail: {
+    position: "absolute",
+    left: "50%",
+    bottom: -6,
+    width: 10,
+    height: 10,
+    marginLeft: -5,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    transform: [{ rotate: "45deg" }],
+  },
+  disc: {
+    width: DISC,
+    height: DISC,
+    borderRadius: DISC / 2,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  ring: { position: "absolute", top: -4, left: -4, width: RING, height: RING },
+  figure: { width: FIGURE, height: FIGURE, transformOrigin: "center bottom" },
+  avatar: { width: FIGURE, height: FIGURE },
+  flute: { position: "absolute", bottom: 30, right: -20 },
+  name: { fontFamily: fonts.monoMedium, fontSize: 12, letterSpacing: 0.96, textTransform: "uppercase" },
+  track: { width: "100%", height: 4, borderRadius: radius.pill, overflow: "hidden" },
+  bar: { position: "absolute", top: 0, left: 0, height: 4 },
+  caption: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dot: { width: 7, height: 7, borderRadius: radius.pill },
+  captionText: { fontFamily: fonts.monoMedium, fontSize: 12, letterSpacing: 0.96, textTransform: "uppercase" },
 });

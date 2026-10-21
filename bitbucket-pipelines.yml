@@ -1,0 +1,50 @@
+# Database migrations for the primary Supabase project (supabase/migrations/).
+# The app itself deploys through Vercel; this file only moves the schema.
+#
+# Repository variables (Repository settings → Pipelines → Repository variables, secured):
+#   SUPABASE_ACCESS_TOKEN   personal access token from supabase.com/dashboard/account/tokens
+#   SUPABASE_DB_PASSWORD    the project's database password
+#   SUPABASE_PROJECT_REF    the project ref (the subdomain of the Supabase URL)
+
+image: node:22
+
+definitions:
+  caches:
+    npm-cache: ~/.npm
+  steps:
+    - step: &migration-check
+        name: Show pending migrations
+        caches:
+          - npm-cache
+        script:
+          - npm ci --no-audit --no-fund
+          - npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+          - npx supabase migration list
+          - npx supabase db push --dry-run --password "$SUPABASE_DB_PASSWORD"
+    - step: &migration-apply
+        name: Apply migrations to production
+        # Manual on purpose: a bad migration on production is harder to undo than a bad
+        # deploy, so a person looks at the dry run above and then presses the button.
+        trigger: manual
+        deployment: production
+        caches:
+          - npm-cache
+        script:
+          - npm ci --no-audit --no-fund
+          - npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+          - npx supabase db push --password "$SUPABASE_DB_PASSWORD"
+
+pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: Unit tests
+          caches:
+            - npm-cache
+          script:
+            - npm ci --no-audit --no-fund
+            - npm test
+  branches:
+    main:
+      - step: *migration-check
+      - step: *migration-apply

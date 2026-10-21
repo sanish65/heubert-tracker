@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import Icon from "./Icon";
 import { getNepalParts, isStandupWindowOpen, findTodaysSubmission } from "@/lib/standupWindow";
 
 export default function StandupFloatingButton({ onOpen }) {
@@ -21,7 +22,7 @@ export default function StandupFloatingButton({ onOpen }) {
   return (
     <button
       type="button"
-      className="standup-fab"
+      className="btn btn-primary standup-fab"
       onClick={onOpen}
       title={
         alreadySubmitted
@@ -29,7 +30,7 @@ export default function StandupFloatingButton({ onOpen }) {
           : "Fill today's standup — open 9:00–9:30 AM Nepal time"
       }
     >
-      <span className="standup-fab-icon">🗣️</span>
+      <Icon name="clipboard" size={18} strokeWidth={2} />
       <span>{alreadySubmitted ? "Edit Standup" : "Standup"}</span>
     </button>
   );

@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import VacationAnimation from "./VacationAnimation";
+import Icon from "./Icon";
 
 export default function EventBanner() {
-  const { publicHolidays, companyEvents, employees } = useApp();
+  const { publicHolidays, companyEvents, employees, animationsEnabled } = useApp();
   const [closedBanners, setClosedBanners] = useState({});
 
   const activeBanners = useMemo(() => {
@@ -29,8 +30,6 @@ export default function EventBanner() {
           diff,
           type: "event",
           title: ev.title,
-          icon: "📢",
-          className: "banner-event",
         });
       }
     });
@@ -45,8 +44,6 @@ export default function EventBanner() {
           diff,
           type: "holiday",
           title: h.title,
-          icon: "🎉",
-          className: "banner-holiday",
         });
       }
     });
@@ -71,8 +68,6 @@ export default function EventBanner() {
                   diff,
                   type: "celebration",
                   title: `${emp.name}'s Birthday`,
-                  icon: "🎂",
-                  className: "banner-celebration",
                 });
               }
             } else {
@@ -83,8 +78,6 @@ export default function EventBanner() {
                   diff,
                   type: "celebration",
                   title: `${years} yr Anniversary of ${emp.name}`,
-                  icon: "🏆",
-                  className: "banner-celebration",
                 });
               }
             }
@@ -113,13 +106,12 @@ export default function EventBanner() {
     return unique.slice(0, 3);
   }, [publicHolidays, companyEvents, employees]);
 
-  if (activeBanners.length === 0) return null;
+  const visibleBanners = activeBanners.filter((b) => !closedBanners[b.id]);
+  if (visibleBanners.length === 0) return null;
 
   return (
-    <div className="event-banners-container">
-      {activeBanners.map((b) => {
-        if (closedBanners[b.id]) return null;
-
+    <div className="announce-stack">
+      {visibleBanners.map((b) => {
         let text = "";
         let subtext = "";
 
@@ -135,25 +127,28 @@ export default function EventBanner() {
         }
 
         return (
-          <div key={b.id} className="banner-wrapper" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
-            <div className={`holiday-alert-banner countdown-banner ${b.className} pulse-entry`} style={{ paddingRight: '40px' }}>
-              <button 
-                onClick={() => setClosedBanners(prev => ({ ...prev, [b.id]: true }))}
-                style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '1.2rem', zIndex: 10 }}
-                title="Dismiss"
-              >
-                ✕
-              </button>
-              <span className="holiday-icon">{b.icon}</span>
-              <div className="holiday-text">
-                <strong>{text}</strong>
-                <span>{subtext}</span>
-              </div>
+          <section key={b.id} className="announce-card glass" aria-label="Announcement">
+            <span className="announce-icon" aria-hidden="true">
+              <Icon name="flag" size={20} strokeWidth={2} />
+            </span>
+            <div className="announce-text">
+              <span className="announce-title">{text}</span>
+              <span className="announce-sub">{subtext}</span>
             </div>
-            {b.title.toLowerCase().includes("trip to rsr") && (
-              <VacationAnimation />
+            <button
+              type="button"
+              className="announce-dismiss"
+              onClick={() => setClosedBanners(prev => ({ ...prev, [b.id]: true }))}
+              aria-label="Dismiss announcement"
+            >
+              <Icon name="x" size={16} strokeWidth={2} />
+            </button>
+            {animationsEnabled !== false && b.title.toLowerCase().includes("trip to rsr") && (
+              <div className="announce-scene">
+                <VacationAnimation />
+              </div>
             )}
-          </div>
+          </section>
         );
       })}
     </div>

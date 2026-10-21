@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { useApp } from "@/context/AppContext";
 import { FESTIVE_SEASON_START } from "@/lib/festiveSeason";
+import Icon from "./Icon";
 
 // Counts down to Dashain & Tihar and to the office vacation; the banner
 // disappears once the vacation begins. Targets are midnight local time.
@@ -11,8 +12,8 @@ const FESTIVAL_START = new Date(2026, 9, 11); // Oct 11, 2026
 const VACATION_START = new Date(2026, 9, 17); // Oct 17, 2026
 
 const TIMERS = [
-  { target: FESTIVAL_START, label: "🪁 Dashain & Tihar festive begins in", date: "Sunday, Oct 11", done: "🎉 Dashain & Tihar have begun!" },
-  { target: VACATION_START, label: "🏖️ Vacation starts in", date: "Saturday, Oct 17" },
+  { target: FESTIVAL_START, label: "Dashain & Tihar festive begins in", date: "Sunday, Oct 11", done: "Dashain & Tihar have begun!" },
+  { target: VACATION_START, label: "Vacation starts in", date: "Saturday, Oct 17" },
 ];
 
 const KITES = [
@@ -255,19 +256,27 @@ export default function DashainBanner() {
   const festivalStarted = nowMs >= FESTIVAL_START.getTime();
 
   return (
-    <div className={`dashain-banner ${animationsEnabled === false ? "dashain-still" : ""}`}>
-      <FestiveScene />
+    <section className="announce-card glass" aria-label="Festival announcement">
+      <span className="announce-icon" aria-hidden="true">
+        <Icon name="flag" size={20} strokeWidth={2} />
+      </span>
 
-      <div className="dashain-text">
-        <strong lang="ne">{festivalStarted ? "शुभ दशैं तथा तिहार" : "दशैं आउँदैछ!"}</strong>
+      <div className="announce-text">
+        <strong className="announce-title" lang="ne">{festivalStarted ? "शुभ दशैं तथा तिहार" : "दशैं आउँदैछ!"}</strong>
         <div className="dashain-timers">
           {TIMERS.map((t) => <Countdown key={t.label} {...t} nowSeconds={nowSeconds} />)}
         </div>
       </div>
 
-      <button type="button" className="dashain-close" onClick={() => setClosed(true)} aria-label="Dismiss festival banner">
-        ×
+      <button type="button" className="announce-dismiss" onClick={() => setClosed(true)} aria-label="Dismiss festival banner">
+        <Icon name="x" size={16} strokeWidth={2} />
       </button>
-    </div>
+
+      {animationsEnabled !== false && (
+        <div className="announce-scene announce-scene-festive">
+          <FestiveScene />
+        </div>
+      )}
+    </section>
   );
 }
