@@ -1,26 +1,41 @@
 "use client";
 
+import { useId } from "react";
 import { useApp } from "@/context/AppContext";
 
-export default function ThemeToggle() {
+// The app stores only these two; there is no "System" option.
+const THEMES = [
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+];
+
+// Theme as a two-option segmented control. Used in Settings (with a description)
+// and in the top bar's account menu (without).
+export default function ThemeToggle({ description }) {
   const { theme, toggleTheme } = useApp();
-  const isDark = theme === "dark";
+  const titleId = useId();
 
   return (
-    <div className="theme-toggle-row">
-      <div className="theme-toggle-label">
-        <span className="theme-toggle-icon">{isDark ? "🌙" : "☀️"}</span>
-        <span className="theme-toggle-text">Dark Mode</span>
+    <div className="pref-row">
+      <div className="pref-text">
+        <span className="pref-title" id={titleId}>Theme</span>
+        {description && <span className="pref-desc">{description}</span>}
       </div>
-      <button
-        role="switch"
-        aria-checked={isDark}
-        onClick={toggleTheme}
-        className={`theme-switch ${isDark ? "theme-switch-on" : "theme-switch-off"}`}
-        title={`Switch to ${isDark ? "light" : "dark"} mode`}
-      >
-        <span className="theme-switch-thumb" />
-      </button>
+      <div className="status-tabs" role="group" aria-labelledby={titleId}>
+        {THEMES.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            className={`tab ${theme === value ? "tab-active" : ""}`}
+            aria-pressed={theme === value}
+            onClick={() => {
+              if (theme !== value) toggleTheme();
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import Dashboard from "@/components/Dashboard";
@@ -22,12 +22,9 @@ import AddFineSeasonModal from "@/components/AddFineSeasonModal";
 import EditFineSeasonModal from "@/components/EditFineSeasonModal";
 import AddLeaveSeasonModal from "@/components/AddLeaveSeasonModal";
 import EditLeaveSeasonModal from "@/components/EditLeaveSeasonModal";
-import Link from "next/link";
 import CapacityPage from "@/components/CapacityPage";
 import AddPublicHolidayModal from "@/components/AddPublicHolidayModal";
 import EditWordModal from "@/components/EditWordModal";
-import ThemeToggle from "@/components/ThemeToggle";
-import AnimationToggle from "@/components/AnimationToggle";
 import { useSplashExit } from "@/components/HumanLoader";
 import EventsPage from "@/components/EventsPage";
 import AddCompanyEventModal from "@/components/AddCompanyEventModal";
@@ -38,18 +35,25 @@ import MemoriesPage from "@/components/MemoriesPage";
 import AddMemoryModal from "@/components/AddMemoryModal";
 import AttendancePage from "@/components/AttendancePage";
 import ReleaseUpdatesModal from "@/components/ReleaseUpdatesModal";
-import LeaveSettingsPage from "@/components/LeaveSettingsPage";
-import PrivilegeSettingsPage from "@/components/PrivilegeSettingsPage";
+import SettingsPage from "@/components/SettingsPage";
 import ProjectsPage from "@/components/ProjectsPage";
+import TasksPage from "@/components/TasksPage";
+import CalendarPage from "@/components/CalendarPage";
 import StandupFormPage from "@/components/StandupFormPage";
 import StandupFloatingButton from "@/components/StandupFloatingButton";
-import AdminFloatingButtons from "@/components/AdminFloatingButtons";
+import Sidebar from "@/components/Sidebar";
+import TopBar from "@/components/TopBar";
+import PageHead from "@/components/PageHead";
+import Icon from "@/components/Icon";
+import { navGroupsFor, normalizeTab, allowedTab } from "@/lib/navigation";
+import { pageMetaFor } from "@/lib/pageMeta";
+import { formatBs } from "@/lib/nepaliDate";
+import { getNepalParts } from "@/lib/standupWindow";
 
 export default function Home() {
-  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin, canManageFines } = useApp();
+  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin, canManageFines, animationsEnabled } = useApp();
   const router = useRouter();
-  const [showSettings, setShowSettings] = useState(false);
-  const settingsRef = useRef(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   const isAuthorized = user && currentEmployee && currentEmployee.status === "active";
 
@@ -59,19 +63,6 @@ export default function Home() {
       router.replace("/login");
     }
   }, [isLoaded, isAuthReady, user, router]);
-
-  // Close settings dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (settingsRef.current && !settingsRef.current.contains(e.target)) {
-        setShowSettings(false);
-      }
-    };
-    if (showSettings) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showSettings]);
 
   const [showReleaseUpdates, setShowReleaseUpdates] = useState(false);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
@@ -87,6 +78,11 @@ export default function Home() {
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  // { id, at }: a person opened from the top bar's search. `at` keys EmployeeList, so
+  // each request mounts it afresh with that person's details open.
+  const [employeeRequest, setEmployeeRequest] = useState(null);
+  // { seasonId, at }: Late Fines opened from a bell row on that fine's season, keyed the same way.
+  const [fineRequest, setFineRequest] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showEditWord, setShowEditWord] = useState(false);
   const [editingWord, setEditingWord] = useState(null);
@@ -103,10 +99,34 @@ export default function Home() {
 
   // Load active tab from localStorage on mount
   useEffect(() => {
-    const savedTab = localStorage.getItem("heubert-active-tab");
-    if (savedTab && ["dashboard", "employees", "records", "standup", "standup-form", "leaves", "leave-settings", "privilege-settings", "attendance", "words", "capacity", "events", "projects", "poker", "retro", "memories"].includes(savedTab)) {
-      setActiveTab(savedTab);
+    // A shared issue link (#issue=HTT-12) opens the Tasks tab whatever was open last.
+    if (/^#issue=/.test(window.location.hash)) {
+      setActiveTab("tasks");
+      return;
     }
+    setActiveTab(normalizeTab(localStorage.getItem("heubert-active-tab")));
+  }, []);
+
+  // Admin-only tabs (Projects, Settings) fall back to the dashboard once we know the role.
+  // Adjusted during render rather than in an effect, so the wrong tab never paints.
+  if (currentEmployee && allowedTab(activeTab, { isAdmin }) !== activeTab) {
+    setActiveTab(allowedTab(activeTab, { isAdmin }));
+  }
+
+  // A person opened from the search, or a season from the bell, holds for that visit only:
+  // once the tab is left, coming back shows the plain list.
+  if (employeeRequest && activeTab !== "employees") {
+    setEmployeeRequest(null);
+  }
+  if (fineRequest && activeTab !== "records") setFineRequest(null);
+
+  // An issue link opened while the app is already up (another tab's link, pasted URL).
+  useEffect(() => {
+    const onHash = () => {
+      if (/^#issue=/.test(window.location.hash)) setActiveTab("tasks");
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
   // Save active tab to localStorage when it changes
@@ -176,201 +196,110 @@ export default function Home() {
     );
   }
 
+  // Same as the old tab row: Late Fines also clears the employee filter.
+  const selectTab = (id) => {
+    setActiveTab(id);
+    if (id === "records") setSelectedEmployee(null);
+    setNavOpen(false);
+  };
+
+  // The top bar's search and bell. The fine lists take the person after the tab change,
+  // not through selectTab, which clears the Late Fines filter.
+  const handleNavigate = (target) => {
+    if (target.tab === "employees") {
+      setActiveTab("employees");
+      setEmployeeRequest({ id: target.employeeId, at: Date.now() });
+    } else if (target.tab === "records" || target.tab === "standup") {
+      setActiveTab(target.tab);
+      setSelectedEmployee(target.employeeName);
+      setFineRequest(target.tab === "records" && "seasonId" in target ? { seasonId: target.seasonId, at: Date.now() } : null);
+    } else {
+      return;
+    }
+    setNavOpen(false);
+  };
+
+  const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "";
+  const groupLabel = navGroupsFor({ isAdmin }).find((g) => g.items.some((i) => i.id === activeTab))?.label;
+  const pageHead = pageMetaFor(activeTab, { firstName, hour: new Date().getHours(), groupLabel });
+  if (activeTab === "dashboard") {
+    // "Monday · Oct 19 · 3 Kartik 2083", all from today's date in Nepal.
+    const todayStr = getNepalParts(new Date()).dateStr;
+    const today = new Date(`${todayStr}T00:00:00Z`);
+    const weekday = today.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+    const monthDay = today.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+    pageHead.eyebrow = [weekday, monthDay, formatBs(todayStr)].filter(Boolean).join(" · ");
+  }
+
+  const plus = <Icon name="plus" size={16} strokeWidth={2.2} />;
+  let pageActions = null;
+  if (activeTab === "employees" && isAdmin) {
+    pageActions = (
+      <button className="btn btn-primary" onClick={() => setShowAddEmployee(true)}>
+        {plus} Add Employee
+      </button>
+    );
+  } else if (activeTab === "leaves") {
+    pageActions = (
+      <button className="btn btn-primary" onClick={() => setShowAddLeave(true)}>
+        {plus} Record Leave
+      </button>
+    );
+  } else if (activeTab === "standup" && canManageFines) {
+    pageActions = (
+      <button className="btn btn-danger" onClick={() => setShowAddStandup(true)}>
+        {plus} Standup Fine
+      </button>
+    );
+  } else if (activeTab === "records" && canManageFines) {
+    pageActions = (
+      <button className="btn btn-primary" onClick={() => setShowAddFine(true)}>
+        {plus} Record Fine
+      </button>
+    );
+  } else if (activeTab === "dashboard" && (isAdmin || canManageFines)) {
+    pageActions = (
+      <>
+        {isAdmin && (
+          <button className="btn btn-secondary" onClick={() => setShowAddEmployee(true)}>
+            Add Employee
+          </button>
+        )}
+        {canManageFines && (
+          <button className="btn btn-primary" onClick={() => setShowAddFine(true)}>
+            {plus} Record Fine
+          </button>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
     {splash}
-    <div className="app-shell">
+    {/* motion-off stops the CSS-only motion (card lift, banner scenes) with Animations off. */}
+    <div className={`app-shell${animationsEnabled === false ? " motion-off" : ""}`}>
       <StandupFloatingButton onOpen={() => setActiveTab("standup-form")} />
-      <AdminFloatingButtons
+      <Sidebar
         activeTab={activeTab}
-        onOpenProjects={() => setActiveTab("projects")}
-        onOpenLeaveSettings={() => setActiveTab("leave-settings")}
-        onOpenPrivilegeSettings={() => setActiveTab("privilege-settings")}
+        onSelect={selectTab}
+        isAdmin={isAdmin}
+        onShowUpdates={() => setShowReleaseUpdates(true)}
+        onSignOut={signOut}
+        open={navOpen}
+        onClose={() => setNavOpen(false)}
       />
-      {/* Header */}
-      <header className="app-header">
-        <div className="header-left">
-          <div className="title-row">
-            <h1 className="app-title">
-              <img src="/logo.png" alt="Heubert Tracker" className="title-icon" />
-              HTT
-            </h1>
-            {user && (
-              <div className="user-profile-wrapper" ref={settingsRef}>
-                <div
-                  className="user-profile user-profile-clickable"
-                  onClick={() => setShowSettings(s => !s)}
-                  title="Settings"
-                >
-                  <div className="avatar-wrapper">
-                    <img 
-                      src={user.user_metadata?.avatar_url || "https://www.gravatar.com/avatar/?d=mp"} 
-                      alt={user.email} 
-                      className="user-avatar"
-                    />
-                    <div className="avatar-ring"></div>
-                  </div>
-                  <div className="user-details">
-                    <span className="user-name-label">Hi, {user.user_metadata?.full_name?.split(' ')[0] || user.email.split('@')[0]}</span>
-                  </div>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 2 }}>⚙️</span>
-                </div>
-                {showSettings && (
-                  <div className="settings-dropdown">
-                    <div className="settings-dropdown-title">Preferences</div>
-                    <ThemeToggle />
-                    <AnimationToggle />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <p className="app-subtitle">Internal Team Accountability & Record System</p>
-        </div>
-        <div className="header-right-group">
-          <Link href="/meeting" className="btn-start-meeting">
-            🚀 Start Meeting
-          </Link>
-          <div className="header-actions">
-          {activeTab === "employees" && isAdmin && (
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowAddEmployee(true)}
-            >
-              <span>+</span> Add Employee
-            </button>
-          )}
-          {activeTab === "leaves" && (
-            <button
-              className="btn btn-accent"
-              onClick={() => setShowAddLeave(true)}
-            >
-              <span>+</span> Record Leave
-            </button>
-          )}
-          {activeTab === "standup" && canManageFines && (
-            <button
-              className="btn btn-secondary"
-              style={{ border: "1px solid var(--accent-red)", color: "var(--accent-red)" }}
-              onClick={() => setShowAddStandup(true)}
-            >
-              <span>+</span> Standup Fine
-            </button>
-          )}
-          {activeTab === "records" && canManageFines && (
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowAddFine(true)}
-            >
-              <span>+</span> Record Fine
-            </button>
-          )}
-          {activeTab === "dashboard" && (
-            <div className="dashboard-quick-actions">
-              {isAdmin && (
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setShowAddEmployee(true)}
-                >
-                  Add Employee
-                </button>
-              )}
-              {canManageFines && (
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setShowAddFine(true)}
-                >
-                  Record Fine
-                </button>
-              )}
-            </div>
-          )}
-          <button className="btn-logout-premium" onClick={signOut}>
-            <span className="logout-icon">󰗼</span>
-            Logout
-          </button>
-        </div>
-      </div>
-    </header>
-
-      {/* Navigation Tabs */}
-      <nav className="nav-tabs">
-        <button
-          className={`nav-tab ${activeTab === "dashboard" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("dashboard")}
-        >
-          📊 Dashboard
-        </button>
-        <button
-          className={`nav-tab ${activeTab === "records" ? "nav-tab-active" : ""}`}
-          onClick={() => {
-            setActiveTab("records");
-            setSelectedEmployee(null);
-          }}
-        >
-          📋 Late Fines
-        </button>
-        <button
-          className={`nav-tab ${activeTab === "standup" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("standup")}
-        >
-          📝 Standup Fines
-        </button>
-        <button
-          className={`nav-tab ${activeTab === "leaves" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("leaves")}
-        >
-          🏖️ Leaves
-        </button>
-        <button
-          className={`nav-tab ${activeTab === "attendance" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("attendance")}
-        >
-          📍 Attendance
-        </button>
-        {/* <button
-          className={`nav-tab ${activeTab === "capacity" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("capacity")}
-        >
-          🏗️ Capacity
-        </button> */}
-        <button
-          className={`nav-tab ${activeTab === "words" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("words")}
-        >
-          📖 Words
-        </button>
-        <button
-          className={`nav-tab ${activeTab === "events" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("events")}
-        >
-          📅 Events
-        </button>
-        <button
-          className={`nav-tab ${activeTab === "poker" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("poker")}
-        >
-          🃏 Planning Poker
-        </button>
-        <button
-          className={`nav-tab ${activeTab === "retro" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("retro")}
-        >
-          🗂️ Retrospective
-        </button>
-        <button
-          className={`nav-tab nav-tab-right ${activeTab === "employees" ? "nav-tab-active" : ""}`}
-          onClick={() => setActiveTab("employees")}
-        >
-          👥 Employees
-        </button>
-      </nav>
+      <div className="app-main">
+      <TopBar onOpenMenu={() => setNavOpen(true)} onNavigate={handleNavigate} />
 
       {/* Content */}
       <main className="app-content">
+        <PageHead {...pageHead}>{pageActions}</PageHead>
         {activeTab === "dashboard" && <Dashboard />}
         {activeTab === "employees" && (
           <EmployeeList
+            key={employeeRequest?.at ?? "list"}
+            openEmployeeId={employeeRequest?.id}
             onEditEmployee={handleEditEmployee}
             onSelectEmployee={(emp) => {
               setSelectedEmployee(emp);
@@ -382,6 +311,8 @@ export default function Home() {
         )}
         {activeTab === "records" && (
           <FineTable
+            key={fineRequest?.at ?? "fines"}
+            initialSeasonId={fineRequest?.seasonId}
             selectedEmployee={selectedEmployee}
             onAddFine={() => setShowAddFine(true)}
             onWithdraw={() => setShowWithdraw(true)}
@@ -421,62 +352,13 @@ export default function Home() {
           />
         )}
         {activeTab === "projects" && <ProjectsPage />}
+        {activeTab === "tasks" && <TasksPage />}
+        {activeTab === "calendar" && <CalendarPage />}
         {activeTab === "poker" && <PlanningPokerPage />}
         {activeTab === "retro" && <RetrospectivePage />}
-        {activeTab === "leave-settings" && <LeaveSettingsPage />}
-        {activeTab === "privilege-settings" && <PrivilegeSettingsPage />}
+        {activeTab === "settings" && <SettingsPage />}
       </main>
-
-      {/* Footer */}
-      <footer className="app-footer">
-        <div className="footer-left">
-          <span
-            className={`footer-memories-link ${activeTab === 'memories' ? 'active' : ''}`}
-            onClick={() => setActiveTab('memories')}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setActiveTab('memories');
-              }
-            }}
-          >
-            ✨ Team Memories
-          </span>
-          <span
-            className="footer-updates-link"
-            onClick={() => setShowReleaseUpdates(true)}
-            title="View Release Updates"
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setShowReleaseUpdates(true);
-              }
-            }}
-          >
-            🎁 Updates
-          </span>
-          <span>Heubert Tracker © 2026</span>
-          <span className="db-status">
-            <span className="pulse-dot"></span> Cloud Database Connected
-          </span>
-        </div>
-        <div className="footer-actions">
-          {/* <button 
-            className={`btn btn-sm ${isSyncing ? 'btn-loading' : 'btn-secondary'}`} 
-            onClick={syncLocalToCloud}
-            disabled={isSyncing}
-          >
-            {isSyncing ? 'Syncing...' : '🔄 Sync Local Data'}
-          </button> */}
-          {/* <button className="btn btn-ghost btn-sm" onClick={resetData}>
-            Reset to Default Data
-          </button> */}
-        </div>
-      </footer>
+      </div>
 
       {/* Modals */}
       <AddEmployeeModal

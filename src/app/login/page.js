@@ -2,7 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import Icon from "@/components/Icon";
+
+// Login.dc.html: a glass card over the aurora (root layout). Faint circuit traces sit
+// behind it, copied from the artboard; they are decoration only.
+const CIRCUITS = [
+  "01001000 01010100 ── ┐\n01100110 01101001 │\n01101110 01100101 └─ ●\n01110011 ─────── ┐\n         └─ 0x48 ●",
+  "● ── 01110011 01110100\n│ 01100001 01101110\n└──── 01100100 01110101\n       01110000 ── ●",
+  "┌─ 0x10 ─┐\n● 1011 ●\n└─ 0x19 ─┘",
+  "10 ── 01 ── 11\n│           │\n●── 0x2083 ──●",
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -55,7 +66,7 @@ export default function LoginPage() {
         theme: "filled_black",
         size: "large",
         shape: "pill",
-        text: "signin_with",
+        text: "continue_with",
         logo_alignment: "left",
         width: 280,
       });
@@ -80,273 +91,67 @@ export default function LoginPage() {
   }
 
   return (
-    <>
-      <style>{`
-        .login-page {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-          overflow: hidden;
-          padding: 24px;
-        }
+    <div className="login-page">
+      <div className="login-circuits" aria-hidden="true">
+        {CIRCUITS.map((trace, i) => (
+          <div key={i} className={`login-circuit-${i + 1}`}>{trace}</div>
+        ))}
+      </div>
 
-        .login-bg-orb {
-          position: fixed;
-          border-radius: 50%;
-          filter: blur(80px);
-          pointer-events: none;
-          z-index: 0;
-        }
-        .orb-1 {
-          width: 600px; height: 600px;
-          background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%);
-          top: -200px; left: -100px;
-          animation: orbFloat 8s ease-in-out infinite;
-        }
-        .orb-2 {
-          width: 400px; height: 400px;
-          background: radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%);
-          bottom: -100px; right: -50px;
-          animation: orbFloat 10s ease-in-out infinite reverse;
-        }
-        .orb-3 {
-          width: 300px; height: 300px;
-          background: radial-gradient(circle, rgba(34,197,94,0.06) 0%, transparent 70%);
-          top: 40%; left: 60%;
-          animation: orbFloat 12s ease-in-out infinite;
-        }
+      <main className="login-main">
+        <section className="glass login-card" aria-labelledby="login-title">
+          <Image src="/logo.png" alt="Heubert Tracker" width={56} height={56} className="login-logo" />
 
-        @keyframes orbFloat {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -20px) scale(1.05); }
-          66% { transform: translate(-20px, 15px) scale(0.97); }
-        }
-
-        .login-card {
-          position: relative;
-          z-index: 1;
-          background: rgba(17, 24, 39, 0.75);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 24px;
-          padding: 48px 44px;
-          width: 100%;
-          max-width: 440px;
-          backdrop-filter: blur(24px);
-          box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.1);
-          text-align: center;
-          animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes cardIn {
-          from { opacity: 0; transform: translateY(24px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .login-logo {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 64px;
-          height: 64px;
-          background: linear-gradient(135deg, #6366f1, #8b5cf6);
-          border-radius: 18px;
-          overflow: hidden;
-          margin-bottom: 24px;
-          box-shadow: 0 8px 24px rgba(99,102,241,0.35);
-        }
-
-        .login-logo img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .login-title {
-          font-size: 1.75rem;
-          font-weight: 800;
-          letter-spacing: -0.5px;
-          background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          margin-bottom: 8px;
-        }
-
-        .login-subtitle {
-          font-size: 0.9rem;
-          color: #9ca3af;
-          margin-bottom: 36px;
-          line-height: 1.5;
-        }
-
-        .login-divider {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin: 28px 0;
-        }
-        .login-divider::before,
-        .login-divider::after {
-          content: "";
-          flex: 1;
-          height: 1px;
-          background: rgba(255,255,255,0.08);
-        }
-        .login-divider span {
-          color: #6b7280;
-          font-size: 0.78rem;
-        }
-
-        .google-btn-wrapper {
-          display: flex;
-          justify-content: center;
-          min-height: 44px;
-        }
-
-        .login-signing-in {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 12px;
-          color: #9ca3af;
-          font-size: 0.88rem;
-          padding: 12px 0;
-        }
-
-        .login-features {
-          margin-top: 36px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .login-feature {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 0.83rem;
-          color: #6b7280;
-          text-align: left;
-        }
-
-        .login-feature-icon {
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          background: rgba(99,102,241,0.12);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 13px;
-          flex-shrink: 0;
-        }
-
-        .login-footer {
-          margin-top: 32px;
-          padding-top: 20px;
-          border-top: 1px solid rgba(255,255,255,0.06);
-          font-size: 0.75rem;
-          color: #4b5563;
-        }
-
-        .login-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          background: rgba(34,197,94,0.1);
-          border: 1px solid rgba(34,197,94,0.2);
-          border-radius: 20px;
-          padding: 4px 12px;
-          font-size: 0.75rem;
-          color: #22c55e;
-          font-weight: 500;
-          margin-bottom: 20px;
-        }
-        .badge-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #22c55e;
-          animation: pulse 2s ease infinite;
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-
-        .login-error {
-          background-color: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.3);
-          color: #fca5a5;
-          padding: 12px 16px;
-          border-radius: 8px;
-          font-size: 0.88rem;
-          margin-bottom: 24px;
-          animation: cardIn 0.3s ease-out;
-        }
-      `}</style>
-
-      <div className="login-page">
-        {/* Background orbs */}
-        <div className="login-bg-orb orb-1" />
-        <div className="login-bg-orb orb-2" />
-        <div className="login-bg-orb orb-3" />
-
-        <div className="login-card">
-          <div className="login-logo">
-            <img src="/logo.png" alt="Heubert Tracker" />
-          </div>
-
-          <div className="login-badge">
-            <span className="badge-dot" />
+          <span className="pill pill-green login-badge">
+            <span className="login-badge-dot" aria-hidden="true" />
             Internal Portal
-          </div>
+          </span>
 
-          <h1 className="login-title">Heubert Tracker</h1>
+          <h1 id="login-title" className="login-title">Heubert Tracker</h1>
           <p className="login-subtitle">
             Internal Team Accountability &amp; Record System.<br />
             Sign in with your Google account to continue.
           </p>
 
           {errorMsg && (
-            <div className="login-error">
-              {errorMsg}
+            <div className="form-error login-alert" role="alert">
+              <Icon name="alert" size={16} strokeWidth={2} />
+              <span>{errorMsg}</span>
             </div>
           )}
 
           {signingIn ? (
-            <div className="login-signing-in">
-              <div className="spinner" />
+            <div className="login-signing-in" role="status">
+              <span className="spinner" aria-hidden="true" />
               <span>Signing you in…</span>
             </div>
           ) : (
-            <div className="google-btn-wrapper">
+            <div className="login-google">
               <div ref={buttonRef} />
             </div>
           )}
+          <span className="login-hint mono">Use the Google account your team registered</span>
 
-          <div className="login-features">
-            <div className="login-feature">
-              <div className="login-feature-icon">📊</div>
+          <ul className="login-features">
+            <li className="login-feature">
+              <span className="login-feature-icon"><Icon name="wallet" size={16} /></span>
               <span>Track late fines &amp; standup records</span>
-            </div>
-            <div className="login-feature">
-              <div className="login-feature-icon">👥</div>
+            </li>
+            <li className="login-feature">
+              <span className="login-feature-icon"><Icon name="users" size={16} /></span>
               <span>Manage employee profiles &amp; history</span>
-            </div>
-            <div className="login-feature">
-              <div className="login-feature-icon">🏖️</div>
+            </li>
+            <li className="login-feature">
+              <span className="login-feature-icon"><Icon name="calendar" size={16} /></span>
               <span>View and record team leaves</span>
-            </div>
-          </div>
+            </li>
+          </ul>
 
-          <div className="login-footer">
+          <p className="login-footer">
             Access restricted to Heubert team members only
-          </div>
-        </div>
-      </div>
-    </>
+          </p>
+        </section>
+      </main>
+    </div>
   );
 }

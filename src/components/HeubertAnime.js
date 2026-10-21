@@ -28,7 +28,6 @@ export default function HeubertAnime() {
   const scrollParentRef = useRef(null);
   const [loadedCount, setLoadedCount] = useState(0);
   const [ready, setReady] = useState(false);
-  const [debugInfo, setDebugInfo] = useState({ index: -1, scrollY: 0, stuck: false });
 
   const drawFrame = (index) => {
     const canvas = canvasRef.current;
@@ -113,7 +112,6 @@ export default function HeubertAnime() {
         // Pinned = the sticky panel is actively covering the viewport, i.e. the
         // section a keyboard user is "inside" for the purposes of frame stepping
         stuckRef.current = scrollableDistance > 0 && rect.top <= 0 && rect.bottom >= window.innerHeight;
-        setDebugInfo({ index, scrollY: Math.round(window.scrollY), stuck: stuckRef.current });
       });
     };
 
@@ -173,7 +171,7 @@ export default function HeubertAnime() {
     <section className="heubert-anime-section" ref={sectionRef}>
       <div className="heubert-anime-sticky">
         <div className="heubert-anime-heading">
-          <h2>🎬 Heubert Anime</h2>
+          <h2>Heubert Anime</h2>
           <p>Keep scrolling — the story plays frame by frame. (No mouse? Use ↑ / ↓.)</p>
         </div>
         <canvas ref={canvasRef} className="heubert-anime-canvas" />
@@ -183,24 +181,6 @@ export default function HeubertAnime() {
             <span>{loadPercent}%</span>
           </div>
         )}
-        {/* TEMP DEBUG */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 12,
-            right: 12,
-            zIndex: 5,
-            background: "rgba(0,0,0,0.75)",
-            color: "#fff",
-            fontSize: "13px",
-            fontFamily: "monospace",
-            padding: "6px 10px",
-            borderRadius: "6px",
-            pointerEvents: "none",
-          }}
-        >
-          frame {debugInfo.index + 1}/{FRAME_COUNT} · scrollY {debugInfo.scrollY} · stuck {String(debugInfo.stuck)} · loaded {loadPercent}%
-        </div>
       </div>
     </section>
   );

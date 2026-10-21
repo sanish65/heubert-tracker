@@ -72,3 +72,36 @@ export function canChangeKudos({ op, isEnded, kudos, actorName, isFacilitator: f
   if (op === 'delete') return isAuthor || !!facilitator;
   return false;
 }
+
+// A vote is a 👍 reaction; the other emoji are reactions only. A card's vote button, the
+// card order in its column and the Top Voted list all count votes this way, on both board
+// pages. reactions: [{ card_id, emoji }] of the board.
+export const VOTE_EMOJI = '👍';
+
+// { emoji: count } of one card's reactions.
+export function reactionCounts(reactions, cardId) {
+  const counts = {};
+  for (const r of reactions) {
+    if (String(r.card_id) === String(cardId)) counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+  }
+  return counts;
+}
+
+export function voteCount(reactions, cardId) {
+  return reactionCounts(reactions, cardId)[VOTE_EMOJI] || 0;
+}
+
+// Every reaction on a card, any emoji: what a theme's total adds up.
+export function totalReactions(reactions, cardId) {
+  return Object.values(reactionCounts(reactions, cardId)).reduce((sum, n) => sum + n, 0);
+}
+
+// Sort comparator: most votes first; equal votes keep a stable order by id.
+export function byVotes(reactions) {
+  return (a, b) => voteCount(reactions, b.id) - voteCount(reactions, a.id) || String(a.id).localeCompare(String(b.id));
+}
+
+// The Top Voted list: cards with at least one vote, most votes first.
+export function topVoted(cards, reactions) {
+  return cards.filter((c) => voteCount(reactions, c.id) > 0).sort(byVotes(reactions));
+}

@@ -1,8 +1,20 @@
 import { useApp } from "@/context/AppContext";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { transformGoogleDriveLink, getGoogleDriveEmbedUrl, getGoogleDriveThumbnailUrl } from "@/lib/utils";
 import { useDialog } from "@/context/DialogContext";
 import HeubertAnime from "@/components/HeubertAnime";
+import Icon from "@/components/Icon";
+import PageHead from "@/components/PageHead";
+import Avatar from "@/components/Avatar";
+
+// Memories.dc.html. page.js renders this view outside the app shell, so it brings the
+// standalone top bar of the poker route; then the page heading and a masonry of glass
+// memory cards. The lightbox and the edit dialog render at the top level of the page,
+// never inside a card: a card's backdrop blur and hover lift would trap them.
+
+const formatDate = (value) =>
+  new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 export default function MemoriesPage({ onAddMemory, onBack }) {
   const { memories, animationsEnabled, deleteMemory, updateMemory, user } = useApp();
@@ -76,126 +88,140 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
     }
   };
 
+  const animated = animationsEnabled !== false;
+  const count = memories.length;
+  const isMine = (memory) => Boolean(user) && memory.author_email === user.email;
+
   return (
-    <div className="memories-container standalone-view">
-      {animationsEnabled !== false && (
-        <ul className="christmas-lights-strand">
-          <li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li>
-          <li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li>
-          <li></li><li></li><li></li><li></li>
-        </ul>
-      )}
-
-      <div className="memories-header">
-        <div className="memories-title-group">
-          <h2 className="memories-title">✨ Team Memories</h2>
-          <p className="memories-subtitle">Capturing our journey, from standups to celebrations.</p>
+    <div className="poker-standalone-shell">
+      <header className="glass poker-standalone-bar">
+        <div className="poker-standalone-brand">
+          <Image src="/logo.png" alt="" width={32} height={32} className="poker-bar-logo" />
+          <span className="poker-standalone-name">Memories</span>
         </div>
-        <div className="memories-actions">
-          <button className="btn btn-secondary btn-back-tracker" onClick={onBack}>
-            <span>🔙</span> Back to Tracker
+        <div className="memories-bar-actions">
+          <button type="button" className="btn btn-secondary" onClick={onBack}>
+            <Icon name="arrow-left" size={16} strokeWidth={2} />
+            Back to Tracker
           </button>
-          <button className="btn btn-primary btn-share-memory" onClick={onAddMemory}>
-            <span>➕</span> Share a Memory
+          <button type="button" className="btn btn-primary" onClick={onAddMemory}>
+            <Icon name="plus" size={16} strokeWidth={2.2} />
+            Share a Memory
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="memories-wall-classic">
-        <div className="memory-wires-classic">
-          <div className="wire-classic"></div>
-          <div className="wire-classic"></div>
-          <div className="wire-classic"></div>
-          <div className="wire-classic"></div>
-        </div>
+      <main className="poker-standalone-main memories-main">
+        <PageHead
+          eyebrow={`Team wall · ${count} ${count === 1 ? "memory" : "memories"}`}
+          title="Team Memories"
+          subtitle="Capturing our journey, from standups to celebrations."
+        />
 
-        <div className="memories-grid-classic">
-          {memories.map((memory, index) => {
-            const isVisible = visibleItems.includes(memory.id);
-            return (
-              <div 
-                key={memory.id} 
-                className={`memory-item-classic ${isVisible ? 'appear' : ''}`}
-                style={{ 
-                  '--rotation': `${(index % 2 === 0 ? 1 : -1) * (index % 4 + 1)}deg`,
-                  '--delay': `${index * 0.1}s`
-                }}
-                onClick={() => handleCardClick(memory)}
-              >
-                <div className="memory-pin-classic"></div>
-
-                {/* Action buttons — only for the uploader */}
-                {user && memory.author_email === user.email && (
-                  <div className="memory-card-actions">
-                    <button
-                      className="card-action-btn edit-btn-card"
-                      onClick={(e) => openEdit(e, memory)}
-                      title="Edit memory"
-                    >✏️</button>
-                    <button
-                      className="card-action-btn delete-btn-card"
-                      onClick={(e) => handleDelete(e, memory)}
-                      disabled={deletingId === memory.id}
-                      title="Delete memory"
-                    >{deletingId === memory.id ? '⏳' : '🗑️'}</button>
-                  </div>
-                )}
-
-                <div className="memory-card-classic">
+        {count === 0 ? (
+          <div className="glass-card memories-empty">
+            <span className="modal-icon"><Icon name="image" size={20} /></span>
+            <h2 className="section-title">No memories shared yet</h2>
+            <p className="empty-msg">Be the first one to pin a photo or message to our wall!</p>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onAddMemory}>
+              Start the Collection
+            </button>
+          </div>
+        ) : (
+          <section className="memories-masonry" aria-label="Memories">
+            {memories.map((memory) => {
+              const mine = isMine(memory);
+              const author = memory.author_name || 'Team';
+              const shown = !animated || visibleItems.includes(memory.id);
+              return (
+                <article
+                  key={memory.id}
+                  className={`glass memory-card${animated ? " card-lift" : ""}${shown ? " is-shown" : ""}`}
+                  onClick={() => handleCardClick(memory)}
+                >
                   {memory.type === 'image' && (
-                    <div className="memory-media-classic image-container">
-                      <img 
-                        src={transformGoogleDriveLink(memory.content)} 
-                        alt={memory.caption} 
-                        loading="lazy" 
+                    <button type="button" className="memory-media" aria-label={`Open ${memory.caption || "photo"}`}>
+                      <img
+                        src={transformGoogleDriveLink(memory.content)}
+                        alt={memory.caption}
+                        loading="lazy"
                         referrerPolicy="no-referrer"
                         onError={(e) => {
                           e.target.src = "https://placehold.co/600x400/111/fff?text=Media+not+accessible";
                         }}
                       />
-                    </div>
+                    </button>
                   )}
                   {memory.type === 'video' && (
-                    <div className="memory-media-classic video-container">
+                    <button type="button" className="memory-media is-video" aria-label={`Play ${memory.caption || "video"}`}>
                       <img
                         src={getGoogleDriveThumbnailUrl(memory.content) || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}
                         alt={memory.caption || 'Video'}
                         loading="lazy"
                         referrerPolicy="no-referrer"
-                        className="video-thumb-img"
                       />
-                      <div className="video-play-btn">▶</div>
-                    </div>
+                      <span className="memory-play" aria-hidden="true"><Icon name="play" size={22} /></span>
+                      <span className="pill pill-violet memory-media-tag">Video</span>
+                    </button>
                   )}
                   {memory.type === 'text' && (
-                    <div className="memory-text-classic">
-                      <div className="quote-mark-classic">"</div>
-                      <p className="memory-message-classic">{memory.content}</p>
+                    <div className="memory-quote-block">
+                      <span className="memory-quote" aria-hidden="true">&ldquo;</span>
+                      <p className="memory-message">{memory.content}</p>
                     </div>
                   )}
-                  <div className="memory-info-classic">
-                    {memory.caption && <h4 className="memory-caption-classic">{memory.caption}</h4>}
-                    <div className="memory-meta-classic">
-                      <span className="memory-author-classic">By {memory.author_name || 'Team'}</span>
-                      <span className="memory-date-classic">{new Date(memory.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
-      <HeubertAnime />
+                  <div className="memory-info">
+                    {memory.caption && <h2 className="memory-caption">{memory.caption}</h2>}
+                    <div className="memory-meta">
+                      <Avatar name={author} isMe={mine} className="avatar avatar-sm" aria-hidden="true" />
+                      <span className="memory-author">By {author}</span>
+                      <span className="memory-date mono">{formatDate(memory.created_at)}</span>
+                    </div>
+
+                    {/* Edit and delete: only for the uploader */}
+                    {mine && (
+                      <div className="memory-actions">
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={(e) => openEdit(e, memory)}>
+                          <Icon name="edit" size={14} />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm memory-action-delete"
+                          onClick={(e) => handleDelete(e, memory)}
+                          disabled={deletingId === memory.id}
+                        >
+                          <Icon name="trash" size={14} />
+                          {deletingId === memory.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        )}
+
+        <HeubertAnime />
+      </main>
 
       {/* =========  LIGHTBOX  ========= */}
       {expanded && (
-        <div className="memory-lightbox-overlay" onClick={closeExpanded}>
-          <div className="memory-lightbox-inner" onClick={e => e.stopPropagation()}>
-            <button className="lightbox-close" onClick={closeExpanded}>✕</button>
+        <div className="modal-overlay" onClick={closeExpanded}>
+          <div
+            className="modal-content memory-lightbox"
+            role="dialog"
+            aria-modal="true"
+            aria-label={expanded.caption || 'Memory'}
+            onClick={e => e.stopPropagation()}
+          >
+            <button type="button" className="modal-close memory-lightbox-close" onClick={closeExpanded} aria-label="Close">
+              <Icon name="x" size={18} />
+            </button>
             {expanded.type === 'image' && (
-              <div className="lightbox-media">
+              <div className="memory-lightbox-media">
                 <img
                   src={transformGoogleDriveLink(expanded.content)}
                   alt={expanded.caption}
@@ -207,10 +233,11 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
               </div>
             )}
             {expanded.type === 'video' && (
-              <div className="lightbox-media lightbox-video">
+              <div className="memory-lightbox-media is-video">
                 {getGoogleDriveEmbedUrl(expanded.content) ? (
                   <iframe
                     src={getGoogleDriveEmbedUrl(expanded.content)}
+                    title={expanded.caption || 'Video'}
                     allow="autoplay"
                     allowFullScreen
                   />
@@ -224,76 +251,77 @@ export default function MemoriesPage({ onAddMemory, onBack }) {
               </div>
             )}
             {expanded.type === 'text' && (
-              <div className="lightbox-text">
-                <div className="lightbox-quote">"</div>
+              <div className="memory-lightbox-text">
+                <span className="memory-quote" aria-hidden="true">&ldquo;</span>
                 <p>{expanded.content}</p>
               </div>
             )}
-            <div className="lightbox-info">
+            <div className="memory-lightbox-info">
               {expanded.caption && <h3>{expanded.caption}</h3>}
-              <div className="lightbox-meta">
-                <span>Shared by {expanded.author_name || 'Team'}</span>
-                <span>{new Date(expanded.created_at).toLocaleDateString()}</span>
+              <div className="memory-meta">
+                <Avatar name={expanded.author_name || 'Team'} isMe={isMine(expanded)} className="avatar avatar-sm" aria-hidden="true" />
+                <span className="memory-author">Shared by {expanded.author_name || 'Team'}</span>
+                <span className="memory-date mono">{formatDate(expanded.created_at)}</span>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* =========  EDIT MODAL  ========= */}
+      {/* =========  EDIT DIALOG  ========= */}
       {editing && (
-        <div className="memory-lightbox-overlay" onClick={() => setEditing(null)}>
-          <div className="memory-lightbox-inner edit-modal-lux" onClick={e => e.stopPropagation()}>
-            <button className="lightbox-close" onClick={() => setEditing(null)}>✕</button>
-            <div className="edit-modal-header">
-              <h3>✏️ Edit Memory</h3>
+        <div className="modal-overlay" onClick={() => setEditing(null)}>
+          <div
+            className="modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="memory-edit-title"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <span className="modal-icon"><Icon name="edit" size={20} /></span>
+              <h2 id="memory-edit-title">Edit memory</h2>
+              <button type="button" className="modal-close" onClick={() => setEditing(null)} aria-label="Close">
+                <Icon name="x" size={18} />
+              </button>
             </div>
-            <div className="edit-modal-body">
-              <label className="form-label-lux">
+            <div className="form-group-interactive">
+              <label htmlFor="memory-edit-content">
                 {editing.type === 'text' ? 'Message' : 'Media URL'}
               </label>
               {editing.type === 'text' ? (
                 <textarea
-                  className="premium-textarea-lux"
+                  id="memory-edit-content"
                   value={editForm.content}
                   onChange={e => setEditForm(f => ({ ...f, content: e.target.value }))}
                   rows={5}
                 />
               ) : (
                 <input
+                  id="memory-edit-content"
                   type="url"
-                  className="premium-input-lux"
                   value={editForm.content}
                   onChange={e => setEditForm(f => ({ ...f, content: e.target.value }))}
                 />
               )}
-              <label className="form-label-lux" style={{ marginTop: '16px' }}>Caption (optional)</label>
+            </div>
+            <div className="form-group-interactive">
+              <label htmlFor="memory-edit-caption">Caption (optional)</label>
               <input
+                id="memory-edit-caption"
                 type="text"
-                className="premium-input-lux"
                 value={editForm.caption}
                 onChange={e => setEditForm(f => ({ ...f, caption: e.target.value }))}
                 placeholder="A short caption..."
               />
             </div>
-            <div className="modal-footer-lux" style={{ padding: '16px 24px', marginTop: 0 }}>
-              <button className="btn-cancel-lux" onClick={() => setEditing(null)}>Cancel</button>
-              <button className="btn-submit-lux" onClick={handleEditSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : '💾 Save Changes'}
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
+              <button type="button" className="btn btn-primary" onClick={handleEditSave} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {memories.length === 0 && (
-        <div className="memories-empty-state">
-          <div className="empty-sparkles">✨🌟✨</div>
-          <h3>No memories shared yet</h3>
-          <p>Be the first one to pin a photo or message to our wall!</p>
-          <button className="btn btn-secondary btn-sm" onClick={onAddMemory} style={{ marginTop: '16px' }}>
-            Start the Collection
-          </button>
         </div>
       )}
     </div>

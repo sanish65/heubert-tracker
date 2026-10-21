@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Select, Button, Chip } from "./ui";
+import { FormModal, TextField, Select, Button, IconButton } from "./ui";
+import { SheetNote, SheetActions } from "./SheetParts";
 import DateField from "./DateField";
-import { useThemeColors, radius } from "../lib/theme";
+import Avatar from "./Avatar";
+import Icon from "./Icon";
+import { useThemeColors, radius, fonts } from "../lib/theme";
+
+// A project's sheet, new or edited, in the record sheet's look (MobileRecordFine.dc.html): its
+// details, the team (each person a chip with their face), its environments and its links (a raised
+// block per row, removed with the bin), then the actions. The fields, the checks and the save are
+// the ones this sheet had before the redesign.
 
 const STATUSES = [
   { value: "planning", label: "Planning" },
@@ -14,11 +22,11 @@ const STATUSES = [
 ];
 
 const LINK_CATEGORIES = [
-  { value: "repo", label: "🧑‍💻 Repo" },
-  { value: "board", label: "🗂️ Board" },
-  { value: "design", label: "🎨 Design" },
-  { value: "docs", label: "📄 Docs" },
-  { value: "other", label: "🔗 Other" },
+  { value: "repo", label: "Repo" },
+  { value: "board", label: "Board" },
+  { value: "design", label: "Design" },
+  { value: "docs", label: "Docs" },
+  { value: "other", label: "Other" },
 ];
 
 let rowKeySeed = 0;
@@ -76,28 +84,48 @@ function initialFormFor(editing, links, environments, memberEmployeeIds) {
   };
 }
 
-function RowEditor({ children, onRemove }) {
+// One environment or link being edited: a raised block, its name and the bin at the top.
+function RowEditor({ title, removeLabel, children, onRemove }) {
   const t = useThemeColors();
   return (
-    <View
-      style={{
-        borderWidth: 1,
-        borderColor: t.border,
-        borderRadius: radius.sm,
-        padding: 10,
-        marginBottom: 10,
-      }}
-    >
+    <View style={[styles.row, { backgroundColor: t.raised, borderColor: t.line }]}>
+      <View style={styles.rowHead}>
+        <Text numberOfLines={1} style={[styles.rowTitle, { color: t.text2 }]}>
+          {title}
+        </Text>
+        <IconButton icon="trash" tone="plain" size={40} color={t.pfRed} onPress={onRemove} accessibilityLabel={removeLabel} style={styles.rowRemove} />
+      </View>
       {children}
-      <Pressable onPress={onRemove} style={{ alignSelf: "flex-end", marginTop: 4 }}>
-        <Text style={{ color: t.accentRed, fontSize: 13, fontWeight: "600" }}>✕ Remove</Text>
-      </Pressable>
     </View>
   );
 }
 
+// A person to staff, picked or not: their face and name in a pill; picked is primary-soft on a
+// primary edge with a check.
+function MemberChip({ name, isMe, selected, onPress }) {
+  const t = useThemeColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityLabel={name}
+      accessibilityState={{ checked: selected }}
+      style={({ pressed }) => [
+        styles.member,
+        selected ? { backgroundColor: t.primarySoft, borderColor: t.primary } : { backgroundColor: pressed ? t.raised : t.surface, borderColor: t.lineStrong },
+      ]}
+    >
+      <Avatar name={name} size={28} isMe={isMe} />
+      <Text numberOfLines={1} style={[styles.memberName, { color: selected ? t.text1 : t.text2, fontFamily: selected ? fonts.bodySemibold : fonts.bodyMedium }]}>
+        {name}
+      </Text>
+      {selected ? <Icon name="check" size={16} strokeWidth={2} color={t.primaryText} /> : null}
+    </Pressable>
+  );
+}
+
 export default function ProjectFormModal({ isOpen, onClose, editing, links, environments, memberEmployeeIds }) {
-  const { addProject, updateProject, projects, employees } = useApp();
+  const { addProject, updateProject, projects, employees, currentEmployee } = useApp();
   const t = useThemeColors();
   const [form, setForm] = useState(() => initialFormFor(editing, links, environments, memberEmployeeIds));
   const [error, setError] = useState("");
@@ -164,8 +192,18 @@ export default function ProjectFormModal({ isOpen, onClose, editing, links, envi
     }
   };
 
+  const listHead = (title, meta, action) => (
+    <View style={styles.listHead}>
+      <Text accessibilityRole="header" style={[styles.listTitle, { color: t.text1 }]}>
+        {title}
+      </Text>
+      {meta ? <Text style={[styles.mono, { color: t.text3 }]}>{meta}</Text> : null}
+      {action}
+    </View>
+  );
+
   return (
-    <FormModal visible={isOpen} onClose={onClose} title={editing ? "✏️ Edit Project" : "🚀 New Project"}>
+    <FormModal visible={isOpen} onClose={onClose} title={editing ? "Edit Project" : "New Project"}>
       <TextField label="Project Name" value={form.name} onChangeText={(v) => setField("name", v)} placeholder="e.g. Acme Portal" />
       <TextField label="Client" value={form.client} onChangeText={(v) => setField("client", v)} placeholder="e.g. Acme Inc." />
       <Select label="Status" value={form.status} onSelect={(v) => setField("status", v)} options={STATUSES} />
@@ -185,103 +223,132 @@ export default function ProjectFormModal({ isOpen, onClose, editing, links, envi
         multiline
       />
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: "700" }}>Team Members</Text>
-        <Text style={{ color: t.textMuted, fontSize: 12 }}>{form.members.length} selected</Text>
+      <View style={[styles.section, { borderTopColor: t.line }]}>
+        {listHead("Team Members", `${form.members.length} selected`)}
+        {staffableEmployees.length === 0 ? (
+          <Text style={[styles.empty, { color: t.text3 }]}>No employees to add yet.</Text>
+        ) : (
+          <View style={styles.members}>
+            {staffableEmployees.map((emp) => (
+              <MemberChip
+                key={emp.id}
+                name={emp.name}
+                isMe={emp.id === currentEmployee?.id}
+                selected={form.members.includes(emp.id)}
+                onPress={() => toggleMember(emp.id)}
+              />
+            ))}
+          </View>
+        )}
       </View>
-      {staffableEmployees.length === 0 ? (
-        <Text style={{ color: t.textMuted, fontSize: 13, marginBottom: 14 }}>No employees to add yet.</Text>
-      ) : (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 14 }}>
-          {staffableEmployees.map((emp) => (
-            <Chip
-              key={emp.id}
-              label={emp.name}
-              active={form.members.includes(emp.id)}
-              onPress={() => toggleMember(emp.id)}
-            />
-          ))}
-        </View>
-      )}
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: "700" }}>Environments</Text>
-        <Pressable onPress={() => addRow("environments", emptyEnvRow())}>
-          <Text style={{ color: t.accentIndigo, fontSize: 13, fontWeight: "700" }}>+ Add</Text>
-        </Pressable>
+      <View style={[styles.section, { borderTopColor: t.line }]}>
+        {listHead(
+          "Environments",
+          null,
+          <Button title="Add environment" icon="plus" variant="secondary" small onPress={() => addRow("environments", emptyEnvRow())} />
+        )}
+        {form.environments.length === 0 ? (
+          <Text style={[styles.empty, { color: t.text3 }]}>No environments yet.</Text>
+        ) : (
+          form.environments.map((env, i) => (
+            <RowEditor key={env._key} title={env.name.trim() || `Environment ${i + 1}`} removeLabel={`Remove environment ${env.name.trim() || i + 1}`} onRemove={() => removeRow("environments", env._key)}>
+              <TextField
+                label="Environment"
+                value={env.name}
+                onChangeText={(v) => setRow("environments", env._key, "name", v)}
+                placeholder="Development"
+              />
+              <TextField
+                label="URL"
+                value={env.url}
+                onChangeText={(v) => setRow("environments", env._key, "url", v)}
+                placeholder="stage.acme.com"
+              />
+              <TextField
+                label="Branch"
+                value={env.branch}
+                onChangeText={(v) => setRow("environments", env._key, "branch", v)}
+                placeholder="main"
+              />
+              <TextField
+                label="Notes"
+                value={env.notes}
+                onChangeText={(v) => setRow("environments", env._key, "notes", v)}
+                placeholder="No credentials — pointer only"
+              />
+            </RowEditor>
+          ))
+        )}
+        <Text style={[styles.hint, { color: t.text3 }]}>
+          Environment rows are visible to everyone in the tracker — link the environment, never paste credentials.
+        </Text>
       </View>
-      {form.environments.length === 0 ? (
-        <Text style={{ color: t.textMuted, fontSize: 13, marginBottom: 14 }}>No environments yet.</Text>
-      ) : (
-        form.environments.map((env) => (
-          <RowEditor key={env._key} onRemove={() => removeRow("environments", env._key)}>
-            <TextField
-              label="Environment"
-              value={env.name}
-              onChangeText={(v) => setRow("environments", env._key, "name", v)}
-              placeholder="Development"
-            />
-            <TextField
-              label="URL"
-              value={env.url}
-              onChangeText={(v) => setRow("environments", env._key, "url", v)}
-              placeholder="stage.acme.com"
-            />
-            <TextField
-              label="Branch"
-              value={env.branch}
-              onChangeText={(v) => setRow("environments", env._key, "branch", v)}
-              placeholder="main"
-            />
-            <TextField
-              label="Notes"
-              value={env.notes}
-              onChangeText={(v) => setRow("environments", env._key, "notes", v)}
-              placeholder="No credentials — pointer only"
-            />
-          </RowEditor>
-        ))
-      )}
-      <Text style={{ color: t.textMuted, fontSize: 12, marginBottom: 14 }}>
-        Environment rows are visible to everyone in the tracker — link the environment, never paste credentials.
-      </Text>
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: "700" }}>Links</Text>
-        <Pressable onPress={() => addRow("links", emptyLinkRow())}>
-          <Text style={{ color: t.accentIndigo, fontSize: 13, fontWeight: "700" }}>+ Add</Text>
-        </Pressable>
+      <View style={[styles.section, { borderTopColor: t.line }]}>
+        {listHead(
+          "Links",
+          null,
+          <Button title="Add link" icon="plus" variant="secondary" small onPress={() => addRow("links", emptyLinkRow())} />
+        )}
+        {form.links.length === 0 ? (
+          <Text style={[styles.empty, { color: t.text3 }]}>No links yet.</Text>
+        ) : (
+          form.links.map((link, i) => (
+            <RowEditor key={link._key} title={link.label.trim() || `Link ${i + 1}`} removeLabel={`Remove link ${link.label.trim() || i + 1}`} onRemove={() => removeRow("links", link._key)}>
+              <Select
+                label="Category"
+                value={link.category}
+                onSelect={(v) => setRow("links", link._key, "category", v)}
+                options={LINK_CATEGORIES}
+              />
+              <TextField
+                label="Label"
+                value={link.label}
+                onChangeText={(v) => setRow("links", link._key, "label", v)}
+                placeholder="GitHub repo"
+              />
+              <TextField
+                label="URL"
+                value={link.url}
+                onChangeText={(v) => setRow("links", link._key, "url", v)}
+                placeholder="github.com/heubert/acme"
+              />
+            </RowEditor>
+          ))
+        )}
       </View>
-      {form.links.length === 0 ? (
-        <Text style={{ color: t.textMuted, fontSize: 13, marginBottom: 14 }}>No links yet.</Text>
-      ) : (
-        form.links.map((link) => (
-          <RowEditor key={link._key} onRemove={() => removeRow("links", link._key)}>
-            <Select
-              label="Category"
-              value={link.category}
-              onSelect={(v) => setRow("links", link._key, "category", v)}
-              options={LINK_CATEGORIES}
-            />
-            <TextField
-              label="Label"
-              value={link.label}
-              onChangeText={(v) => setRow("links", link._key, "label", v)}
-              placeholder="GitHub repo"
-            />
-            <TextField
-              label="URL"
-              value={link.url}
-              onChangeText={(v) => setRow("links", link._key, "url", v)}
-              placeholder="github.com/heubert/acme"
-            />
-          </RowEditor>
-        ))
-      )}
 
-      {error ? <Text style={{ color: t.accentRed, fontSize: 13, marginBottom: 12 }}>{error}</Text> : null}
+      {error ? <SheetNote>{error}</SheetNote> : null}
 
-      <Button title={isSaving ? "Saving…" : editing ? "Save Changes" : "Create Project"} onPress={handleSubmit} disabled={isSaving} />
+      <SheetActions
+        title={isSaving ? "Saving…" : editing ? "Save Changes" : "Create Project"}
+        icon={editing ? "check" : "plus"}
+        onPress={handleSubmit}
+        disabled={isSaving}
+        onCancel={onClose}
+      />
     </FormModal>
   );
 }
+
+// Sizes and type from MobileRecordFine.dc.html: 16 between the sheet's parts; a list's head in the
+// display face with its count in mono, a hairline above each list.
+const styles = StyleSheet.create({
+  mono: { fontFamily: fonts.mono, fontSize: 12 },
+  section: { borderTopWidth: 1, paddingTop: 14, marginBottom: 16 },
+  listHead: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  listTitle: { flex: 1, fontFamily: fonts.display, fontSize: 17 },
+  empty: { fontFamily: fonts.body, fontSize: 13, marginBottom: 8 },
+  hint: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
+
+  members: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  member: { minHeight: 44, maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 8, paddingRight: 14, borderWidth: 1, borderRadius: radius.pill },
+  memberName: { flexShrink: 1, fontSize: 14 },
+
+  // A row being edited: 14 round, 12 in.
+  row: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingBottom: 0, marginBottom: 10 },
+  rowHead: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
+  rowTitle: { flex: 1, fontFamily: fonts.bodySemibold, fontSize: 14 },
+  rowRemove: { marginRight: -8 },
+});

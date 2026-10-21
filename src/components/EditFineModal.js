@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
 
 export default function EditFineModal({ isOpen, onClose, fine }) {
   const { updateFine } = useApp();
@@ -42,8 +43,9 @@ export default function EditFineModal({ isOpen, onClose, fine }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-content-small" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>💰 Edit Late Fine</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="wallet" size={20} /></span>
+          <h2>Edit late fine</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-group-interactive">
@@ -76,7 +78,7 @@ export default function EditFineModal({ isOpen, onClose, fine }) {
           </div>
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "Saving..." : "Save Changes"}
             </button>

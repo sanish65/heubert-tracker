@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import Icon from "@/components/Icon";
 
 export default function EditEmployeeModal({ isOpen, onClose, employee }) {
   const { updateEmployee } = useApp();
@@ -56,14 +57,15 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Edit Employee Record</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="user" size={20} /></span>
+          <h2>Edit employee record</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-sections-container">
             {/* 1. Personal Info */}
             <div className="form-section">
-              <div className="form-section-title">👤 Personal Information</div>
+              <div className="form-section-title">Personal information</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="edit-name">Full Name *</label>
@@ -100,7 +102,7 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
 
             {/* 2. Employment */}
             <div className="form-section">
-              <div className="form-section-title">💼 Employment Details</div>
+              <div className="form-section-title">Employment details</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="edit-joined">Office Joined Date</label>
@@ -137,7 +139,7 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
 
             {/* 3. Contact & Location */}
             <div className="form-section">
-              <div className="form-section-title">📧 Contact & Location</div>
+              <div className="form-section-title">Contact & location</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="edit-work-email">Work Email</label>
@@ -178,9 +180,9 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
               </div>
             </div>
           </div>
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary">Save Changes</button>
           </div>
         </form>

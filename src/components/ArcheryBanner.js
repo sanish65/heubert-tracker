@@ -154,10 +154,10 @@ export default function ArcheryBanner() {
   return (
     <div className={`archery-banner ${animationsEnabled === false ? "archery-still" : ""}`}>
       <div className="archery-text">
-        <strong>🏹 Bullseye, team!</strong>
+        <strong>Bullseye, team!</strong>
         <span>
           Last night&apos;s archery was a hit — thanks everyone for the laughs, the trash talk and
-          the surprisingly good aim. Here&apos;s to hitting our targets this sprint too. 🎯
+          the surprisingly good aim. Here&apos;s to hitting our targets this sprint too.
         </span>
         <span className="archery-date">Team bonding · Thu, Oct 8</span>
       </div>

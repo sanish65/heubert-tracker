@@ -1,22 +1,45 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Animated, Easing, StyleSheet } from "react-native";
 import Svg, { Defs, LinearGradient, Stop, Rect } from "react-native-svg";
 import { useThemeColors } from "../lib/theme";
+import useMotionAllowed from "../lib/useMotionAllowed";
 import { Card } from "./ui";
 
+// Placeholders while a list or a record loads: `raised` blocks, with a soft shimmer passing over
+// them only while motion is allowed (the Animations setting and the phone's reduce-motion).
+//
+// Every block shares one shimmer value so they sweep together. Its loop runs only while at least
+// one shimmering block is on screen, and stops when the last one goes.
 const shimmerProgress = new Animated.Value(0);
-Animated.loop(
-  Animated.timing(shimmerProgress, {
-    toValue: 1,
-    duration: 1400,
-    easing: Easing.linear,
-    useNativeDriver: true,
-  })
-).start();
+let shimmerLoop = null;
+let shimmering = 0;
+
+function useShimmer(active) {
+  useEffect(() => {
+    if (!active) return;
+    shimmering += 1;
+    if (shimmering === 1) {
+      shimmerProgress.setValue(0);
+      shimmerLoop = Animated.loop(
+        Animated.timing(shimmerProgress, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true })
+      );
+      shimmerLoop.start();
+    }
+    return () => {
+      shimmering -= 1;
+      if (shimmering === 0 && shimmerLoop) {
+        shimmerLoop.stop();
+        shimmerLoop = null;
+      }
+    };
+  }, [active]);
+}
 
 export function SkeletonBlock({ width = "100%", height = 14, radius = 6, style }) {
   const t = useThemeColors();
+  const moving = useMotionAllowed();
   const [measuredWidth, setMeasuredWidth] = useState(typeof width === "number" ? width : 0);
+  useShimmer(moving);
 
   const translateX = shimmerProgress.interpolate({
     inputRange: [0, 1],
@@ -26,16 +49,16 @@ export function SkeletonBlock({ width = "100%", height = 14, radius = 6, style }
   return (
     <View
       onLayout={(e) => setMeasuredWidth(e.nativeEvent.layout.width)}
-      style={[{ width, height, borderRadius: radius, backgroundColor: t.border, overflow: "hidden" }, style]}
+      style={[{ width, height, borderRadius: radius, backgroundColor: t.raised, overflow: "hidden" }, style]}
     >
-      {measuredWidth > 0 && (
+      {moving && measuredWidth > 0 && (
         <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}>
           <Svg width={measuredWidth} height={height}>
             <Defs>
               <LinearGradient id="shimmer-gradient" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={t.textPrimary} stopOpacity={0} />
-                <Stop offset="0.5" stopColor={t.textPrimary} stopOpacity={0.16} />
-                <Stop offset="1" stopColor={t.textPrimary} stopOpacity={0} />
+                <Stop offset="0" stopColor={t.text1} stopOpacity={0} />
+                <Stop offset="0.5" stopColor={t.text1} stopOpacity={0.16} />
+                <Stop offset="1" stopColor={t.text1} stopOpacity={0} />
               </LinearGradient>
             </Defs>
             <Rect width={measuredWidth} height={height} fill="url(#shimmer-gradient)" />
@@ -59,7 +82,7 @@ export function SkeletonRow({ avatar = false, rightWidth = 0, divider = false })
         alignItems: "center",
         paddingVertical: 10,
         borderBottomWidth: divider ? 1 : 0,
-        borderBottomColor: t.border,
+        borderBottomColor: t.line,
       }}
     >
       {avatar && <SkeletonCircle size={34} style={{ marginRight: 10 }} />}

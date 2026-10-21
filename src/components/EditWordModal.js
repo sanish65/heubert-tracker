@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
 
 export default function EditWordModal({ isOpen, onClose, word }) {
   const { updateWord } = useApp();
@@ -58,8 +59,9 @@ export default function EditWordModal({ isOpen, onClose, word }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>📝 Edit Word</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="book" size={20} /></span>
+          <h2>Edit word</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
@@ -113,7 +115,7 @@ export default function EditWordModal({ isOpen, onClose, word }) {
             </div>
           </div>
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "Saving Changes..." : "Save Changes"}
             </button>

@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Select, Button } from "./ui";
+import { FormModal } from "./ui";
 import DateField from "./DateField";
+import { EmployeePicker, ChoiceGroup, SheetActions } from "./SheetParts";
+import { STANDUP_FINE_STATUSES } from "../lib/options";
 import { fineToday, parseLocalDate } from "../lib/utils";
 
+// A standup record's edit sheet, in the record sheet's look (MobileRecordFine.dc.html): the person
+// is fixed; the day and the status change.
 export default function EditStandupModal({ isOpen, onClose, record }) {
   const { updateStandupFine } = useApp();
   const [date, setDate] = useState("");
@@ -36,11 +40,11 @@ export default function EditStandupModal({ isOpen, onClose, record }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="📝 Edit Standup Record">
-      <TextField label="Employee" value={record.employee_name} editable={false} />
+    <FormModal visible={isOpen} onClose={onClose} title="Edit Standup Record">
+      <EmployeePicker value={record.employee_name} />
       <DateField label="Date" value={date} maximumDate={parseLocalDate(today)} onChange={setDate} />
-      <Select label="Status" value={status} onSelect={setStatus} options={[{ value: "unpaid", label: "Pending" }, { value: "paid", label: "Complete" }]} />
-      <Button title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting || isFutureDate} />
+      <ChoiceGroup label="Status" value={status} options={STANDUP_FINE_STATUSES} onChange={setStatus} />
+      <SheetActions title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting || isFutureDate} onCancel={onClose} />
     </FormModal>
   );
 }

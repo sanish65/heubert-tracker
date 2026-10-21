@@ -1,17 +1,55 @@
 import { useMemo, useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useApp } from "../context/AppContext";
-import { useThemeColors } from "../lib/theme";
+import { useThemeColors, fonts } from "../lib/theme";
+import { announcementTone } from "../lib/announcement";
+import Icon from "./Icon";
+import { IconButton } from "./ui";
 
-const BANNER_COLORS = {
-  event: "#6366f1",
-  holiday: "#22c55e",
-  celebration: "#f59e0b",
-};
+// The canvas's Announcement card (MobileDashboard.dc.html): a tinted glass panel on a tinted edge,
+// a solid icon tile, a title and a line under it, with a line icon for its kind in place of the
+// emoji it had. `kind` sets the tone (lib/announcement.js): orange for a celebration, a birthday or
+// a work anniversary; cyan for an event, a holiday and the new fiscal year. Home places these in
+// its Announcement slot. Nothing here moves, so it is the same with motion off.
+export function AnnouncementCard({ icon, title, text, kind, onClose }) {
+  const t = useThemeColors();
+  const tone = announcementTone(t, kind);
+  return (
+    <View
+      accessibilityRole="summary"
+      style={[styles.card, { backgroundColor: tone.fill, borderColor: tone.edge, borderTopColor: t.glassHi }]}
+    >
+      <View style={[styles.tile, { backgroundColor: tone.tile }]}>
+        <Icon name={icon} size={20} strokeWidth={2} color={tone.ink} />
+      </View>
+      <View style={styles.text}>
+        <Text style={[styles.title, { color: tone.title }]}>{title}</Text>
+        <Text style={[styles.line, { color: tone.text }]}>{text}</Text>
+      </View>
+      {onClose ? <IconButton icon="x" onPress={onClose} accessibilityLabel="Dismiss" tone="plain" color={t.text2} /> : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  tile: { width: 40, height: 40, flexShrink: 0, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  text: { flex: 1, gap: 2 },
+  title: { fontFamily: fonts.display, fontSize: 15 },
+  line: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
+});
 
 export default function EventBanner() {
   const { publicHolidays, companyEvents, employees } = useApp();
-  const t = useThemeColors();
   const [closedBanners, setClosedBanners] = useState({});
 
   const activeBanners = useMemo(() => {
@@ -28,14 +66,14 @@ export default function EventBanner() {
     companyEvents.forEach((ev) => {
       const diff = getDiffDays(ev.date);
       if (diff >= 0 && diff <= 7) {
-        banners.push({ id: `ev-${ev.id}`, diff, type: "event", title: ev.title, icon: "📢" });
+        banners.push({ id: `ev-${ev.id}`, diff, type: "event", title: ev.title, icon: "calendar" });
       }
     });
 
     publicHolidays.forEach((h) => {
       const diff = getDiffDays(h.date);
       if (diff >= 0 && diff <= 7) {
-        banners.push({ id: `hol-${h.id}`, diff, type: "holiday", title: h.title, icon: "🎉" });
+        banners.push({ id: `hol-${h.id}`, diff, type: "holiday", title: h.title, icon: "flag" });
       }
     });
 
@@ -51,11 +89,11 @@ export default function EventBanner() {
 
           if (diff === 0) {
             if (type === "birthday") {
-              banners.push({ id: `bday-${emp.id}-${y}`, diff, type: "celebration", title: `${emp.name}'s Birthday`, icon: "🎂" });
+              banners.push({ id: `bday-${emp.id}-${y}`, diff, type: "celebration", title: `${emp.name}'s Birthday`, icon: "cake" });
             } else {
               const years = y - d.getFullYear();
               if (years > 0) {
-                banners.push({ id: `work-${emp.id}-${y}`, diff, type: "celebration", title: `${years} yr Anniversary of ${emp.name}`, icon: "🏆" });
+                banners.push({ id: `work-${emp.id}-${y}`, diff, type: "celebration", title: `${years} yr Anniversary of ${emp.name}`, icon: "award" });
               }
             }
           }
@@ -74,7 +112,7 @@ export default function EventBanner() {
   if (visible.length === 0) return null;
 
   return (
-    <View style={{ marginBottom: 12 }}>
+    <View>
       {visible.map((b) => {
         let text = "";
         let subtext = "";
@@ -88,31 +126,16 @@ export default function EventBanner() {
           text = `${b.diff} days to go for ${b.title}!`;
           subtext = "Mark your calendar and get prepared!";
         }
-        const color = BANNER_COLORS[b.type];
 
         return (
-          <View
+          <AnnouncementCard
             key={b.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: color + "22",
-              borderWidth: 1,
-              borderColor: color + "55",
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 8,
-            }}
-          >
-            <Text style={{ fontSize: 22, marginRight: 10 }}>{b.icon}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: t.textPrimary, fontWeight: "700", fontSize: 14 }}>{text}</Text>
-              <Text style={{ color: t.textMuted, fontSize: 12 }}>{subtext}</Text>
-            </View>
-            <Pressable onPress={() => setClosedBanners((prev) => ({ ...prev, [b.id]: true }))} hitSlop={10}>
-              <Text style={{ color: t.textMuted, fontSize: 16, paddingHorizontal: 6 }}>✕</Text>
-            </Pressable>
-          </View>
+            icon={b.icon}
+            kind={b.type}
+            title={text}
+            text={subtext}
+            onClose={() => setClosedBanners((prev) => ({ ...prev, [b.id]: true }))}
+          />
         );
       })}
     </View>

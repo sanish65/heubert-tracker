@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import Icon from "@/components/Icon";
 
 export default function WithdrawModal({ isOpen, onClose }) {
   const { addWithdrawal, user } = useApp();
@@ -43,12 +44,13 @@ export default function WithdrawModal({ isOpen, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>💸 Record Withdrawal</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="wallet" size={20} /></span>
+          <h2>Record withdrawal</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-section">
-            <div className="form-section-title">💰 Withdrawal Details</div>
+            <div className="form-section-title">Withdrawal details</div>
             <div className="form-group-interactive">
               <label htmlFor="withdraw-amount">Amount (Rs.)</label>
               <input
@@ -86,10 +88,10 @@ export default function WithdrawModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>
             <button

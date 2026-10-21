@@ -1,25 +1,30 @@
 "use client";
 
+import { useId } from "react";
 import { useApp } from "@/context/AppContext";
 
-export default function AnimationToggle() {
+// Animations as a switch row: the whole row is the label. Used in Settings (with a
+// description) and in the top bar's account menu (without).
+export default function AnimationToggle({ description }) {
   const { animationsEnabled, toggleAnimations } = useApp();
+  const titleId = useId();
+  const descId = useId();
 
   return (
-    <div className="theme-toggle-row">
-      <div className="theme-toggle-label">
-        <span className="theme-toggle-icon">✨</span>
-        <span className="theme-toggle-text">Animations</span>
-      </div>
-      <button
+    <label className="pref-row">
+      <span className="pref-text">
+        <span className="pref-title" id={titleId}>Animations</span>
+        {description && <span className="pref-desc" id={descId}>{description}</span>}
+      </span>
+      <input
+        type="checkbox"
         role="switch"
-        aria-checked={animationsEnabled}
-        onClick={toggleAnimations}
-        className={`theme-switch ${animationsEnabled ? "theme-switch-on" : "theme-switch-off"}`}
-        title={`Toggle animations`}
-      >
-        <span className="theme-switch-thumb" />
-      </button>
-    </div>
+        className="pref-switch"
+        checked={animationsEnabled}
+        onChange={toggleAnimations}
+        aria-labelledby={titleId}
+        aria-describedby={description ? descId : undefined}
+      />
+    </label>
   );
 }

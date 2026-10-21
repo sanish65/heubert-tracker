@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--sidebar-bg:transparent;--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.78);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:24px 24px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.82);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.34),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.26),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(45,212,239,.16),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.11),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.2),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.16),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(6,182,212,.14),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht .row-h:hover,.ht .nav-a:hover,.ht .btn-s:hover,.ht .btn-i:hover{background:var(--raised)}
+.ht .btn-p:hover{background:var(--primary-hover);color:#FFFFFF}
+.ht .btn-o:hover{background:var(--orange-hover);color:#0A0E17}
+.ht .card-h{transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease}
+.ht .card-h:hover{box-shadow:var(--glass-hi),var(--shadow-lift);border-color:var(--line-strong);transform:translateY(-2px)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.ht .card-h:hover{transform:none}}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch;">
+  <div class="aurora" aria-hidden="true"></div>
+  <div class="glass" style="flex: 1 0 240px; box-sizing: border-box; background: var(--surface); border-right: 1px solid var(--line);">
+    <dc-import name="Sidebar" active="settings" hint-size="240px,1000px"></dc-import>
+  </div>
+
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column;">
+    <header class="glass" style="min-height: 68px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 32px; border-bottom: 1px solid var(--line); background: var(--surface);">
+      <label style="flex: 1 1 240px; max-width: 440px; display: flex; align-items: center; gap: 8px; height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); color: var(--text-3);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM21 21l-4.3-4.3"></path></svg>
+        <input type="search" aria-label="Search" placeholder="Search people, fines, tasks…" style="flex-grow: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 14px; color: var(--text-1);">
+        <kbd style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px;">Ctrl K</kbd>
+      </label>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+        <a class="btn-o" href="Meeting.dc.html" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 9999px; background: var(--orange); color: #0A0E17; font-size: 14px; font-weight: 600; text-decoration: none; box-shadow: 0 6px 20px rgba(255,106,31,.3);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 13l5.22 3.48a.5.5 0 0 0 .78-.42V7.87a.5.5 0 0 0-.75-.43L16 10.5M4 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path></svg>
+          Start Meeting
+        </a>
+        <button class="btn-i" aria-label="Notifications" style="width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+        </button>
+        <button class="btn-i" aria-label="Switch theme" style="width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+        </button>
+        <button class="btn-s" aria-label="Account and preferences" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px 0 4px; border: 0; border-radius: 9999px; background: transparent; color: var(--text-1); cursor: pointer;">
+          <span style="width: 32px; height: 32px; border-radius: 9999px; background: var(--orange); color: #0A0E17; font-family: var(--f-display); font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;">S</span>
+          <span style="font-size: 14px; font-weight: 600;">Sanish</span>
+        </button>
+      </div>
+    </header>
+
+    <main style="box-sizing: border-box; width: 100%; padding: 32px; display: flex; flex-direction: column; gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">Admin only</span>
+        <h1 style="margin: 0; font-family: var(--f-display); font-size: 34px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; color: var(--text-1);">Settings</h1>
+        <p style="margin: 0; font-size: 15px; color: var(--text-3);">Roles, who appears on which list, leave types and your own preferences.</p>
+      </div>
+
+      <nav aria-label="Settings sections" class="glass" style="align-self: flex-start; display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);">
+        <a href="#roles" aria-current="true" style="height: 36px; padding: 0 14px; border-radius: 9px; background: var(--primary-soft); color: var(--text-1); font-size: 14px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center;">Roles</a>
+        <a class="nav-a" href="#lists" style="height: 36px; padding: 0 14px; border-radius: 9px; color: var(--text-2); font-size: 14px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center;">List visibility</a>
+        <a class="nav-a" href="#leave-types" style="height: 36px; padding: 0 14px; border-radius: 9px; color: var(--text-2); font-size: 14px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center;">Leave types</a>
+        <a class="nav-a" href="#prefs" style="height: 36px; padding: 0 14px; border-radius: 9px; color: var(--text-2); font-size: 14px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center;">Preferences</a>
+      </nav>
+
+      <section id="roles" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px;">
+        <sc-for list="{{roles}}" as="p" hint-placeholder-count="2">
+          <div class="glass" style="padding: 20px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; align-items: flex-start; gap: 12px;">
+              <span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--primary-soft); color: var(--primary-text); display: inline-flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{p.icon}}"></path></svg>
+              </span>
+              <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+                <h2 style="margin: 0; font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--text-1);">{{p.title}}</h2>
+                <p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-3);">{{p.desc}}</p>
+              </div>
+              <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3); white-space: nowrap;">{{p.count}}</span>
+            </div>
+            <div role="group" aria-label="{{p.title}}" style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <sc-for list="{{p.people}}" as="e" hint-placeholder-count="8">
+                <sc-if value="{{e.on}}" hint-placeholder-val="{{false}}">
+                  <button aria-pressed="true" style="height: 34px; padding: 0 12px 0 4px; border-radius: 9999px; border: 1px solid var(--primary); background: var(--primary-soft); color: var(--text-1); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <span style="width: 26px; height: 26px; border-radius: 9999px; background: var(--primary); color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+                    </span>
+                    {{e.name}}
+                  </button>
+                </sc-if>
+                <sc-if value="{{e.off}}" hint-placeholder-val="{{true}}">
+                  <button class="btn-s" aria-pressed="false" style="height: 34px; padding: 0 12px 0 4px; border-radius: 9999px; border: 1px solid var(--line); background: transparent; color: var(--text-2); font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <span style="width: 26px; height: 26px; border-radius: 9999px; background: {{e.av}}; color: #FFFFFF; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">{{e.initials}}</span>
+                    {{e.name}}
+                  </button>
+                </sc-if>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+
+      <section id="lists" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <h2 style="margin: 0; font-family: var(--f-display); font-size: 22px; font-weight: 700; color: var(--text-1);">List visibility</h2>
+          <p style="margin: 0; font-size: 14px; color: var(--text-3);">People picked here are skipped on that list — they won't show as missing or appear in its charts.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px;">
+          <sc-for list="{{lists}}" as="p" hint-placeholder-count="4">
+            <div class="glass" style="padding: 18px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+                  <h3 style="margin: 0; font-family: var(--f-display); font-size: 16px; font-weight: 700; color: var(--text-1);">{{p.title}}</h3>
+                  <p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-3);">{{p.desc}}</p>
+                </div>
+                <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3); white-space: nowrap;">{{p.count}}</span>
+              </div>
+              <div role="group" aria-label="{{p.title}}" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <sc-for list="{{p.people}}" as="e" hint-placeholder-count="8">
+                  <sc-if value="{{e.on}}" hint-placeholder-val="{{false}}">
+                    <button aria-pressed="true" style="height: 30px; padding: 0 10px; border-radius: 9999px; border: 1px solid var(--primary); background: var(--primary-soft); color: var(--text-1); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+                      {{e.first}}
+                    </button>
+                  </sc-if>
+                  <sc-if value="{{e.off}}" hint-placeholder-val="{{true}}">
+                    <button class="btn-s" aria-pressed="false" style="height: 30px; padding: 0 10px; border-radius: 9999px; border: 1px solid var(--line); background: transparent; color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer;">{{e.first}}</button>
+                  </sc-if>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section id="leave-types" class="glass" style="padding: 22px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px;">
+            <h2 style="margin: 0; font-family: var(--f-display); font-size: 22px; font-weight: 700; color: var(--text-1);">Leave type configuration</h2>
+            <p style="margin: 0; font-size: 14px; color: var(--text-3);">Annual quotas reset with each leave season.</p>
+          </div>
+          <button class="btn-p" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            Add Leave Type
+          </button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; min-width: 640px; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="text-align: left;">
+                <th style="padding: 0 12px 10px 0; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Leave type</th>
+                <th style="padding: 0 12px 10px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Category</th>
+                <th style="padding: 0 12px 10px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Annual days</th>
+                <th style="padding: 0 12px 10px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Status</th>
+                <th style="padding: 0 0 10px 12px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{leaveTypes}}" as="t" hint-placeholder-count="4">
+                <tr class="row-h" style="border-top: 1px solid var(--line);">
+                  <td style="padding: 14px 12px 14px 0; font-weight: 600; color: var(--text-1);">{{t.name}}</td>
+                  <td style="padding: 14px 12px; color: var(--text-2);">{{t.category}}</td>
+                  <td style="padding: 14px 12px; font-family: var(--f-mono); color: var(--text-1);">{{t.days}}</td>
+                  <td style="padding: 14px 12px;"><span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: {{t.bg}}; color: {{t.fg}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">{{t.status}}</span></td>
+                  <td style="padding: 14px 0 14px 12px; text-align: right;">
+                    <button class="btn-i" aria-label="Edit {{t.name}}" style="width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+                    </button>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="prefs" class="glass" style="padding: 22px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 16px;">
+        <h2 style="margin: 0; font-family: var(--f-display); font-size: 22px; font-weight: 700; color: var(--text-1);">Your preferences</h2>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line);">
+          <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 15px; font-weight: 600; color: var(--text-1);">Theme</span>
+            <span style="font-size: 13px; color: var(--text-3);">Dark is the default. System follows your computer.</span>
+          </div>
+          <div role="radiogroup" aria-label="Theme" style="display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised);">
+            <button role="radio" aria-checked="true" style="height: 34px; padding: 0 14px; border: 0; border-radius: 9px; background: var(--primary); color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer;">Dark</button>
+            <button class="btn-s" role="radio" aria-checked="false" style="height: 34px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer;">Light</button>
+            <button class="btn-s" role="radio" aria-checked="false" style="height: 34px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer;">System</button>
+          </div>
+        </div>
+        <label style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; cursor: pointer;">
+          <span style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 15px; font-weight: 600; color: var(--text-1);">Animations</span>
+            <span style="font-size: 13px; color: var(--text-3);">Festival scenes, the on-time champion and celebration effects. Off also respects reduced motion.</span>
+          </span>
+          <input type="checkbox" role="switch" checked style="width: 44px; height: 24px; accent-color: #3D63F0;">
+        </label>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const team = [
+      ['Sanish', 'SA', '#B4471A'], ['Aarav Shrestha', 'AS', '#3D63F0'], ['Sita Gurung', 'SG', '#7C5CE0'],
+      ['Bikash Thapa', 'BT', '#0B7F90'], ['Priya Maharjan', 'PM', '#B4471A'], ['Rohan KC', 'RK', '#3D63F0'],
+      ['Kriti Joshi', 'KJ', '#7C5CE0'], ['Nabin Tamang', 'NT', '#0B7F90'], ['Anisha Rai', 'AR', '#3D63F0']
+    ];
+    const people = (picked) => team.map(([name, initials, av]) => {
+      const on = picked.includes(initials);
+      return { name, first: name.split(' ')[0], initials, av, on, off: !on };
+    });
+    const panel = (title, desc, icon, picked) => ({ title, desc, icon, people: people(picked), count: picked.length + ' of ' + team.length });
+    return {
+      themeCls: light ? 'light' : '',
+      roles: [
+        panel('Admins', 'Full admin access — manage employees, seasons, attendance settings and every fine, leave and standup record. You can’t remove your own admin access here.', 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', ['SA', 'PM', 'NT']),
+        panel('Fine admins', 'Manage fine seasons and mark fines paid or unpaid, without full admin access.', 'M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4', ['SA'])
+      ],
+      lists: [
+        panel('Standup list', 'Skipped in the standup list — never shown as missing a submission.', '', ['NT']),
+        panel('Leaves', 'Hidden from the leaves list and leave summary.', '', []),
+        panel('Late fines', 'Hidden from late fine records, charts and the Record Fine picker.', '', ['SA']),
+        panel('Standup fines', 'Hidden from standup fine records and the Standup Fine picker.', '', ['SA', 'NT'])
+      ],
+      leaveTypes: [
+        { name: 'Casual leave', category: 'Paid', days: '12', status: 'Active', bg: 'var(--pb-green)', fg: 'var(--pf-green)' },
+        { name: 'Sick leave', category: 'Paid', days: '12', status: 'Active', bg: 'var(--pb-green)', fg: 'var(--pf-green)' },
+        { name: 'Home leave', category: 'Paid', days: '6', status: 'Active', bg: 'var(--pb-green)', fg: 'var(--pf-green)' },
+        { name: 'Unpaid leave', category: 'Unpaid fallback', days: '—', status: 'Fallback', bg: 'var(--pb-amber)', fg: 'var(--pf-amber)' },
+        { name: 'Personal leave', category: 'Paid', days: '3', status: 'Hidden', bg: 'var(--pb-gray)', fg: 'var(--pf-gray)' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

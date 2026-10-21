@@ -27,40 +27,58 @@ import { useApp } from "@/context/AppContext";
 // full offset — kept well under 1 so it reads as a hint of reactivity, not a full follow.
 const TRACK_REACH = 0.4;
 
+// The canvas aurora. `rgb` and `alpha` are kept apart so the light theme can scale
+// the alpha (LIGHT_ALPHA) without a second table.
 const BLOBS = [
   {
-    color: "rgba(129, 140, 248, 0.22)", // follows the cursor
+    rgb: "61, 99, 240", // blue — follows the cursor
+    alpha: 0.18,
     size: 620,
     tracks: true,
     spring: { stiffness: 90, damping: 26, mass: 0.7 },
   },
   {
-    color: "rgba(99, 102, 241, 0.24)", // indigo — left gutter
+    rgb: "61, 99, 240", // blue — top left
+    alpha: 0.34,
     size: 760,
-    x: "6%",
-    y: "20%",
+    x: "14%",
+    y: "6%",
     drift: 85,
     spring: { stiffness: 26, damping: 18, mass: 1.2 },
   },
   {
-    color: "rgba(139, 92, 246, 0.21)", // violet — right gutter
+    rgb: "124, 92, 224", // violet — top right
+    alpha: 0.26,
     size: 660,
-    x: "94%",
-    y: "44%",
+    x: "88%",
+    y: "14%",
     drift: 115,
     spring: { stiffness: 44, damping: 20, mass: 0.9 },
   },
   {
-    color: "rgba(129, 140, 248, 0.15)", // pale indigo — bottom left, trails
-    size: 560,
-    x: "10%",
+    rgb: "45, 212, 239", // cyan — bottom right, trails
+    alpha: 0.16,
+    size: 680,
+    x: "72%",
+    y: "96%",
+    drift: 60,
+    spring: { stiffness: 18, damping: 16, mass: 1.4 },
+  },
+  {
+    rgb: "255, 106, 31", // orange — bottom left, trails
+    alpha: 0.11,
+    size: 520,
+    x: "22%",
     y: "88%",
     drift: 60,
     spring: { stiffness: 18, damping: 16, mass: 1.4 },
   },
 ];
 
-function AuroraBlob({ color, size, x, y, drift = 0, spring, tracks, nx, ny, px, py, revealed }) {
+// The light theme's aurora is the dark one at 60% strength.
+const LIGHT_ALPHA = 0.6;
+
+function AuroraBlob({ rgb, alpha, size, x, y, drift = 0, spring, tracks, nx, ny, px, py, revealed }) {
   // Vertical drift is damped — full-strength Y movement makes the anchored blobs
   // feel like they're sliding rather than floating.
   const driftX = useTransform(nx, (v) => v * drift);
@@ -68,6 +86,7 @@ function AuroraBlob({ color, size, x, y, drift = 0, spring, tracks, nx, ny, px, 
 
   const offsetX = useSpring(tracks ? px : driftX, spring);
   const offsetY = useSpring(tracks ? py : driftY, spring);
+  const color = `rgba(${rgb}, ${alpha})`;
 
   return (
     <MotionDiv
@@ -89,7 +108,8 @@ function AuroraBlob({ color, size, x, y, drift = 0, spring, tracks, nx, ny, px, 
 }
 
 export default function AmbientAurora() {
-  const { animationsEnabled } = useApp();
+  const { animationsEnabled, theme } = useApp();
+  const alphaScale = theme === "light" ? LIGHT_ALPHA : 1;
 
   // Cursor offset from viewport centre, -0.5 … 0.5 on each axis.
   const nx = useMotionValue(0);
@@ -140,7 +160,7 @@ export default function AmbientAurora() {
   return (
     <div className="aurora-layer" aria-hidden="true">
       {BLOBS.map((blob, i) => (
-        <AuroraBlob key={i} {...blob} nx={nx} ny={ny} px={px} py={py} revealed={revealed} />
+        <AuroraBlob key={i} {...blob} alpha={blob.alpha * alphaScale} nx={nx} ny={ny} px={px} py={py} revealed={revealed} />
       ))}
     </div>
   );

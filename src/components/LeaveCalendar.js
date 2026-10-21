@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { describeLeave } from "@/lib/utils";
+import { avatarColor } from "@/lib/avatar";
+import Icon from "./Icon";
 import {
   adToBs,
   bsToAd,
@@ -19,19 +21,42 @@ const SHORT_MONTHS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-function pad(n) {
-  return String(n).padStart(2, "0");
-}
-
-// Dots are a type summary, capped so they stay on one row. The "N on leave" line
-// underneath is the authoritative count, so capping here never hides information.
-const MAX_DOTS = 6;
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
 
-export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays = [], outOfSeasonLeaves = [] }) {
+// Bar lanes under each week's day numbers (Leaves.dc.html). When a week needs more,
+// the last lane turns into a per-day "+N" count, so a busy week never hides anyone.
+const LANES = 3;
+
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
+
+// Lowest free lane for each bar, holidays first so they keep the top lane.
+function assignLanes(bars) {
+  const sorted = [...bars].sort(
+    (a, b) => (b.holiday ? 1 : 0) - (a.holiday ? 1 : 0) || a.start - b.start || b.span - a.span
+  );
+  const laneEnds = [];
+  for (const bar of sorted) {
+    let lane = laneEnds.findIndex((end) => end < bar.start);
+    if (lane === -1) lane = laneEnds.length;
+    laneEnds[lane] = bar.start + bar.span - 1;
+    bar.lane = lane;
+  }
+  return sorted;
+}
+
+export default function LeaveCalendar({
+  leaves,
+  selectedEmployee,
+  publicHolidays = [],
+  outOfSeasonLeaves = [],
+  employeeOptions = [],
+  onSelectEmployee,
+}) {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -43,10 +68,14 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
   });
 
   // Normalized once: `date` may come back as "YYYY-MM-DD" or a full timestamp
-  const holidaySet = useMemo(
-    () => new Set((publicHolidays || []).map((h) => h.date?.split("T")[0])),
-    [publicHolidays]
-  );
+  const holidayTitles = useMemo(() => {
+    const map = new Map();
+    (publicHolidays || []).forEach((h) => {
+      const day = h.date?.split("T")[0];
+      if (day && !map.has(day)) map.set(day, h.title);
+    });
+    return map;
+  }, [publicHolidays]);
 
   // Helper to generate dates between start and end (legacy fallback)
   const getDatesInRange = useCallback((start, end) => {
@@ -63,30 +92,36 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
 
       const isWeekend = dow === 0 || dow === 6;
 
-      if (!isWeekend && !holidaySet.has(dtStr)) {
+      if (!isWeekend && !holidayTitles.has(dtStr)) {
         dates.push(dtStr);
       }
       current.setDate(current.getDate() + 1);
     }
     return dates;
-  }, [holidaySet]);
+  }, [holidayTitles]);
 
-  // Build a map: date-string → [{ type, name }]
+  const visibleLeaves = useMemo(
+    () => (selectedEmployee ? leaves.filter((l) => l.employee_name === selectedEmployee) : leaves),
+    [leaves, selectedEmployee]
+  );
+
+  // Each leave with the working days it covers, resolved once.
+  const leaveDates = useMemo(
+    () => visibleLeaves.map((leave) => ({ leave, dates: leave.dates || getDatesInRange(leave.start_date, leave.end_date) })),
+    [visibleLeaves, getDatesInRange]
+  );
+
+  // date-string → [{ type, name, id, reason }]
   const leaveDateMap = useMemo(() => {
     const map = {};
-    const filtered = selectedEmployee
-      ? leaves.filter((l) => l.employee_name === selectedEmployee)
-      : leaves;
-
-    filtered.forEach((leave) => {
-      const dates = leave.dates || getDatesInRange(leave.start_date, leave.end_date);
+    leaveDates.forEach(({ leave, dates }) => {
       dates.forEach((d) => {
         if (!map[d]) map[d] = [];
         map[d].push({ type: leave.type, name: leave.employee_name, id: leave.id, reason: leave.reason });
       });
     });
     return map;
-  }, [leaves, selectedEmployee, getDatesInRange]);
+  }, [leaveDates]);
 
   // The month on screen, as a flat list of days plus the blanks padding the first week. A
   // BS month maps onto a contiguous run of Gregorian days, so both calendars reduce to the
@@ -120,6 +155,74 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
     return { days, lead };
   }, [calendar, viewYear, viewMonth, bsView]);
 
+  // date-string → { week, col } for the days on screen.
+  const slotOf = useMemo(() => {
+    const map = new Map();
+    grid.days.forEach((day, i) => {
+      const n = grid.lead + i;
+      map.set(day.dateStr, { week: Math.floor(n / 7), col: n % 7 });
+    });
+    return map;
+  }, [grid]);
+
+  // Weeks of seven slots, each with its bars: one per run of consecutive days a person
+  // (or a holiday) covers inside that week.
+  const weeks = useMemo(() => {
+    const count = Math.ceil((grid.lead + grid.days.length) / 7);
+    const out = Array.from({ length: count }, () => ({ days: Array(7).fill(null), bars: [] }));
+    grid.days.forEach((day) => {
+      const { week, col } = slotOf.get(day.dateStr);
+      out[week].days[col] = day;
+    });
+
+    const pushRuns = (slots, make) => {
+      const sorted = [...slots].sort((a, b) => a.week - b.week || a.col - b.col);
+      let run = null;
+      for (const s of sorted) {
+        if (run && run.week === s.week && run.start + run.span === s.col) {
+          run.span += 1;
+        } else {
+          if (run) out[run.week].bars.push(make(run));
+          run = { week: s.week, start: s.col, span: 1 };
+        }
+      }
+      if (run) out[run.week].bars.push(make(run));
+    };
+
+    leaveDates.forEach(({ leave, dates }) => {
+      const slots = dates.map((d) => slotOf.get(d)).filter(Boolean);
+      pushRuns(slots, (run) => ({ ...run, leave, key: `${leave.id}-${run.week}-${run.start}` }));
+    });
+
+    // Consecutive holiday days with the same title share one bar.
+    const byTitle = new Map();
+    grid.days.forEach((day) => {
+      const title = holidayTitles.get(day.dateStr);
+      if (title === undefined) return;
+      if (!byTitle.has(title)) byTitle.set(title, []);
+      byTitle.get(title).push(slotOf.get(day.dateStr));
+    });
+    byTitle.forEach((slots, title) =>
+      pushRuns(slots, (run) => ({ ...run, holiday: title, key: `h-${title}-${run.week}-${run.start}` }))
+    );
+
+    out.forEach((w) => {
+      const laid = assignLanes(w.bars);
+      const overflowing = laid.some((b) => b.lane >= LANES);
+      const shown = overflowing ? LANES - 1 : LANES;
+      w.bars = laid.filter((b) => b.lane < shown);
+      // Per day, everyone who did not get a lane of their own.
+      w.more = [];
+      if (overflowing) {
+        for (let col = 0; col < 7; col++) {
+          const hidden = laid.filter((b) => b.lane >= shown && b.start <= col && col < b.start + b.span);
+          if (hidden.length) w.more.push({ col, names: hidden.map((b) => b.holiday || b.leave.employee_name) });
+        }
+      }
+    });
+    return out;
+  }, [grid, slotOf, leaveDates, holidayTitles]);
+
   const monthDates = useMemo(() => new Set(grid.days.map((d) => d.dateStr)), [grid]);
 
   // The same span expressed in the calendar you're not currently viewing by.
@@ -141,29 +244,26 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
 
   // Monthly stats
   const { filteredLeavesCount, totalDays } = useMemo(() => {
-    const filtered = selectedEmployee
-      ? leaves.filter((l) => l.employee_name === selectedEmployee)
-      : leaves;
-    
     let count = 0;
     let days = 0;
 
-    filtered.forEach((l) => {
-      const dates = l.dates || getDatesInRange(l.start_date, l.end_date);
+    leaveDates.forEach(({ leave, dates }) => {
       const datesInThisMonth = dates.filter((d) => monthDates.has(d));
 
       if (datesInThisMonth.length > 0) {
         count++;
-        days += (l.type === "half" ? datesInThisMonth.length * 0.5 : datesInThisMonth.length);
+        days += (leave.type === "half" ? datesInThisMonth.length * 0.5 : datesInThisMonth.length);
       }
     });
 
     return { filteredLeavesCount: count, totalDays: days };
-  }, [leaves, selectedEmployee, monthDates, getDatesInRange]);
+  }, [leaveDates, monthDates]);
+
+  const onLeaveToday = (leaveDateMap[todayStr] || []).length;
 
   // Leaves that exist for this month but sit in a different season, so they are filtered
   // out of the grid above. Surfaced instead of silently dropped — a leave that shows up in
-  // "Upcoming Leaves" but nowhere on the calendar is otherwise impossible to explain.
+  // "Upcoming leaves" but nowhere on the calendar is otherwise impossible to explain.
   const hiddenThisMonth = useMemo(() => {
     const candidates = selectedEmployee
       ? (outOfSeasonLeaves || []).filter((l) => l.employee_name === selectedEmployee)
@@ -243,74 +343,125 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
     setCalendar(next);
   };
 
-  const cells = [];
-  // Empty cells before first day
-  for (let i = 0; i < grid.lead; i++) {
-    cells.push(<div key={`e-${i}`} className="cal-cell cal-empty" />);
-  }
-  // Day cells
-  for (const { dateStr, primary, secondary } of grid.days) {
+  const options = selectedEmployee && !employeeOptions.includes(selectedEmployee)
+    ? [selectedEmployee, ...employeeOptions]
+    : employeeOptions;
+
+  const renderDay = (day, col) => {
+    const { dateStr, primary, secondary } = day;
     const dayLeaves = leaveDateMap[dateStr] || [];
     const isToday = dateStr === todayStr;
-
-    const isHoliday = holidaySet.has(dateStr);
-    const holidayTitle = publicHolidays.find((h) => h.date?.split("T")[0] === dateStr)?.title;
+    const holidayTitle = holidayTitles.get(dateStr);
+    const isHoliday = holidayTitle !== undefined;
+    const isWeekend = col === 0 || col === 6;
 
     let cellClass = "cal-cell";
-    if (isToday) cellClass += " cal-today";
-    if (isHoliday) cellClass += " holiday-day-cell";
-    
-    if (dayLeaves.length > 0) {
-      const hasHalf = dayLeaves.some((l) => l.type === "half");
-      const hasEarly = dayLeaves.some((l) => l.type === "early");
-      const hasFull = dayLeaves.some((l) => l.type === "full");
-      if (hasFull) cellClass += " cal-full-leave";
-      else if (hasHalf) cellClass += " cal-half-leave";
-      else if (hasEarly) cellClass += " cal-early-leave";
-    }
+    if (isHoliday) cellClass += " is-holiday";
+    else if (isWeekend) cellClass += " is-weekend";
+    if (isToday) cellClass += " is-today";
 
-    // One tooltip for the whole cell, one line per person. No titles on the dots
-    // themselves — a child title would replace this one when hovering a dot.
+    // One tooltip for the whole cell, one line per person.
     const tooltipLines = [];
     if (isHoliday) tooltipLines.push(`Holiday: ${holidayTitle}`);
     dayLeaves.forEach((l) => tooltipLines.push(`${l.name} — ${describeLeave(l)}`));
     const tooltip = tooltipLines.join("\n");
 
-    cells.push(
-      <div key={dateStr} className={cellClass} {...(tooltip ? { title: tooltip } : {})}>
-        <span className="cal-day-num">
-          {primary}
-          {secondary !== "" && <span className="cal-day-alt">{secondary}</span>}
-        </span>
-        {dayLeaves.length > 0 && (
-          <>
-            <div className="cal-dots">
-              {dayLeaves.slice(0, MAX_DOTS).map((l, i) => (
-                <span key={i} className={`cal-dot cal-dot-${l.type}`} />
-              ))}
-            </div>
-            <span className="cal-count">
-              {dayLeaves.length}
-              <span className="cal-count-label"> on leave</span>
-            </span>
-          </>
+    return (
+      <div
+        key={dateStr}
+        className={cellClass}
+        style={{ gridColumn: col + 1 }}
+        {...(tooltip ? { title: tooltip } : {})}
+      >
+        {isToday ? (
+          <span className="cal-today-mark">
+            <span className="cal-today-num">{primary}</span>
+            <span className="cal-today-label mono">Today</span>
+          </span>
+        ) : (
+          <span className="cal-day-num">{primary}</span>
         )}
+        {secondary !== "" && <span className="cal-day-alt mono">{secondary}</span>}
       </div>
     );
-  }
+  };
+
+  const renderBar = (bar) => {
+    const style = { gridColumn: `${bar.start + 1} / span ${bar.span}`, gridRow: bar.lane + 2 };
+    if (bar.holiday) {
+      return (
+        <div key={bar.key} className="cal-bar cal-bar-holiday" style={style} title={`Public holiday: ${bar.holiday}`}>
+          <span className="cal-bar-label">{bar.holiday}</span>
+          <span className="cal-bar-tag mono">Holiday</span>
+        </div>
+      );
+    }
+    const { leave } = bar;
+    const name = leave.employee_name;
+    const tag = leave.type === "half" ? "½" : leave.type === "early" ? "Early" : "";
+    return (
+      <div
+        key={bar.key}
+        className={`cal-bar cal-bar-${leave.type}`}
+        style={{ ...style, "--bar": avatarColor(name) }}
+        title={`${name} — ${describeLeave(leave)}`}
+      >
+        <span className="cal-bar-label">{bar.span > 1 ? name : name.split(" ")[0]}</span>
+        {tag && <span className="cal-bar-tag mono">{tag}</span>}
+      </div>
+    );
+  };
 
   return (
-    <div className="calendar-container">
+    <section className="leave-cal-card glass-card" aria-labelledby="leave-cal-title">
       <div className="cal-header">
-        <button className="btn btn-ghost btn-sm" onClick={prevMonth}>‹</button>
-        <h3 className="cal-title">
-          {calendar === "BS"
-            ? `${BS_MONTH_NAMES[bsView.month - 1]} ${bsView.year}`
-            : `${MONTHS[viewMonth]} ${viewYear}`}
-          <span className="cal-title-alt">{titleAlt}</span>
-        </h3>
-        <button className="btn btn-ghost btn-sm" onClick={goToday}>Today</button>
-        <button className="btn btn-ghost btn-sm" onClick={nextMonth}>›</button>
+        <div className="cal-nav">
+          <button type="button" className="btn-icon cal-nav-btn" onClick={prevMonth} aria-label="Previous month">
+            <Icon name="chevron-left" size={16} strokeWidth={2} />
+          </button>
+          <button type="button" className="btn-icon cal-nav-btn" onClick={nextMonth} aria-label="Next month">
+            <Icon name="chevron-right" size={16} strokeWidth={2} />
+          </button>
+        </div>
+        <div className="cal-heading">
+          <h2 id="leave-cal-title" className="cal-title">
+            {calendar === "BS"
+              ? `${BS_MONTH_NAMES[bsView.month - 1]} ${bsView.year}`
+              : `${MONTHS[viewMonth]} ${viewYear}`}
+          </h2>
+          <span className="cal-title-alt mono">{titleAlt}</span>
+        </div>
+        <button type="button" className="btn btn-secondary btn-sm cal-today-btn" onClick={goToday}>Today</button>
+        <div className="status-tabs" role="group" aria-label="Calendar system">
+          <button
+            type="button"
+            className={`tab ${calendar === "AD" ? "tab-active" : ""}`}
+            aria-pressed={calendar === "AD"}
+            onClick={() => handleCalendarChange("AD")}
+          >
+            English
+          </button>
+          <button
+            type="button"
+            lang="ne"
+            className={`tab ${calendar === "BS" ? "tab-active" : ""}`}
+            aria-pressed={calendar === "BS"}
+            onClick={() => handleCalendarChange("BS")}
+          >
+            नेपाली
+          </button>
+        </div>
+        {onSelectEmployee && (
+          <label className="cal-filter">
+            Show
+            <select value={selectedEmployee || ""} onChange={(e) => onSelectEmployee(e.target.value)}>
+              <option value="">All employees</option>
+              {options.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       <div className="cal-stats-bar">
@@ -318,52 +469,55 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
           <span className="cal-stat-num">{filteredLeavesCount}</span> leave records
         </span>
         <span className="cal-stat">
-          <span className="cal-stat-num">{totalDays}</span> total days
+          <span className="cal-stat-num">{totalDays}</span> working days off
+        </span>
+        <span className="cal-stat">
+          <span className="cal-stat-num">{onLeaveToday}</span> on leave today
         </span>
         {hiddenThisMonth > 0 && (
-          <span className="cal-stat cal-stat-warn" title="These leaves belong to a different leave season — switch season above to see them.">
-            ⚠️ <span className="cal-stat-num">{hiddenThisMonth}</span> in another season
+          <span
+            className="pill pill-amber cal-stat-warn"
+            title="These leaves belong to a different leave season. Switch season above to see them."
+          >
+            <Icon name="alert" size={12} strokeWidth={2.2} />
+            {hiddenThisMonth} in another season
           </span>
         )}
-        <div className="cal-calendar-toggle">
-          <button
-            type="button"
-            className={`toggle-pill ${calendar === "AD" ? "active" : ""}`}
-            onClick={() => handleCalendarChange("AD")}
-          >
-            English
-          </button>
-          <button
-            type="button"
-            className={`toggle-pill ${calendar === "BS" ? "active" : ""}`}
-            onClick={() => handleCalendarChange("BS")}
-          >
-            नेपाली
-          </button>
+      </div>
+
+      <div className="cal-scroll">
+        <div className="cal-month">
+          <div className="cal-week cal-week-head" aria-hidden="true">
+            {DAYS.map((d, i) => (
+              <span key={d} className={`cal-head${i === 0 || i === 6 ? " is-weekend" : ""}`}>{d}</span>
+            ))}
+          </div>
+          {weeks.map((week, w) => (
+            <div key={w} className="cal-week">
+              {week.days.map((day, col) => (day ? renderDay(day, col) : null))}
+              {week.bars.map(renderBar)}
+              {week.more.map(({ col, names }) => (
+                <div
+                  key={`more-${col}`}
+                  className="cal-bar cal-bar-more"
+                  style={{ gridColumn: col + 1, gridRow: LANES + 1 }}
+                  title={names.join("\n")}
+                >
+                  <span className="cal-bar-label">+{names.length} more</span>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="cal-grid">
-        {DAYS.map((d) => (
-          <div key={d} className="cal-head">{d}</div>
-        ))}
-        {cells}
-      </div>
-
       <div className="cal-legend">
-        <span className="cal-legend-item">
-          <span className="cal-legend-dot cal-dot-full" /> Full Day
-        </span>
-        <span className="cal-legend-item">
-          <span className="cal-legend-dot cal-dot-half" /> Half Day
-        </span>
-        <span className="cal-legend-item">
-          <span className="cal-legend-dot cal-dot-early" /> Early Leave
-        </span>
-        <span className="cal-legend-item">
-          <span className="cal-legend-dot" style={{ background: 'rgba(255, 122, 0, 0.2)', border: '1px solid var(--accent-orange)' }} /> Public Holiday
-        </span>
+        <span className="cal-legend-item"><span className="cal-swatch cal-swatch-full" aria-hidden="true" />Full day</span>
+        <span className="cal-legend-item"><span className="cal-swatch cal-swatch-half" aria-hidden="true" />Half day (½)</span>
+        <span className="cal-legend-item"><span className="cal-swatch cal-swatch-early" aria-hidden="true" />Early leave</span>
+        <span className="cal-legend-item"><span className="cal-swatch cal-swatch-holiday" aria-hidden="true" />Public holiday</span>
+        <span className="cal-legend-note">Bar colour = person · weekends and holidays are never counted</span>
       </div>
-    </div>
+    </section>
   );
 }

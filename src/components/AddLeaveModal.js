@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { buildWorkingDates, computeLeaveBalances } from "@/lib/utils";
+import Icon from "@/components/Icon";
 
 // Returns YYYY-MM-DD string from a local Date object
 function toDateStr(d) {
@@ -158,15 +159,16 @@ export default function AddLeaveModal({ isOpen, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Record Leave</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="calendar" size={20} /></span>
+          <h2>Record leave</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-sections-container">
 
             {/* 1. Employee & Type */}
             <div className="form-section">
-              <div className="form-section-title">🏖️ Leave Baseline</div>
+              <div className="form-section-title">Leave baseline</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="leave-employee">Target Employee</label>
@@ -193,9 +195,9 @@ export default function AddLeaveModal({ isOpen, onClose }) {
                   <label>Leave Type</label>
                   <div className="leave-type-options">
                     {[
-                      { value: "full", label: "Full Day", icon: "📅" },
-                      { value: "half", label: "Half Day", icon: "🌗" },
-                      { value: "early", label: "Early Leave", icon: "🚪" },
+                      { value: "full", label: "Full Day" },
+                      { value: "half", label: "Half Day" },
+                      { value: "early", label: "Early Leave" },
                     ].map((opt) => (
                       <label
                         key={opt.value}
@@ -208,7 +210,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
                           checked={form.type === opt.value}
                           onChange={handleChange("type")}
                         />
-                        <span>{opt.icon} {opt.label}</span>
+                        <span>{opt.label}</span>
                       </label>
                     ))}
                   </div>
@@ -219,8 +221,8 @@ export default function AddLeaveModal({ isOpen, onClose }) {
                     <label>Half Day Segment</label>
                     <div className="leave-type-options">
                       {[
-                        { value: "first", label: "First Half", icon: "🌅" },
-                        { value: "second", label: "Second Half", icon: "🌇" },
+                        { value: "first", label: "First Half" },
+                        { value: "second", label: "Second Half" },
                       ].map((opt) => (
                         <label
                           key={opt.value}
@@ -233,7 +235,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
                             checked={form.segment === opt.value}
                             onChange={handleChange("segment")}
                           />
-                          <span>{opt.icon} {opt.label}</span>
+                          <span>{opt.label}</span>
                         </label>
                       ))}
                     </div>
@@ -271,7 +273,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
 
             {/* 2. Dates */}
             <div className="form-section">
-              <div className="form-section-title">📅 Timeline</div>
+              <div className="form-section-title">Timeline</div>
               <div className="form-grid-horizontal">
                 <div className="form-group-interactive">
                   <label htmlFor="leave-start">Leave Date</label>
@@ -330,7 +332,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
 
             {/* 3. Details */}
             <div className="form-section">
-              <div className="form-section-title">💬 Additional Information</div>
+              <div className="form-section-title">Additional information</div>
               <div className="form-group-interactive">
                 <label htmlFor="leave-reason">Reason for Leave</label>
                 <input
@@ -344,10 +346,10 @@ export default function AddLeaveModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary">Record Leave</button>
           </div>
         </form>

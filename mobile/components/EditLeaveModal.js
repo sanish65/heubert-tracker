@@ -1,24 +1,15 @@
 import { useState, useEffect } from "react";
-import { Text, View, Switch } from "react-native";
 import { useApp } from "../context/AppContext";
 import { buildWorkingDates, computeLeaveBalances } from "../lib/utils";
-import { FormModal, TextField, Select, Button } from "./ui";
-import DateField from "./DateField";
-import { useThemeColors } from "../lib/theme";
+import { FormModal, TextField, Select } from "./ui";
+import { EmployeePicker, ChoiceGroup, SheetSwitch, SheetNote, SheetActions } from "./SheetParts";
+import { HalfDaySegment, LeaveDates, SeasonLine } from "./AddLeaveModal";
+import { LEAVE_TYPE_OPTIONS } from "../lib/options";
 
-const TYPE_OPTIONS = [
-  { value: "full", label: "📅 Full Day" },
-  { value: "half", label: "🌗 Half Day" },
-  { value: "early", label: "🚪 Early Leave" },
-];
-const SEGMENT_OPTIONS = [
-  { value: "first", label: "🌅 First Half" },
-  { value: "second", label: "🌇 Second Half" },
-];
-
+// A leave's edit sheet, in the record sheet's look (MobileRecordLeave.dc.html): the person and the
+// season are fixed; the category, the kind of day, the dates and the reason change.
 export default function EditLeaveModal({ isOpen, onClose, leave }) {
-  const { updateLeave, publicHolidays, leaves, leaveTypes, isAdmin } = useApp();
-  const t = useThemeColors();
+  const { updateLeave, publicHolidays, leaves, leaveTypes, leaveSeasons, isAdmin } = useApp();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [multiDay, setMultiDay] = useState(false);
@@ -28,6 +19,8 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
   const [leaveTypeId, setLeaveTypeId] = useState("");
   const [overrideBalance, setOverrideBalance] = useState(false);
   const [error, setError] = useState("");
+  // Not enough balance: the canvas's amber warning rather than the red error.
+  const [warning, setWarning] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
@@ -59,16 +52,21 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
       setLeaveTypeId(leave.leave_type_id ? String(leave.leave_type_id) : "");
       setOverrideBalance(false);
       setError("");
+      setWarning("");
     }
   }, [leave, isOpen]);
 
   if (!leave) return null;
 
+  // The season the leave counts in; leaves from before seasons are the Pre Fiscal Year ones.
+  const seasonTitle = leave.season_id ? leaveSeasons.find((s) => s.id === leave.season_id)?.title : "Pre Fiscal Year Leaves";
   const effectiveEnd = multiDay ? endDate : startDate;
   const previewDates = startDate ? buildWorkingDates(startDate, effectiveEnd >= startDate ? effectiveEnd : startDate, holidaySet) : [];
   const workingDayCount = type === "half" ? previewDates.length * 0.5 : previewDates.length;
 
   const handleSubmit = async () => {
+    setError("");
+    setWarning("");
     if (!startDate) return setError("Please select a start date");
     if (multiDay && endDate && endDate < startDate) return setError("End date cannot be before start date");
 
@@ -79,7 +77,7 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
     const requestedDays = type === "half" ? dates.length * 0.5 : dates.length;
     const selectedBalance = balances.find((b) => String(b.id) === String(leaveTypeId));
     if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
-      return setError(
+      return setWarning(
         `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`
       );
     }
@@ -109,10 +107,9 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="🏖️ Edit Leave Record">
-      <TextField label="Employee" value={leave.employee_name} editable={false} />
-      <Select label="Leave Type" value={type} onSelect={setType} options={TYPE_OPTIONS} />
-      {type === "half" && <Select label="Half Day Segment" value={segment} onSelect={setSegment} options={SEGMENT_OPTIONS} />}
+    <FormModal visible={isOpen} onClose={onClose} title="Edit Leave Record">
+      {seasonTitle ? <SeasonLine title={seasonTitle} /> : null}
+      <EmployeePicker value={leave.employee_name} />
       {selectableBalances.length > 0 && (
         <>
           <Select
@@ -127,37 +124,29 @@ export default function EditLeaveModal({ isOpen, onClose, leave }) {
               })),
             ]}
           />
-          {isAdmin && (
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <Text style={{ color: t.textPrimary, fontSize: 14 }}>Override balance limit</Text>
-              <Switch value={overrideBalance} onValueChange={setOverrideBalance} trackColor={{ true: t.accentIndigo }} />
-            </View>
-          )}
+          {isAdmin && <SheetSwitch label="Override balance limit" value={overrideBalance} onValueChange={setOverrideBalance} last />}
         </>
       )}
-      <DateField label="Leave Date" value={startDate} onChange={setStartDate} />
-      <Select
-        label="Multiple Days?"
-        value={multiDay ? "yes" : "no"}
-        onSelect={(v) => {
+      <ChoiceGroup label="Leave Type" solid value={type} options={LEAVE_TYPE_OPTIONS} onChange={setType} />
+      {type === "half" && <HalfDaySegment value={segment} onChange={setSegment} />}
+      <LeaveDates
+        multiDay={multiDay}
+        onMultiDayChange={(v) => {
           const isMulti = v === "yes";
           setMultiDay(isMulti);
           if (!isMulti) setEndDate(startDate);
         }}
-        options={[
-          { value: "no", label: "Single day" },
-          { value: "yes", label: "Multiple days" },
-        ]}
+        startDate={startDate}
+        onStartChange={setStartDate}
+        endDate={endDate}
+        onEndChange={setEndDate}
+        workingDayCount={workingDayCount}
+        showCount={previewDates.length > 0}
       />
-      {multiDay && <DateField label="End Date" value={endDate} onChange={setEndDate} minimumDate={startDate} />}
-      {previewDates.length > 0 && (
-        <Text style={{ color: t.textSecondary, fontSize: 13, marginBottom: 14 }}>
-          {workingDayCount} {workingDayCount === 1 ? "working day" : "working days"} · weekends & holidays skipped
-        </Text>
-      )}
       <TextField label="Reason" value={reason} onChangeText={setReason} />
-      {error ? <Text style={{ color: t.accentRed, fontSize: 13, marginBottom: 12 }}>{error}</Text> : null}
-      <Button title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} />
+      {warning ? <SheetNote tone="warning">{warning}</SheetNote> : null}
+      {error ? <SheetNote>{error}</SheetNote> : null}
+      <SheetActions title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} onCancel={onClose} />
     </FormModal>
   );
 }

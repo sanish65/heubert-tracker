@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
-import { Text } from "react-native";
 import { useApp } from "../context/AppContext";
 import { fineToday, parseLocalDate } from "../lib/utils";
-import { FormModal, Select, Button } from "./ui";
+import { FormModal } from "./ui";
 import DateField from "./DateField";
-import { useThemeColors } from "../lib/theme";
+import { EmployeePicker, ChoiceGroup, SheetNote, SheetActions } from "./SheetParts";
+import { STANDUP_FINE_STATUSES } from "../lib/options";
 
+// A missed standup, in the record sheet's look (MobileRecordFine.dc.html). A second record for the
+// same person and day warns first (amber, as MobileRecordLeave's warning) and needs Add Anyway.
 export default function AddStandupFineModal({ isOpen, onClose }) {
   const { addStandupFine, employees, currentEmployee, standupFines } = useApp();
   const selectableEmployees = employees.filter(e => e.status !== "resigned" && e.name !== "Developers");
-  const t = useThemeColors();
   const today = fineToday();
 
   const [name, setName] = useState("");
@@ -54,23 +55,27 @@ export default function AddStandupFineModal({ isOpen, onClose }) {
 
   return (
     <FormModal visible={isOpen} onClose={onClose} title="Missing Standup Report">
-      <Select label="Employee" value={name} onSelect={(v) => { setName(v); setError(""); setDuplicateWarning(false); }} options={selectableEmployees.map((e) => ({ value: e.name, label: e.name }))} />
+      <EmployeePicker
+        value={name}
+        names={selectableEmployees.map((e) => e.name)}
+        onChange={(v) => { setName(v); setError(""); setDuplicateWarning(false); }}
+      />
       <DateField label="Date of Incident" value={date} maximumDate={parseLocalDate(today)} onChange={(v) => { setDate(v); setError(""); setDuplicateWarning(false); }} />
-      <Select label="Payment Status" value={status} onSelect={setStatus} options={[{ value: "unpaid", label: "Pending" }, { value: "paid", label: "Complete" }]} />
+      <ChoiceGroup label="Payment Status" value={status} options={STANDUP_FINE_STATUSES} onChange={setStatus} />
 
-      {error ? <Text style={{ color: t.accentRed, fontSize: 13, marginBottom: 12 }}>{error}</Text> : null}
+      {error ? <SheetNote>{error}</SheetNote> : null}
       {isFutureDate ? (
-        <Text style={{ color: t.accentRed, fontSize: 13, marginBottom: 12 }}>
-          🚫 {date} hasn't happened yet. A standup fine can only be dated today ({today}) or earlier.
-        </Text>
+        <SheetNote>{`${date} hasn't happened yet. A standup fine can only be dated today (${today}) or earlier.`}</SheetNote>
       ) : null}
-      {duplicateWarning ? (
-        <Text style={{ color: t.accentAmber, fontSize: 13, marginBottom: 12 }}>
-          ⚠️ A standup fine for {name} on {date} already exists.
-        </Text>
-      ) : null}
+      {duplicateWarning ? <SheetNote tone="warning">{`A standup fine for ${name} on ${date} already exists.`}</SheetNote> : null}
 
-      <Button title={duplicateWarning ? "Add Anyway" : "Record Fine"} variant={duplicateWarning ? "warning" : "primary"} onPress={handleSubmit} disabled={isFutureDate} />
+      <SheetActions
+        title={duplicateWarning ? "Add Anyway" : "Record Fine"}
+        variant={duplicateWarning ? "secondary" : "primary"}
+        onPress={handleSubmit}
+        disabled={isFutureDate}
+        onCancel={onClose}
+      />
     </FormModal>
   );
 }

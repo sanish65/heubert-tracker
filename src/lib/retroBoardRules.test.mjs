@@ -5,6 +5,12 @@ import {
   isFacilitator,
   canChangeActionItem,
   canChangeKudos,
+  VOTE_EMOJI,
+  reactionCounts,
+  voteCount,
+  totalReactions,
+  byVotes,
+  topVoted,
 } from './retroBoardRules.js';
 
 const b1 = { id: 'b1', title: 'Sprint 1', project_id: 7, created_at: '2026-09-01T09:00:00Z' };
@@ -118,4 +124,44 @@ test('nothing about kudos changes once the board has ended (AC 25)', () => {
   for (const op of ['add', 'edit', 'delete', 'react']) {
     assert.equal(canChangeKudos({ op, isEnded: true, kudos, actorName: 'Asha', isFacilitator: true }), false, op);
   }
+});
+
+// ── votes ──
+// Card 1: two votes and a 🎉. Card 2: four reactions, none of them a vote. Card 3: three votes.
+const reactions = [
+  { card_id: 1, emoji: '👍' }, { card_id: 1, emoji: '👍' }, { card_id: 1, emoji: '🎉' },
+  { card_id: '2', emoji: '🎉' }, { card_id: 2, emoji: '❤️' }, { card_id: 2, emoji: '😂' }, { card_id: 2, emoji: '💡' },
+  { card_id: 3, emoji: '👍' }, { card_id: 3, emoji: '👍' }, { card_id: 3, emoji: '👍' },
+];
+
+test('a vote is a 👍 reaction', () => {
+  assert.equal(VOTE_EMOJI, '👍');
+});
+
+test("a card's votes are its 👍 reactions; other emoji do not count", () => {
+  assert.equal(voteCount(reactions, 1), 2);
+  assert.equal(voteCount(reactions, 2), 0);
+  assert.equal(voteCount(reactions, '3'), 3);
+  assert.equal(voteCount(reactions, 4), 0);
+});
+
+test('theme totals still count every reaction, any emoji', () => {
+  assert.equal(totalReactions(reactions, 1), 3);
+  assert.equal(totalReactions(reactions, 2), 4);
+  assert.equal(totalReactions(reactions, 4), 0);
+});
+
+test("reactionCounts groups one card's reactions by emoji", () => {
+  assert.deepEqual(reactionCounts(reactions, 1), { '👍': 2, '🎉': 1 });
+  assert.deepEqual(reactionCounts(reactions, 4), {});
+});
+
+test('Top Voted ranks by votes and leaves out a card with reactions but no votes', () => {
+  const cards = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+  assert.deepEqual(topVoted(cards, reactions).map((c) => c.id), [3, 1]);
+});
+
+test('equal votes keep a stable order by id', () => {
+  const tied = [{ card_id: 'b', emoji: '👍' }, { card_id: 'a', emoji: '👍' }, { card_id: 'c', emoji: '🎉' }];
+  assert.deepEqual([{ id: 'c' }, { id: 'b' }, { id: 'a' }].sort(byVotes(tied)).map((c) => c.id), ['a', 'b', 'c']);
 });

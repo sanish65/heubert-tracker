@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { Alert } from "react-native";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Button } from "./ui";
+import { FormModal, TextField } from "./ui";
+import { SheetActions } from "./SheetParts";
 
+// Rename or delete a leave season, in the record sheet's look (MobileRecordLeave.dc.html): Save on
+// the right, Delete Season beside it.
 export default function EditLeaveSeasonModal({ isOpen, onClose, season }) {
   const { updateLeaveSeason, deleteLeaveSeason } = useApp();
   const [title, setTitle] = useState("");
@@ -49,10 +52,15 @@ export default function EditLeaveSeasonModal({ isOpen, onClose, season }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="✏️ Edit Leave Season">
+    <FormModal visible={isOpen} onClose={onClose} title="Edit Leave Season">
       <TextField label="Season Title" value={title} onChangeText={setTitle} />
-      <Button title={submitting ? "Saving..." : "Save Changes"} onPress={handleSubmit} disabled={submitting} />
-      <Button title="Delete Season" variant="danger" onPress={handleDelete} disabled={submitting} />
+      <SheetActions
+        title={submitting ? "Saving..." : "Save Changes"}
+        onPress={handleSubmit}
+        disabled={submitting}
+        onCancel={onClose}
+        secondary={{ title: "Delete Season", variant: "danger", onPress: handleDelete, disabled: submitting }}
+      />
     </FormModal>
   );
 }

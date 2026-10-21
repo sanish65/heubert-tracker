@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Button } from "./ui";
+import { FormModal, TextField } from "./ui";
+import { SheetActions } from "./SheetParts";
 
+// A new fine season, in the record sheet's look (MobileRecordFine.dc.html).
 export default function AddFineSeasonModal({ isOpen, onClose }) {
   const { addFineSeason } = useApp();
   const [title, setTitle] = useState("");
@@ -20,9 +22,9 @@ export default function AddFineSeasonModal({ isOpen, onClose }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="💰 New Fine Season">
+    <FormModal visible={isOpen} onClose={onClose} title="New Fine Season">
       <TextField label="Season Title" value={title} onChangeText={setTitle} placeholder="e.g. Late Fines - Season 1" />
-      <Button title={submitting ? "Creating..." : "Create Season"} onPress={handleSubmit} disabled={submitting} />
+      <SheetActions title={submitting ? "Creating..." : "Create Season"} onPress={handleSubmit} disabled={submitting} onCancel={onClose} />
     </FormModal>
   );
 }

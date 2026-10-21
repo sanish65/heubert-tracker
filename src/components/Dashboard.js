@@ -6,6 +6,8 @@ import NewFiscalYearBanner from "@/components/NewFiscalYearBanner";
 import DashainBanner from "@/components/DashainBanner";
 import { useDialog } from "@/context/DialogContext";
 import { groupPublicHolidays } from "@/lib/utils";
+import Avatar from "@/components/Avatar";
+import Icon from "@/components/Icon";
 
 // Parsed as local time — a bare "YYYY-MM-DD" goes through Date() as UTC and can render as
 // the day before in timezones behind it.
@@ -13,8 +15,17 @@ function formatHolidayDay(day) {
   return new Date(day + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
+// Month and day for the holiday date block, parsed as local time like formatHolidayDay.
+function holidayDateBlock(day) {
+  const d = new Date(day + "T00:00:00");
+  return {
+    month: d.toLocaleDateString("en-US", { month: "short" }).toUpperCase(),
+    day: String(d.getDate()).padStart(2, "0"),
+  };
+}
+
 export default function Dashboard() {
-  const { fines, fineSeasons, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents, animationsEnabled } = useApp();
+  const { fines, fineSeasons, standupFines, employees, leaves, withdrawals, publicHolidays, companyEvents } = useApp();
   const { alertDialog } = useDialog();
   const [sendingWish, setSendingWish] = useState(null); // empId
   const [selectedFineSeasonId, setSelectedFineSeasonId] = useState(null); // null = follow latest season
@@ -116,12 +127,12 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        await alertDialog(`✨ ${celebration.type === 'birthday' ? 'Birthday' : 'Anniversary'} wish sent to ${celebration.empName}!`, { tone: 'success' });
+        await alertDialog(`${celebration.type === 'birthday' ? 'Birthday' : 'Anniversary'} wish sent to ${celebration.empName}!`, { tone: 'success' });
       } else {
-        await alertDialog(`❌ Error: ${data.error || 'Failed to send wish'}`, { tone: 'error' });
+        await alertDialog(`Error: ${data.error || 'Failed to send wish'}`, { tone: 'error' });
       }
     } catch (err) {
-      await alertDialog("💥 System error while sending email.", { tone: 'error' });
+      await alertDialog("System error while sending email.", { tone: 'error' });
     } finally {
       setSendingWish(null);
     }
@@ -160,228 +171,228 @@ export default function Dashboard() {
 
   const leastFined = empData.length > 0 ? empData[empData.length - 1] : null;
 
-  const LeastFinedHonoree = () => {
-    return (
-      <div 
-        className="least-fined-container" 
-        title="I'm the least fined team member! ✨"
-      >
-        <div className="walking-honoree">
-          <div className="honoree-placard">always on time, low on fine</div>
-          <svg width="24" height="40" viewBox="0 0 24 40">
-            <rect x="10" y="14" width="4" height="15" fill="#4B5563" rx="2" />
-            <circle cx="12" cy="8" r="5" fill="#FCD34D" />
-            <line x1="11" y1="29" x2="9" y2="38" stroke="#4B5563" strokeWidth="2.5" strokeLinecap="round" />
-            <line x1="13" y1="29" x2="15" y2="38" stroke="#4B5563" strokeWidth="2.5" strokeLinecap="round" />
-            <line x1="10" y1="16" x2="6" y2="24" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" />
-            <line x1="14" y1="16" x2="18" y2="24" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </div>
-      </div>
-    );
-  };
-
   const maxTotal = Math.max(...empData.map((e) => e.paid + e.unpaid), 1);
+
 
   return (
     <section className="dashboard">
-      <div style={{ marginBottom: "20px" }}>
-        <EventBanner />
-      </div>
-      <div style={{ marginBottom: "20px" }}>
-        <NewFiscalYearBanner />
-      </div>
-      <div style={{ marginBottom: "20px" }}>
-        <DashainBanner />
+      <EventBanner />
+      <NewFiscalYearBanner />
+      <DashainBanner />
+
+      <div className="stats-grid" aria-label="Key figures">
+        <StatsCard
+          label="Late fines"
+          value={`Rs. ${totalAmount.toLocaleString()}`}
+          sub={`${fines.length} records`}
+          color="#3D63F0"
+        />
+        <StatsCard
+          label="Unpaid"
+          value={`Rs. ${unpaidAmount.toLocaleString()}`}
+          sub={`${fines.filter(f => f.status === 'unpaid').length} late entries`}
+          color="#F5A524"
+        />
+        <StatsCard
+          label="Collected"
+          value={`Rs. ${paidAmount.toLocaleString()}`}
+          sub={`Rs. ${totalWithdrawn.toLocaleString()} withdrawn · Rs. ${remaining >= 0 ? remaining.toLocaleString() : 0} remaining`}
+          color="#22C55E"
+        />
+        <StatsCard
+          label="Standups"
+          value={standupFines.length}
+          sub={`${standupUnpaid.length} pending`}
+          color="#F43F5E"
+        />
+        <StatsCard
+          label="Team"
+          value={employees.length}
+          sub="active"
+          color="#2DD4EF"
+        />
       </div>
 
-      <div className="dashboard-extras-grid">
-        <div className="chart-container">
-          <h3 className="section-title">🕒 Pending Standups</h3>
-          <div className="compact-list">
+      <div className="dash-row">
+        <section className="dash-chart glass-card">
+          <div className="dash-chart-head">
+            <div className="dash-chart-heading">
+              <h2 className="section-title">Fines by employee</h2>
+              <span className="dash-subtitle">Paid and unpaid late fines this season</span>
+            </div>
+            {(sortedFineSeasons.length > 0 || hasUnassignedFines) && (
+              <label className="dash-season">
+                Season
+                <select
+                  className="dash-season-select"
+                  value={String(effectiveFineSeasonId)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedFineSeasonId(val === "unassigned" ? "unassigned" : Number(val));
+                  }}
+                >
+                  {sortedFineSeasons.map((s) => (
+                    <option key={s.id} value={s.id}>{s.title}</option>
+                  ))}
+                  {hasUnassignedFines && <option value="unassigned">Pre Fiscal Year Fines</option>}
+                </select>
+              </label>
+            )}
+          </div>
+          {empData.length === 0 ? (
+            <p className="empty-msg">No fines recorded in {activeFineSeason ? activeFineSeason.title : "this season"} yet.</p>
+          ) : (
+            <div className="dash-bars">
+              {empData.map((emp) => (
+                <div key={emp.name} className="dash-bar-row">
+                  <span className="dash-bar-name">{emp.name.split(' ')[0]}</span>
+                  <div className="bar-track">
+                    <div className="bar-fill bar-paid" style={{ width: `${(emp.paid / maxTotal) * 100}%` }} />
+                    <div className="bar-fill bar-unpaid" style={{ width: `${(emp.unpaid / maxTotal) * 100}%` }} />
+                  </div>
+                  <span className="dash-bar-total mono">Rs. {(emp.paid + emp.unpaid).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="dash-legend">
+            <span className="dash-legend-item"><span className="dash-legend-swatch paid" aria-hidden="true" />Paid</span>
+            <span className="dash-legend-item"><span className="dash-legend-swatch unpaid" aria-hidden="true" />Unpaid</span>
+          </div>
+        </section>
+
+        <div className="dash-side">
+          {seasonFines.length > 0 && leastFined && (
+            <section className="dash-champion glass-card" aria-label="On-time champion">
+              <Avatar name={leastFined.name} className="avatar avatar-lg" aria-hidden="true" />
+              <div className="dash-champion-text">
+                <span className="eyebrow dash-champion-eyebrow">On-time champion</span>
+                <span className="dash-champion-name">{leastFined.name}</span>
+                <span className="dash-row-meta">Always on time, low on fine.</span>
+              </div>
+            </section>
+          )}
+
+          <section className="dash-card glass-card">
+            <div className="dash-card-head">
+              <h2 className="section-title">Pending standups</h2>
+              {standupUnpaid.length > 0 && <span className="pill pill-red">{standupUnpaid.length} pending</span>}
+            </div>
             {standupUnpaid.length > 0 ? (
-              standupUnpaid.map((f) => (
-                <div key={f.id} className="compact-item">
-                  <span className="item-name">{f.employee_name}</span>
-                  <span className="item-meta">{f.date}</span>
-                  <span className="status-badge unpaid">Pending</span>
-                </div>
-              ))
+              <div className="dash-list">
+                {standupUnpaid.map((f) => (
+                  <div key={f.id} className="dash-item">
+                    <Avatar name={f.employee_name} className="avatar" aria-hidden="true" />
+                    <div className="dash-item-text">
+                      <span className="dash-item-name">{f.employee_name}</span>
+                      <span className="dash-row-meta">Missed standup · {f.date}</span>
+                    </div>
+                    <span className="pill pill-amber">Pending</span>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="empty-msg">All caught up! 🎉</p>
+              <p className="empty-msg">All caught up!</p>
             )}
-          </div>
+          </section>
         </div>
+      </div>
 
-        <div className="chart-container">
-          <h3 className="section-title">🏖️ Upcoming Leaves</h3>
-          <div className="compact-list">
-            {upcomingLeaves.length > 0 ? (
-              upcomingLeaves.map((l) => (
-                <div key={l.id} className="compact-item">
-                  <span className="item-name">{l.employee_name}</span>
-                  <span className="item-meta">
-                    {l.start_date === l.end_date ? l.start_date : `${l.start_date} to ${l.end_date}`}
-                  </span>
-                  <span className="leave-type-tag">{l.type}</span>
+      <div className="dash-grid">
+        <section className="dash-card glass-card">
+          <h2 className="section-title">Upcoming leaves</h2>
+          {upcomingLeaves.length > 0 ? (
+            <div className="dash-list">
+              {upcomingLeaves.map((l) => (
+                <div key={l.id} className="dash-item">
+                  <Avatar name={l.employee_name} className="avatar" aria-hidden="true" />
+                  <div className="dash-item-text">
+                    <span className="dash-item-name">{l.employee_name}</span>
+                    <span className="dash-row-meta">
+                      {l.start_date === l.end_date ? l.start_date : `${l.start_date} – ${l.end_date}`}
+                    </span>
+                  </div>
+                  <span className="pill pill-cyan dash-leave-type">{l.type}</span>
                 </div>
-              ))
-            ) : (
-              <p className="empty-msg">No leaves planned soon.</p>
-            )}
-          </div>
-        </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-msg">No leaves planned soon.</p>
+          )}
+        </section>
 
-        <div className="chart-container">
-          <h3 className="section-title">🌴 Upcoming Holidays</h3>
-          <div className="compact-list">
-            {upcomingHolidays.map((h) => (
-                <div key={h.key} className="compact-item holiday-item">
-                  <div className="item-info">
-                    <span className="item-icon">🚩</span>
-                    <div className="item-text">
-                      <span className="item-name">{h.title}</span>
-                      <span className="item-meta">
+        <section className="dash-card glass-card">
+          <h2 className="section-title">Upcoming holidays</h2>
+          {upcomingHolidays.length > 0 ? (
+            <div className="dash-list">
+              {upcomingHolidays.map((h) => {
+                const block = holidayDateBlock(h.startDate);
+                return (
+                  <div key={h.key} className="dash-holiday">
+                    <div className="dash-date-block" aria-hidden="true">
+                      <span className="dash-date-month">{block.month}</span>
+                      <span className="dash-date-day">{block.day}</span>
+                    </div>
+                    <div className="dash-item-text">
+                      <span className="dash-item-name">{h.title}</span>
+                      <span className="dash-row-meta">
                         {formatHolidayDay(h.startDate)}
                         {h.days > 1 && ` – ${formatHolidayDay(h.endDate)} · ${h.days} days`}
                       </span>
                     </div>
+                    {h.startDate <= todayStr && h.endDate >= todayStr && <span className="pill pill-cyan">Today</span>}
+                    {h.startDate === tomorrowStr && <span className="pill pill-cyan">Tomorrow</span>}
                   </div>
-                  {h.startDate <= todayStr && h.endDate >= todayStr && <span className="status-badge holiday">Today</span>}
-                  {h.startDate === tomorrowStr && <span className="status-badge holiday">Tomorrow</span>}
-                </div>
-              ))
-            }
-            {upcomingHolidays.length === 0 && (
-              <p className="empty-msg">No upcoming holidays.</p>
-            )}
-          </div>
-        </div>
-        <div className="chart-container celebration-container">
-          <h3 className="section-title">✨ Celebrations</h3>
-          <div className="compact-list">
-            {celebrations.length > 0 ? (
-              celebrations.map((c, idx) => (
-                <div key={idx} className={`compact-item ${c.isToday ? 'highlight-today' : ''}`}>
-                  <div className="item-info">
-                    <span className="item-icon">{c.type === 'birthday' ? '🎂' : '🏆'}</span>
-                    <div className="item-text">
-                      <span className="item-name">{c.empName}</span>
-                      <span className="celebration-detail">{c.name}</span>
-                    </div>
-                  </div>
-                  <div className="item-actions">
-                    <span className="celebration-date">{c.displayDate}</span>
-                    {c.isToday && (
-                      <button
-                        className={`btn btn-sm btn-wish ${sendingWish === c.empName ? 'btn-loading' : ''}`}
-                        onClick={() => !sendingWish && handleWish(c)}
-                        disabled={!!sendingWish}
-                        title={`Send ${c.type} wish`}
-                      >
-                        {sendingWish === c.empName ? 'Sending...' : 'Send Wish'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="empty-msg">No celebrations within 15 days.</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="chart-container">
-        <div className="chart-header-row">
-          <h3 className="section-title">Fines by Employee</h3>
-          {(sortedFineSeasons.length > 0 || hasUnassignedFines) && (
-            <select
-              className="season-select"
-              value={String(effectiveFineSeasonId)}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedFineSeasonId(val === "unassigned" ? "unassigned" : Number(val));
-              }}
-              title="Select fine season"
-            >
-              {sortedFineSeasons.map((s) => (
-                <option key={s.id} value={s.id}>{s.title}</option>
-              ))}
-              {hasUnassignedFines && <option value="unassigned">Pre Fiscal Year Fines</option>}
-            </select>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="empty-msg">No upcoming holidays.</p>
           )}
-        </div>
-        {empData.length === 0 ? (
-          <p className="empty-msg">No fines recorded in {activeFineSeason ? activeFineSeason.title : "this season"} yet.</p>
-        ) : (
-          <div className="bar-chart">
-            {empData.map((emp) => (
-              <div key={emp.name} className="bar-row" style={{ position: 'relative' }}>
-                {animationsEnabled !== false && emp.name === leastFined?.name && (emp.paid + emp.unpaid) <= (leastFined.paid + leastFined.unpaid) && (
-                  <LeastFinedHonoree />
-                )}
-                <span className="bar-label">{emp.name.split(' ')[0]}</span>
-                <div className="bar-track">
-                  <div
-                    className="bar-fill bar-paid"
-                    style={{ width: `${(emp.paid / maxTotal) * 100}%` }}
-                  >
-                    {emp.paid > 0 && <span className="bar-value">{emp.paid}</span>}
+        </section>
+
+        <section className="dash-card glass-card">
+          <h2 className="section-title">Celebrations</h2>
+          {celebrations.length > 0 ? (
+            <div className="dash-list">
+              {celebrations.map((c, idx) => (
+                c.isToday ? (
+                  <div key={idx} className="dash-celebration dash-celebration-today">
+                    <span className="dash-celebration-icon" aria-hidden="true">
+                      <Icon name={c.type === 'birthday' ? 'cake' : 'award'} size={18} strokeWidth={2} />
+                    </span>
+                    <div className="dash-item-text">
+                      <span className="dash-item-name">{c.empName}</span>
+                      <span className="dash-row-meta">{c.name} · Today</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`btn btn-orange btn-sm ${sendingWish === c.empName ? 'btn-loading' : ''}`}
+                      onClick={() => !sendingWish && handleWish(c)}
+                      disabled={!!sendingWish}
+                      title={`Send ${c.type} wish`}
+                    >
+                      {sendingWish === c.empName ? 'Sending...' : 'Send Wish'}
+                    </button>
                   </div>
-                  <div
-                    className="bar-fill bar-unpaid"
-                    style={{ width: `${(emp.unpaid / maxTotal) * 100}%` }}
-                  >
-                    {emp.unpaid > 0 && <span className="bar-value">{emp.unpaid}</span>}
+                ) : (
+                  <div key={idx} className="dash-celebration">
+                    <span className="dash-celebration-icon" aria-hidden="true">
+                      <Icon name={c.type === 'birthday' ? 'cake' : 'award'} size={18} />
+                    </span>
+                    <div className="dash-item-text">
+                      <span className="dash-item-name">{c.empName}</span>
+                      <span className="dash-row-meta">{c.name}</span>
+                    </div>
+                    <span className="dash-celebration-date mono">{c.displayDate}</span>
                   </div>
-                </div>
-                <span className="bar-total">Rs. {emp.paid + emp.unpaid}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="chart-legend">
-          <span className="legend-item"><span className="legend-dot paid" /> Paid</span>
-          <span className="legend-item"><span className="legend-dot unpaid" /> Unpaid</span>
-        </div>
-      </div>
-      <div className="stats-grid">
-        <StatsCard
-          icon="💰"
-          label="Late Fines"
-          value={`Rs. ${totalAmount.toLocaleString()}`}
-          sub={`${fines.length} records`}
-          color="#6366f1"
-        />
-        <StatsCard
-          icon="📝"
-          label="Standup Records"
-          value={standupFines.length}
-          sub={`${standupUnpaid.length} pending`}
-          color="#f43f5e"
-        />
-        <StatsCard
-          icon="⏳"
-          label="Unpaid Fines"
-          value={`Rs. ${unpaidAmount.toLocaleString()}`}
-          sub={`${fines.filter(f => f.status === 'unpaid').length} late entries`}
-          color="#ef4444"
-        />
-        <StatsCard
-          icon="👥"
-          label="Employees"
-          value={employees.length}
-          sub="active"
-          color="#f59e0b"
-        />
-        <StatsCard
-          icon="💸"
-          label="Collected & Withdrawn"
-          value={`Rs. ${paidAmount.toLocaleString()}`}
-          sub={`Rs. ${totalWithdrawn.toLocaleString()} withdrawn · Rs. ${remaining >= 0 ? remaining.toLocaleString() : 0} remaining`}
-          color="#10b981"
-        />
+                )
+              ))}
+            </div>
+          ) : (
+            <p className="empty-msg">No celebrations within 15 days.</p>
+          )}
+        </section>
       </div>
     </section>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useApp } from "@/context/AppContext";
+import Icon from "./Icon";
 
 // The day the new fiscal year (and new leave/fine seasons) begins.
 const TARGET_DATE = new Date(2026, 6, 17); // July 17, 2026
@@ -35,18 +36,21 @@ export default function NewFiscalYearBanner() {
   if (!isTargetDay) return null;
 
   return (
-    <div className="fiscal-year-banner">
-      <div className="fiscal-year-banner-text">
-        <strong>🎉 Oh yeah, a new fiscal year!</strong>
-        <span>New leaves, a fresh season for fines, and a brand new working year — let's make it a great one!</span>
+    <section className="announce-card glass" aria-label="Announcement">
+      <span className="announce-icon" aria-hidden="true">
+        <Icon name="flag" size={20} strokeWidth={2} />
+      </span>
+      <div className="announce-text">
+        <span className="announce-title">Oh yeah, a new fiscal year!</span>
+        <span className="announce-sub">New leaves, a fresh season for fines, and a brand new working year — let&apos;s make it a great one!</span>
       </div>
       {animationsEnabled !== false && (
-        <div className="cheer-crowd">
+        <div className="announce-scene cheer-crowd" aria-hidden="true">
           {Array.from({ length: 16 }).map((_, i) => (
             <CheeringFigure key={i} index={i} />
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

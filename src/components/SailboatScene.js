@@ -1,5 +1,7 @@
 "use client";
 
+import { useApp } from "@/context/AppContext";
+
 // 2880px wide (2× viewport) wave paths for seamless translateX(-1440px) loop
 const WAVE1 = "M0,556 C90,549 90,549 180,556 C270,563 270,563 360,556 C450,549 450,549 540,556 C630,563 630,563 720,556 C810,549 810,549 900,556 C990,563 990,563 1080,556 C1170,549 1170,549 1260,556 C1350,563 1350,563 1440,556 C1530,549 1530,549 1620,556 C1710,563 1710,563 1800,556 C1890,549 1890,549 1980,556 C2070,563 2070,563 2160,556 C2250,549 2250,549 2340,556 C2430,563 2430,563 2520,556 C2610,549 2610,549 2700,556 C2790,563 2790,563 2880,556 L2880,900 L0,900 Z";
 const WAVE2 = "M0,563 C120,551 120,551 240,563 C360,575 360,575 480,563 C600,551 600,551 720,563 C840,575 840,575 960,563 C1080,551 1080,551 1200,563 C1320,575 1320,575 1440,563 C1560,551 1560,551 1680,563 C1800,575 1800,575 1920,563 C2040,551 2040,551 2160,563 C2280,575 2280,575 2400,563 C2520,551 2520,551 2640,563 C2760,575 2760,575 2880,563 L2880,900 L0,900 Z";
@@ -17,6 +19,12 @@ const RAIN_A = Array.from({length: 18}, (_, i) => [i * 17 - 10, 248 + (i % 4) * 
 const RAIN_B = Array.from({length: 18}, (_, i) => [i * 17 - 3,  264 + (i % 4) * 18]);
 
 export default function SailboatScene() {
+  // Its animations also place things (the drifting boat, the storm that fades in and
+  // out), so stopping them leaves a broken picture: with Animations off there is no
+  // scene (with the OS asking for less motion, .retro-scene hides it).
+  const { animationsEnabled } = useApp();
+  if (animationsEnabled === false) return null;
+
   return (
     <div style={{
       position: "fixed", inset: 0,

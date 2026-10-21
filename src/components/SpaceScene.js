@@ -1,5 +1,7 @@
 "use client";
 
+import { useApp } from "@/context/AppContext";
+
 // Static stars [x, y, radius, opacity]
 const STARS = [
   [55,  48,  1.2, 0.6], [130, 22,  1.0, 0.5], [205, 88,  1.5, 0.7], [295, 55,  1.0, 0.45],
@@ -27,6 +29,11 @@ const TWINKLE = [
 ];
 
 export default function SpaceScene() {
+  // The satellite orbits run on SMIL, which CSS cannot pause, so with Animations off
+  // there is no scene (with the OS asking for less motion, .retro-scene hides it).
+  const { animationsEnabled } = useApp();
+  if (animationsEnabled === false) return null;
+
   return (
     <div style={{
       position: "fixed", inset: 0,

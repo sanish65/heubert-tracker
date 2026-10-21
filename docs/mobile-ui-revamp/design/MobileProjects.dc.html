@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile — Projects</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--tab-bg:rgba(15,20,34,.9);--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.82);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;overflow:hidden;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:20px 20px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--tab-bg:rgba(255,255,255,.88);--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.86);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.38),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.28),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(45,212,239,.16),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.12),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.22),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.16),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(6,182,212,.14),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="width: 390px; min-height: 1820px; box-sizing: border-box; padding: 0 0 40px;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header style="padding: 56px 16px 14px; display: flex; align-items: center; gap: 12px;">
+    <a href="MobileMore.dc.html" aria-label="Back" class="glass" style="width: 44px; height: 44px; flex-shrink: 0; box-sizing: border-box; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+    </a>
+    <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+      <h1 style="margin: 0; font-family: var(--f-display); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-1);">Projects</h1>
+      <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">6 projects · 3 active</span>
+    </div>
+    <button style="height: 44px; flex-shrink: 0; padding: 0 14px 0 12px; border: 0; border-radius: 12px; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 6px 20px rgba(61,99,240,.35);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg>
+      New Project
+    </button>
+  </header>
+
+  <nav aria-label="Filter by status" style="display: flex; gap: 8px; padding: 0 16px 14px; overflow-x: auto; white-space: nowrap;">
+    <sc-for list="{{filters}}" as="f" hint-placeholder-count="6">
+      <button aria-pressed="{{f.pressed}}" style="flex-shrink: 0; height: 44px; padding: 0 14px; border: 1px solid {{f.border}}; border-radius: 9999px; background: {{f.bg}}; color: {{f.fg}}; font-size: 14px; font-weight: {{f.weight}}; display: inline-flex; align-items: center; gap: 7px;">
+        {{f.label}}
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{f.count}}</span>
+      </button>
+    </sc-for>
+  </nav>
+
+  <main style="padding: 0 16px; display: flex; flex-direction: column; gap: 12px;">
+    <article class="glass" aria-labelledby="pa-name" style="padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: 20px; background: var(--surface-strong); display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: flex-start; gap: 10px;">
+        <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+          <h2 id="pa-name" style="margin: 0; font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--text-1);">[Project A]</h2>
+          <span style="font-size: 13px; color: var(--text-3);">[Client name]</span>
+        </div>
+        <span style="height: 24px; flex-shrink: 0; padding: 0 10px; border-radius: 9999px; background: var(--pb-green); color: var(--pf-green); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 9999px; background: currentColor;"></span>Active</span>
+      </div>
+      <p style="margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-2);">[One-line project description — what it is and who it’s for.]</p>
+      <div style="display: flex; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+        Jun 2, 2026 → Dec 15, 2026
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <span style="height: 26px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); font-family: var(--f-mono); font-size: 12px; color: var(--text-2); display: inline-flex; align-items: center;">Next.js</span>
+        <span style="height: 26px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); font-family: var(--f-mono); font-size: 12px; color: var(--text-2); display: inline-flex; align-items: center;">Supabase</span>
+        <span style="height: 26px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); font-family: var(--f-mono); font-size: 12px; color: var(--text-2); display: inline-flex; align-items: center;">Expo</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div aria-label="Team: Aarav Shrestha, Sita Gurung, Bikash Thapa, Priya Maharjan and 1 more" role="img" style="display: flex; align-items: center;">
+          <span style="width: 30px; height: 30px; border-radius: 9999px; border: 2px solid var(--surface-solid); background: #3D63F0; color: #FFFFFF; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">AS</span>
+          <span style="width: 30px; height: 30px; margin-left: -8px; border-radius: 9999px; border: 2px solid var(--surface-solid); background: #7C5CE0; color: #FFFFFF; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">SG</span>
+          <span style="width: 30px; height: 30px; margin-left: -8px; border-radius: 9999px; border: 2px solid var(--surface-solid); background: #0B7F90; color: #FFFFFF; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">BT</span>
+          <span style="width: 30px; height: 30px; margin-left: -8px; border-radius: 9999px; border: 2px solid var(--surface-solid); background: #B4471A; color: #FFFFFF; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">PM</span>
+          <span style="width: 30px; height: 30px; margin-left: -8px; border-radius: 9999px; border: 2px solid var(--surface-solid); background: var(--raised); color: var(--text-2); font-family: var(--f-mono); font-size: 11px; display: inline-flex; align-items: center; justify-content: center;">+1</span>
+        </div>
+        <span style="margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><path d="M6 6h.01M6 18h.01"></path></svg>3 env
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 5px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>4 links
+        </span>
+        <button aria-expanded="true" aria-label="Collapse [Project A]" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--primary-soft); color: var(--primary-text); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>
+        </button>
+      </div>
+
+      <div style="border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column;">
+        <h3 style="margin: 0 0 4px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">Environments</h3>
+        <sc-for list="{{envs}}" as="e" hint-placeholder-count="3">
+          <a href="#" style="min-height: 56px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); text-decoration: none;">
+            <span style="width: 8px; height: 8px; flex-shrink: 0; border-radius: 9999px; background: {{e.dot}};" aria-hidden="true"></span>
+            <span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 14px; font-weight: 600; color: var(--text-1);">{{e.name}}</span>
+              <span style="font-family: var(--f-mono); font-size: 12px; color: var(--primary-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{e.url}}</span>
+            </span>
+            <span style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 8px; background: var(--raised); font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a9 9 0 0 1-9 9"></path></svg>{{e.branch}}
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; color: var(--text-3);"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+          </a>
+        </sc-for>
+        <p style="margin: 8px 0 0; font-size: 13px; color: var(--text-3);">Pointers only — never paste credentials here.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column;">
+        <h3 style="margin: 4px 0 4px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">Links</h3>
+        <sc-for list="{{links}}" as="l" hint-placeholder-count="4">
+          <a href="#" style="min-height: 52px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); text-decoration: none;">
+            <span style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: {{l.bg}}; color: {{l.fg}}; display: inline-flex; align-items: center; justify-content: center;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{l.icon}}"></path></svg>
+            </span>
+            <span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+              <span style="font-size: 14px; font-weight: 600; color: var(--text-1);">{{l.label}}</span>
+              <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{l.category}}</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; color: var(--text-3);"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+          </a>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; gap: 10px; padding-top: 4px;">
+        <button style="flex-grow: 1; height: 48px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-1); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+          Edit Project
+        </button>
+        <button aria-label="Delete [Project A]" style="width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--pb-red); color: var(--pf-red); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+      </div>
+    </article>
+
+    <sc-for list="{{projects}}" as="p" hint-placeholder-count="4">
+      <article class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+          <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+            <h2 style="margin: 0; font-family: var(--f-display); font-size: 18px; font-weight: 700; color: var(--text-1);">{{p.name}}</h2>
+            <span style="font-size: 13px; color: var(--text-3);">{{p.client}}</span>
+          </div>
+          <span style="height: 24px; flex-shrink: 0; padding: 0 10px; border-radius: 9999px; background: {{p.statusBg}}; color: {{p.statusFg}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 9999px; background: currentColor;"></span>{{p.status}}</span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <sc-for list="{{p.techs}}" as="t" hint-placeholder-count="3">
+            <span style="height: 26px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); font-family: var(--f-mono); font-size: 12px; color: var(--text-2); display: inline-flex; align-items: center;">{{t.name}}</span>
+          </sc-for>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div role="img" aria-label="{{p.teamLabel}}" style="display: flex; align-items: center;">
+            <sc-for list="{{p.members}}" as="m" hint-placeholder-count="3">
+              <span style="width: 30px; height: 30px; margin-left: {{m.ml}}; border-radius: 9999px; border: 2px solid var(--surface-solid); background: {{m.av}}; color: {{m.fg}}; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">{{m.initials}}</span>
+            </sc-for>
+          </div>
+          <span style="margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><path d="M6 6h.01M6 18h.01"></path></svg>{{p.envs}}
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 5px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>{{p.links}}
+          </span>
+          <button aria-expanded="false" aria-label="{{p.expandLabel}}" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+        </div>
+      </article>
+    </sc-for>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const P = {
+      AS: ['Aarav Shrestha', '#3D63F0', '#FFFFFF'], SG: ['Sita Gurung', '#7C5CE0', '#FFFFFF'], BT: ['Bikash Thapa', '#0B7F90', '#FFFFFF'],
+      PM: ['Priya Maharjan', '#B4471A', '#FFFFFF'], RK: ['Rohan KC', '#3D63F0', '#FFFFFF'], KJ: ['Kriti Joshi', '#7C5CE0', '#FFFFFF'],
+      NT: ['Nabin Tamang', '#0B7F90', '#FFFFFF'], AR: ['Anisha Rai', '#B4471A', '#FFFFFF'], S: ['Sanish', '#FF6A1F', '#0A0E17']
+    };
+    const STATUS = {
+      Planning: ['var(--pb-cyan)', 'var(--pf-cyan)'],
+      Active: ['var(--pb-green)', 'var(--pf-green)'],
+      'On Hold': ['var(--pb-amber)', 'var(--pf-amber)'],
+      Completed: ['var(--pb-violet)', 'var(--pf-violet)'],
+      Archived: ['var(--pb-gray)', 'var(--pf-gray)']
+    };
+    const filter = (label, count, on) => ({
+      label, count, pressed: on ? 'true' : 'false',
+      bg: on ? 'var(--primary-soft)' : 'var(--surface)',
+      border: on ? 'var(--primary)' : 'var(--line-strong)',
+      fg: on ? 'var(--text-1)' : 'var(--text-2)',
+      weight: on ? '600' : '500'
+    });
+    const project = (name, client, status, techs, team, envs, links) => {
+      const shown = team.slice(0, 4);
+      const members = shown.map((k, i) => ({ initials: k, av: P[k][1], fg: P[k][2], ml: i === 0 ? '0' : '-8px' }));
+      if (team.length > 4) members.push({ initials: '+' + (team.length - 4), av: 'var(--raised)', fg: 'var(--text-2)', ml: '-8px' });
+      return {
+        name, client, status, statusBg: STATUS[status][0], statusFg: STATUS[status][1],
+        techs: techs.map((t) => ({ name: t })), members,
+        teamLabel: 'Team: ' + team.map((k) => P[k][0]).join(', '),
+        envs: envs + ' env', links: links + (links === 1 ? ' link' : ' links'),
+        expandLabel: 'Expand ' + name
+      };
+    };
+    return {
+      themeCls: light ? 'light' : '',
+      filters: [
+        filter('All', '6', true), filter('Planning', '1', false), filter('Active', '3', false),
+        filter('On Hold', '1', false), filter('Completed', '1', false), filter('Archived', '0', false)
+      ],
+      envs: [
+        { name: 'Production', url: 'app.[project-a].com', branch: 'main', dot: '#22C55E' },
+        { name: 'Staging', url: 'stage.[project-a].com', branch: 'staging', dot: '#F5A524' },
+        { name: 'Development', url: 'dev.[project-a].com', branch: 'develop', dot: 'var(--cyan)' }
+      ],
+      links: [
+        { label: 'Bitbucket repo', category: 'repo', icon: 'm16 18 6-6-6-6M8 6l-6 6 6 6', bg: 'var(--pb-blue)', fg: 'var(--pf-blue)' },
+        { label: 'Sprint board', category: 'board', icon: 'M6 5v11M12 5v6M18 5v14', bg: 'var(--pb-green)', fg: 'var(--pf-green)' },
+        { label: 'Figma file', category: 'design', icon: 'M12 19l7-7 3 3-7 7-3-3zM18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5zM2 2l7.586 7.586M11 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', bg: 'var(--pb-violet)', fg: 'var(--pf-violet)' },
+        { label: 'Handover doc', category: 'docs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8', bg: 'var(--pb-amber)', fg: 'var(--pf-amber)' }
+      ],
+      projects: [
+        project('[Project B]', '[Client name]', 'Active', ['React Native', 'Expo', 'Node.js'], ['RK', 'KJ', 'NT'], 2, 3),
+        project('[Project C]', '[Client name]', 'Planning', ['Next.js', 'Postgres'], ['SG', 'AR'], 0, 1),
+        project('[Project D]', '[Client name]', 'On Hold', ['Laravel', 'Vue', 'MySQL'], ['BT', 'PM', 'AS', 'RK', 'S', 'KJ'], 3, 5),
+        project('[Project E]', '[Client name]', 'Completed', ['WordPress', 'PHP'], ['NT', 'S'], 1, 2)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

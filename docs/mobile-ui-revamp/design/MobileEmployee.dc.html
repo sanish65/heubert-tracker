@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile — Employee</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--tab-bg:rgba(15,20,34,.9);--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.82);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;overflow:hidden;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:20px 20px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--tab-bg:rgba(255,255,255,.88);--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.86);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.38),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.28),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(45,212,239,.16),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.12),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.22),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.16),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(6,182,212,.14),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="width: 390px; min-height: 1720px; box-sizing: border-box; padding: 0;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header style="padding: 56px 16px 12px; display: flex; align-items: center; gap: 12px;">
+    <a href="MobileTeam.dc.html" aria-label="Back" class="glass" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </a>
+    <h1 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 20px; font-weight: 700; color: var(--text-1);">Employee</h1>
+    <a href="mailto:priya@heubert.com" aria-label="Email Priya Maharjan" class="glass" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6"></path></svg>
+    </a>
+  </header>
+
+  <main style="padding: 0 16px 32px; display: flex; flex-direction: column; gap: 14px;">
+    <section aria-label="Profile" class="glass" style="padding: 22px 18px 16px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;">
+      <span aria-hidden="true" style="width: 88px; height: 88px; border-radius: 9999px; background: #B4471A; color: #FFFFFF; font-family: var(--f-display); font-size: 32px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--surface-solid), 0 0 0 5px var(--line-strong);">PM</span>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h2 style="margin: 0; font-family: var(--f-display); font-size: 24px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-1);">Priya Maharjan</h2>
+        <span style="font-family: var(--f-mono); font-size: 13px; color: var(--text-2);">priya@heubert.com</span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <span style="height: 24px; padding: 0 10px; border-radius: 9999px; background: var(--pb-green); color: var(--pf-green); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 9999px; background: currentColor;"></span>Active</span>
+        <span style="height: 24px; padding: 0 10px; border-radius: 9999px; background: var(--pb-gray); color: var(--pf-gray); font-family: var(--f-mono); font-size: 12px; display: inline-flex; align-items: center;">EMP-14</span>
+      </div>
+      <div style="align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 4px; border-top: 1px solid var(--line);">
+        <div style="padding: 12px 0 2px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line);">
+          <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Joined</span>
+          <span style="font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Mar 12, 2023</span>
+        </div>
+        <div style="padding: 12px 0 2px; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);">Tenure</span>
+          <span style="font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">3 yrs 7 mos</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="det-title" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 12px;">
+      <h2 id="det-title" style="margin: 0; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Details</h2>
+      <dl style="margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px;">
+        <sc-for list="{{details}}" as="d" hint-placeholder-count="6">
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+            <dt style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3);">{{d.label}}</dt>
+            <dd style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-1); overflow-wrap: anywhere;">{{d.value}}</dd>
+          </div>
+        </sc-for>
+      </dl>
+    </section>
+
+    <section aria-labelledby="jar-title" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: baseline; gap: 8px;">
+        <h2 id="jar-title" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Leave balances</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">FY 2083/84</span>
+      </div>
+      <sc-for list="{{jars}}" as="j" hint-placeholder-count="4">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-size: 15px; font-weight: 600; color: var(--text-1); flex-grow: 1;">{{j.name}}</span>
+            <span style="font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums;">{{j.left}}</span>
+            <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{j.of}}</span>
+          </div>
+          <div role="meter" aria-label="{{j.aria}}" aria-valuemin="0" aria-valuemax="{{j.quota}}" aria-valuenow="{{j.leftNum}}" style="height: 10px; border-radius: 9999px; background: var(--raised); border: 1px solid var(--line); overflow: hidden;">
+            <div style="width: {{j.w}}; height: 100%; border-radius: 9999px; background: {{j.color}};"></div>
+          </div>
+        </div>
+      </sc-for>
+      <div style="display: flex; align-items: center; gap: 10px; min-height: 44px; border-top: 1px solid var(--line);">
+        <span style="font-size: 15px; font-weight: 600; color: var(--text-1); flex-grow: 1;">Unpaid</span>
+        <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--pb-gray); color: var(--pf-gray); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">No limit</span>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">0 taken</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="fine-title" class="glass" style="padding: 16px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: baseline; gap: 8px;">
+        <h2 id="fine-title" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Fines</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">9 records · all time</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <div style="padding: 10px 12px; border-radius: 14px; background: var(--raised); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; text-transform: uppercase; color: var(--text-3);">Total</span>
+          <span style="font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums;">Rs. 2,400</span>
+        </div>
+        <div style="padding: 10px 12px; border-radius: 14px; background: var(--raised); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; text-transform: uppercase; color: var(--text-3);">Paid</span>
+          <span style="font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--primary-text); font-variant-numeric: tabular-nums;">Rs. 1,800</span>
+        </div>
+        <div style="padding: 10px 12px; border-radius: 14px; background: var(--pb-amber); border: 1px solid rgba(245,165,36,.35); display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; text-transform: uppercase; color: var(--pf-amber);">Unpaid</span>
+          <span style="font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--pf-amber); font-variant-numeric: tabular-nums;">Rs. 600</span>
+        </div>
+      </div>
+      <div role="img" aria-label="Rs. 1,800 paid, Rs. 600 unpaid" style="display: flex; gap: 2px; height: 10px; border-radius: 4px; background: var(--raised); overflow: hidden;">
+        <div style="width: 75%; background: var(--primary);"></div>
+        <div style="width: 25%; background: var(--unpaid);"></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="rec-title" class="glass" style="padding: 16px 18px 8px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column;">
+      <h2 id="rec-title" style="margin: 0 0 8px; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Recent records</h2>
+      <sc-for list="{{records}}" as="r" hint-placeholder-count="5">
+        <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; border-top: 1px solid var(--line);">
+          <span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: {{r.iconBg}}; color: {{r.iconFg}}; display: inline-flex; align-items: center; justify-content: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.icon}}"></path></svg>
+          </span>
+          <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+            <span style="font-size: 15px; font-weight: 600; color: var(--text-1);">{{r.title}}</span>
+            <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{r.meta}}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <span style="font-family: var(--f-mono); font-size: 13px; color: var(--text-1);">{{r.amount}}</span>
+            <span style="height: 22px; padding: 0 8px; border-radius: 9999px; background: {{r.pillBg}}; color: {{r.pillFg}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">{{r.pill}}</span>
+          </div>
+        </div>
+      </sc-for>
+      <a href="MobileEmployee.dc.html" style="min-height: 44px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--primary-text); text-decoration: none;">
+        View all records
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg>
+      </a>
+    </section>
+
+    <section aria-label="Admin actions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+      <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); padding: 0 4px;">Admin</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <button class="glass" style="height: 52px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface); color: var(--text-1); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"></path></svg>
+          Edit
+        </button>
+        <button style="height: 52px; border: 1px solid rgba(244,63,94,.4); border-radius: 14px; background: var(--pb-red); color: var(--pf-red); font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path></svg>
+          Delete
+        </button>
+      </div>
+      <span style="font-size: 13px; color: var(--text-3); padding: 0 4px;">Deleting removes Priya from the directory. Fines and leave history stay on record.</span>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const jar = (name, left, quota, color) => ({
+      name, left: String(left), leftNum: String(left), quota: String(quota), color,
+      of: '/ ' + quota + ' left',
+      w: Math.round((left / quota) * 100) + '%',
+      aria: name + ' leave: ' + left + ' of ' + quota + ' days left'
+    });
+    const ICON = {
+      leave: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+      late: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2',
+      standup: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'
+    };
+    const unpaid = { pill: 'Unpaid', pillBg: 'var(--pb-amber)', pillFg: 'var(--pf-amber)' };
+    const paid = { pill: 'Paid', pillBg: 'var(--pb-green)', pillFg: 'var(--pf-green)' };
+    const fine = { iconBg: 'var(--pb-blue)', iconFg: 'var(--pf-blue)' };
+    return {
+      themeCls: light ? 'light' : '',
+      details: [
+        { label: 'Employee ID', value: 'EMP-14' },
+        { label: 'Date of birth', value: '[DATE OF BIRTH]' },
+        { label: 'Phone', value: '[PHONE]' },
+        { label: 'Personal email', value: '[PERSONAL EMAIL]' },
+        { label: 'Address', value: '[ADDRESS]' },
+        { label: 'Left date', value: 'N/A' }
+      ],
+      jars: [
+        jar('Casual', 7, 12, 'var(--primary)'),
+        jar('Sick', 6, 6, 'var(--cyan)'),
+        jar('Home', 6, 6, 'var(--pf-violet)')
+      ],
+      records: [
+        { icon: ICON.leave, iconBg: 'var(--pb-cyan)', iconFg: 'var(--pf-cyan)', title: 'Casual leave · Full day', meta: 'Oct 26 – 30 · 5 days', amount: '5 d', pill: 'Upcoming', pillBg: 'var(--pb-cyan)', pillFg: 'var(--pf-cyan)' },
+        { icon: ICON.late, ...fine, title: 'Late arrival', meta: 'Oct 15 · 09:41 AM', amount: 'Rs. 200', ...unpaid },
+        { icon: ICON.standup, ...fine, title: 'Standup missed', meta: 'Oct 12', amount: 'Rs. 100', ...paid },
+        { icon: ICON.late, ...fine, title: 'Late arrival', meta: 'Oct 6 · 09:33 AM', amount: 'Rs. 200', ...paid },
+        { icon: ICON.late, ...fine, title: 'Late arrival', meta: 'Sep 29 · 10:02 AM', amount: 'Rs. 400', ...unpaid }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

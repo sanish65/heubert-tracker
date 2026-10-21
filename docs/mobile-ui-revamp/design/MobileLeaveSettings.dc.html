@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile — Leave Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--tab-bg:rgba(15,20,34,.9);--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.82);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;overflow:hidden;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:20px 20px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--tab-bg:rgba(255,255,255,.88);--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.86);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.38),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.28),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(45,212,239,.16),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.12),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.22),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.16),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(6,182,212,.14),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="width: 390px; min-height: 1280px; box-sizing: border-box; padding: 0 0 40px;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header style="padding: 56px 16px 14px; display: flex; align-items: center; gap: 12px;">
+    <a href="MobileMore.dc.html" aria-label="Back" class="glass" style="width: 44px; height: 44px; flex-shrink: 0; box-sizing: border-box; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+    </a>
+    <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+      <h1 style="margin: 0; font-family: var(--f-display); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-1);">Leave Settings</h1>
+      <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">Admin · 5 leave types</span>
+    </div>
+  </header>
+
+  <main style="padding: 0 16px; display: flex; flex-direction: column; gap: 14px;">
+    <p style="margin: 0 2px; font-size: 14px; line-height: 1.5; color: var(--text-3);">Annual quotas reset with each leave season. Hidden types stay on old records but can’t be picked for new leave.</p>
+
+    <button aria-expanded="true" aria-controls="lt-form" style="height: 50px; border: 0; border-radius: 14px; background: var(--primary); color: #FFFFFF; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 6px 20px rgba(61,99,240,.35);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg>
+      Add Leave Type
+    </button>
+
+    <section id="lt-form" aria-labelledby="form-h" class="glass" style="padding: 16px 18px 18px; border: 1px solid var(--primary); border-radius: 20px; background: var(--surface-strong); display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h2 id="form-h" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">New leave type</h2>
+        <button aria-label="Close form" style="width: 44px; height: 44px; margin-right: -8px; border: 0; border-radius: 12px; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <label style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; font-weight: 600; color: var(--text-2);">Leave Type Name</span>
+        <input type="text" placeholder="e.g. Personal Leave" style="height: 48px; width: 100%; box-sizing: border-box; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-1); font-size: 15px;">
+      </label>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+          <span id="cat-l" style="font-size: 13px; font-weight: 600; color: var(--text-2);">Category</span>
+          <div role="status" aria-labelledby="cat-l" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px dashed var(--line-strong); border-radius: 12px; display: flex; align-items: center; gap: 8px; color: var(--text-1); font-size: 15px;">
+            <span style="width: 8px; height: 8px; border-radius: 9999px; background: var(--primary);" aria-hidden="true"></span>
+            <span style="flex-grow: 1;">Paid</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--text-3);"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </div>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-2);">Annual Days</span>
+          <span style="position: relative; display: block;">
+            <input type="text" inputmode="decimal" placeholder="e.g. 14" style="height: 48px; width: 100%; box-sizing: border-box; padding: 0 56px 0 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); color: var(--text-1); font-family: var(--f-mono); font-size: 14px;">
+            <span aria-hidden="true" style="position: absolute; right: 12px; top: 15px; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">days</span>
+          </span>
+        </label>
+      </div>
+      <p style="margin: -6px 0 0; font-size: 13px; color: var(--text-3);">Category follows the unpaid toggle below.</p>
+
+      <div style="display: flex; flex-direction: column; border-top: 1px solid var(--line);">
+        <label style="min-height: 60px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); cursor: pointer;">
+          <span style="flex-grow: 1; display: flex; flex-direction: column;">
+            <span style="font-size: 15px; font-weight: 500; color: var(--text-1);">Active</span>
+            <span style="font-size: 13px; color: var(--text-3);">Visible when recording leave</span>
+          </span>
+          <input type="checkbox" role="switch" checked="" style="width: 22px; height: 22px; margin: 0 4px 0 0; accent-color: #3D63F0;">
+        </label>
+        <label style="min-height: 60px; padding: 8px 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; cursor: pointer;">
+          <span style="flex-grow: 1; font-size: 15px; line-height: 1.4; color: var(--text-1);">Unpaid leave (fallback once other balances run out)</span>
+          <input type="checkbox" role="switch" style="width: 22px; height: 22px; margin: 0 4px 0 0; accent-color: #3D63F0;">
+        </label>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button style="flex: 1 1 0; height: 50px; border: 1px solid var(--line-strong); border-radius: 12px; background: transparent; color: var(--text-1); font-size: 15px; font-weight: 600;">Cancel</button>
+        <button style="flex: 1.4 1 0; height: 50px; border: 0; border-radius: 12px; background: var(--primary); color: #FFFFFF; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+          Save Leave Type
+        </button>
+      </div>
+    </section>
+
+    <section aria-labelledby="types-h" class="glass" style="padding: 16px 18px 6px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px;">
+        <h2 id="types-h" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Leave types</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">4 active</span>
+      </div>
+      <sc-for list="{{types}}" as="t" hint-placeholder-count="5">
+        <div style="min-height: 68px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line);">
+          <span style="width: 3px; height: 38px; flex-shrink: 0; border-radius: 2px; background: {{t.bar}};" aria-hidden="true"></span>
+          <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600; color: {{t.nameColor}};">{{t.name}}</span>
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-3);">
+              {{t.category}}
+              <span aria-hidden="true">·</span>
+              <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-2);">{{t.days}}</span>
+            </span>
+          </div>
+          <span style="height: 22px; flex-shrink: 0; padding: 0 8px; border-radius: 9999px; background: {{t.pillBg}}; color: {{t.pillFg}}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">{{t.status}}</span>
+          <button aria-label="{{t.editLabel}}" style="width: 44px; height: 44px; flex-shrink: 0; margin-right: -6px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+          </button>
+        </div>
+      </sc-for>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1280}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const type = (name, days, isUnpaid, isActive) => {
+      const status = !isActive ? 'Hidden' : isUnpaid ? 'Fallback' : 'Active';
+      const pill = { Active: ['var(--pb-green)', 'var(--pf-green)'], Fallback: ['var(--pb-amber)', 'var(--pf-amber)'], Hidden: ['var(--pb-gray)', 'var(--pf-gray)'] }[status];
+      return {
+        name, status,
+        category: isUnpaid ? 'Unpaid fallback' : 'Paid',
+        days: isUnpaid ? '—' : days + ' days/yr',
+        bar: !isActive ? 'var(--line-strong)' : isUnpaid ? 'var(--unpaid)' : 'var(--primary)',
+        nameColor: isActive ? 'var(--text-1)' : 'var(--text-3)',
+        pillBg: pill[0], pillFg: pill[1],
+        editLabel: 'Edit ' + name
+      };
+    };
+    return {
+      themeCls: light ? 'light' : '',
+      types: [
+        type('Casual leave', 12, false, true),
+        type('Sick leave', 12, false, true),
+        type('Home leave', 6, false, true),
+        type('Unpaid leave', 0, true, true),
+        type('Personal leave', 3, false, false)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

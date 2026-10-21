@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
 
 const emptyForm = { name: "", annualDays: "", isUnpaid: false, isActive: true };
 
@@ -49,8 +50,9 @@ function LeaveTypeFormModal({ isOpen, onClose, editing }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{editing ? "Edit Leave Type" : "Add Leave Type"}</h2>
-          <button className="close-btn" onClick={onClose}>&times;</button>
+          <span className="modal-icon"><Icon name="calendar" size={20} /></span>
+          <h2>{editing ? "Edit leave type" : "Add leave type"}</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="premium-form">
           <div className="form-group-interactive">
@@ -97,10 +99,10 @@ function LeaveTypeFormModal({ isOpen, onClose, editing }) {
             </label>
           </div>
 
-          {error && <span className="form-error">{error}</span>}
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary">{editing ? "Save Changes" : "Add Leave Type"}</button>
           </div>
         </form>
@@ -109,6 +111,7 @@ function LeaveTypeFormModal({ isOpen, onClose, editing }) {
   );
 }
 
+// The Leave types section of the Settings screen (Settings.dc.html).
 export default function LeaveSettingsPage() {
   const { leaveTypes, deleteLeaveType, isAdmin } = useApp();
   const { confirmDialog, alertDialog } = useDialog();
@@ -117,83 +120,89 @@ export default function LeaveSettingsPage() {
   const [formKey, setFormKey] = useState(0);
 
   if (!isAdmin) {
-    return (
-      <div className="employee-directory">
-        <p className="empty-msg">Only admins can configure leave types.</p>
-      </div>
-    );
+    return <p className="empty-msg">Only admins can configure leave types.</p>;
   }
 
   const openAdd = () => { setEditing(null); setFormKey((k) => k + 1); setShowForm(true); };
   const openEdit = (t) => { setEditing(t); setFormKey((k) => k + 1); setShowForm(true); };
 
   return (
-    <div className="employee-directory">
-      <div className="directory-header">
-        <div className="directory-title">
-          <h2 className="section-title">Leave Type Configuration</h2>
-          <span className="directory-count">{leaveTypes.length} types</span>
+    <>
+      <section id="leave-types" className="settings-section settings-card glass-card" aria-labelledby="settings-leave-title">
+        <div className="settings-card-head">
+          <div className="settings-head-text">
+            <h2 id="settings-leave-title" className="settings-heading">Leave type configuration</h2>
+            <p className="settings-sub">Annual quotas reset with each leave season.</p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={openAdd}>
+            <Icon name="plus" size={16} strokeWidth={2.2} /> Add Leave Type
+          </button>
         </div>
-        <button className="btn btn-primary btn-add-employee" onClick={openAdd}>
-          <span>+</span> Add Leave Type
-        </button>
-      </div>
 
-      <div className="table-wrapper">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Annual Days</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leaveTypes.length === 0 ? (
+        <div className="settings-table-scroll">
+          <table className="data-table settings-table">
+            <thead>
               <tr>
-                <td colSpan="5" className="empty-row">No leave types configured yet</td>
+                <th scope="col">Leave type</th>
+                <th scope="col">Category</th>
+                <th scope="col">Annual days</th>
+                <th scope="col">Status</th>
+                <th scope="col" className="settings-num">Actions</th>
               </tr>
-            ) : (
-              leaveTypes.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.name}</td>
-                  <td>{t.annual_days}</td>
-                  <td>
-                    <span className={`status-badge ${t.is_unpaid ? "inactive" : "active"}`}>
-                      {t.is_unpaid ? "Unpaid" : "Paid"}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge ${t.is_active ? "active" : "inactive"}`}>
-                      {t.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="action-group">
-                      <button className="btn btn-sm btn-ghost" onClick={() => openEdit(t)}>Edit</button>
-                      <button
-                        className="btn btn-sm btn-danger-ghost"
-                        onClick={async () => {
-                          if (await confirmDialog(`Delete leave type "${t.name}"? Existing leave records will keep their history but no longer count against this balance.`, { danger: true })) {
-                            const { error } = await deleteLeaveType(t.id);
-                            if (error) await alertDialog(`Error deleting leave type: ${error.message || "Check connection"}`, { tone: "error" });
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+            </thead>
+            <tbody>
+              {leaveTypes.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="empty-row">No leave types configured yet</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                leaveTypes.map((t) => (
+                  <tr key={t.id}>
+                    <td className="settings-table-name">{t.name}</td>
+                    <td>{t.is_unpaid ? "Unpaid" : "Paid"}</td>
+                    <td className="settings-table-days mono">{t.annual_days}</td>
+                    <td>
+                      <span className={`pill ${t.is_active ? "pill-green" : "pill-gray"}`}>
+                        {t.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="settings-num">
+                      <span className="settings-row-actions">
+                        <button
+                          type="button"
+                          className="btn-icon settings-icon-btn"
+                          onClick={() => openEdit(t)}
+                          aria-label={`Edit ${t.name}`}
+                          title="Edit"
+                        >
+                          <Icon name="edit" size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-icon settings-icon-btn settings-icon-delete"
+                          onClick={async () => {
+                            if (await confirmDialog(`Delete leave type "${t.name}"? Existing leave records will keep their history but no longer count against this balance.`, { danger: true })) {
+                              const { error } = await deleteLeaveType(t.id);
+                              if (error) await alertDialog(`Error deleting leave type: ${error.message || "Check connection"}`, { tone: "error" });
+                            }
+                          }}
+                          aria-label={`Delete ${t.name}`}
+                          title="Delete"
+                        >
+                          <Icon name="trash" size={16} />
+                        </button>
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
+      {/* Outside the glass card: its backdrop-filter would trap the fixed overlay inside it. */}
       <LeaveTypeFormModal key={formKey} isOpen={showForm} onClose={() => setShowForm(false)} editing={editing} />
-    </div>
+    </>
   );
 }

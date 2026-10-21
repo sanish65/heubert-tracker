@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loading splash</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.78);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:24px 24px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.82);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;color-scheme:light}
+.ht .aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.34),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.26),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(45,212,239,.16),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.11),transparent 70%);animation:ht-drift 14s ease-in-out infinite alternate}
+.ht.light .aurora{background:radial-gradient(640px 440px at 14% 6%,rgba(61,99,240,.2),transparent 70%),radial-gradient(560px 420px at 88% 14%,rgba(124,92,224,.16),transparent 70%),radial-gradient(620px 460px at 72% 96%,rgba(6,182,212,.14),transparent 70%),radial-gradient(420px 320px at 22% 88%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht .ring{animation:ht-spin 1.6s linear infinite}
+.ht .walk{animation:ht-walk 2s ease-in-out infinite;transform-origin:bottom center}
+.ht .bubble{animation:ht-in 320ms ease-out both}
+.ht .bar{animation:ht-slide 1.5s ease-in-out infinite}
+.ht .dot{animation:ht-pulse 1.4s ease-in-out infinite}
+.ht .bubble-tail{position:absolute;left:50%;bottom:-6px;width:10px;height:10px;background:var(--surface-solid);border-right:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);transform:translateX(-50%) rotate(45deg)}
+.ht.still .aurora,.ht.still .ring,.ht.still .walk,.ht.still .bubble,.ht.still .bar,.ht.still .dot{animation:none}
+.ht.still .bar{left:0;width:40%}
+@keyframes ht-drift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(-2%,1.5%,0) scale(1.06)}}
+@keyframes ht-spin{to{transform:rotate(360deg)}}
+@keyframes ht-walk{0%{transform:rotate(-8deg) translateY(0)}25%{transform:rotate(0) translateY(-6px)}50%{transform:rotate(8deg) translateY(0)}75%{transform:rotate(0) translateY(-6px)}100%{transform:rotate(-8deg) translateY(0)}}
+@keyframes ht-in{from{opacity:0;transform:translateY(4px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes ht-slide{0%{left:-100%;width:100%}50%{left:0;width:10%}100%{left:100%;width:100%}}
+@keyframes ht-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.ht .aurora,.ht .ring,.ht .walk,.ht .bubble,.ht .bar,.ht .dot{animation:none}.ht .bar{left:0;width:40%}}
+</style>
+</helmet>
+<div class="ht {{themeCls}} {{stillCls}}" style="min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; overflow: hidden;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <main aria-busy="true" style="position: relative; z-index: 1; width: 100%; max-width: 400px;">
+    <section class="glass" aria-label="Loading Heubert Tracker" style="box-sizing: border-box; width: 100%; padding: 32px 32px 26px; border: 1px solid var(--line-strong); border-radius: 24px; background: var(--surface-strong); box-shadow: var(--glass-hi), var(--shadow-lift); display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+        <img src="/_blob/2361260a942726892d672ff0d59d40d6" alt="" style="width: 40px; height: 40px; border-radius: 10px; object-fit: cover;">
+        <div style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2;">
+          <span style="font-family: var(--f-display); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-1);">Heubert Tracker</span>
+          <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">team.heubert</span>
+        </div>
+      </div>
+
+      <sc-if value="{{moving}}" hint-placeholder-val="{{true}}">
+        <div style="align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 0 4px; border-top: 1px solid var(--line);">
+          <div class="bubble" style="position: relative; max-width: 100%; padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface-solid); box-shadow: var(--glass-hi), var(--shadow); font-size: 14px; font-weight: 600; color: var(--text-1);">
+            {{greeting}}
+            <span class="bubble-tail" aria-hidden="true"></span>
+          </div>
+          <div style="position: relative; width: 120px; height: 120px; box-sizing: border-box; display: flex; align-items: flex-end; justify-content: center; border-radius: 50%; background: var(--raised); border: 1px solid var(--line);">
+            <span class="ring" aria-hidden="true" style="position: absolute; inset: -4px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 65%, var(--cyan) 100%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); filter: drop-shadow(var(--glow));"></span>
+            <svg class="walk" width="96" height="96" viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Teammate avatar" style="color: var(--text-1);">
+              <circle cx="48" cy="34" r="15"></circle>
+              <path d="M40 32h.01M56 32h.01"></path>
+              <path d="M42 40c3 3 9 3 12 0"></path>
+              <path d="M34 26c4-9 24-11 29 0"></path>
+              <path d="M18 96c2-18 14-28 30-28s28 10 30 28"></path>
+            </svg>
+          </div>
+          <span style="font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2);">{{name}}</span>
+        </div>
+      </sc-if>
+
+      <div aria-hidden="true" style="position: relative; width: 100%; height: 4px; border-radius: 9999px; background: var(--raised); overflow: hidden;">
+        <div class="bar" style="position: absolute; top: 0; left: 0; height: 100%; width: 40%; border-radius: 9999px; background: linear-gradient(90deg, var(--primary), var(--cyan));"></div>
+      </div>
+
+      <sc-if value="{{showCaption}}" hint-placeholder-val="{{true}}">
+        <div style="display: inline-flex; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3);">
+          <span class="dot" aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: var(--glow);"></span>
+          Loading your workspace
+        </div>
+      </sc-if>
+      <sc-if value="{{slow}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="max-width: 100%; padding: 6px 12px; border-radius: 12px; background: var(--pb-amber); color: var(--pf-amber); font-size: 13px; font-weight: 600; line-height: 1.4;">Your connection looks slow. Hang tight…</div>
+      </sc-if>
+      <sc-if value="{{offline}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="max-width: 100%; padding: 6px 12px; border-radius: 12px; background: var(--pb-red); color: var(--pf-red); font-size: 13px; font-weight: 600; line-height: 1.4;">You're offline — waiting for a connection…</div>
+      </sc-if>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"slow":{"editor":"boolean","default":false},"offline":{"editor":"boolean","default":false},"animationsOff":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const offline = this.props.offline ?? false;
+    const slow = !offline && (this.props.slow ?? false);
+    const animationsOff = this.props.animationsOff ?? false;
+    return {
+      themeCls: light ? 'light' : '',
+      stillCls: animationsOff ? 'still' : '',
+      moving: !animationsOff,
+      greeting: 'Welcome!',
+      name: 'Sanish',
+      slow,
+      offline,
+      showCaption: !slow && !offline
+    };
+  }
+}
+</script>
+</body>
+</html>

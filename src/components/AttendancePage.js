@@ -7,6 +7,7 @@ import StatsCard from "./StatsCard";
 import AttendancePunchWidget from "./AttendancePunchWidget";
 import EditAttendanceModal from "./EditAttendanceModal";
 import Modal from "./Modal";
+import Icon from "./Icon";
 import {
   formatBs,
   formatBsDevanagari,
@@ -52,15 +53,26 @@ function formatMonthDay(dateStr) {
   });
 }
 
+// Status pill per day, from the canvas pill set: leave cyan (criterion 11); holidays,
+// weekends and days not yet reached grey.
 const STATUS_STYLES = {
-  present: { bg: "var(--accent-green-soft)", color: "var(--accent-green)", label: "Present" },
-  late: { bg: "var(--accent-amber-soft)", color: "var(--accent-amber)", label: "Late" },
-  absent: { bg: "var(--accent-red-soft)", color: "var(--accent-red)", label: "Absent" },
-  leave: { bg: "var(--accent-indigo-soft)", color: "var(--accent-indigo)", label: "Leave" },
-  holiday: { bg: "var(--accent-orange-soft)", color: "var(--accent-orange)", label: "Holiday" },
-  weekend: { bg: "rgba(148, 163, 184, 0.15)", color: "#94a3b8", label: "Weekend" },
-  pending: { bg: "rgba(148, 163, 184, 0.15)", color: "var(--text-muted)", label: "Pending" },
-  upcoming: { bg: "rgba(148, 163, 184, 0.1)", color: "var(--text-muted)", label: "Upcoming" },
+  present: { pill: "pill-green", label: "Present" },
+  late: { pill: "pill-amber", label: "Late" },
+  absent: { pill: "pill-red", label: "Absent" },
+  leave: { pill: "pill-cyan", label: "Leave" },
+  holiday: { pill: "pill-gray", label: "Holiday" },
+  weekend: { pill: "pill-gray", label: "Weekend" },
+  pending: { pill: "pill-gray", label: "Pending" },
+  upcoming: { pill: "pill-gray", label: "Upcoming" },
+};
+
+// Dot colours for the summary tiles, as on the artboard.
+const STAT_DOTS = {
+  present: "var(--accent-green)",
+  late: "var(--unpaid)",
+  absent: "var(--accent-red)",
+  leave: "var(--cyan)",
+  hours: "var(--primary)",
 };
 
 // First and last Gregorian day of a period, as ["YYYY-MM-DD", "YYYY-MM-DD"].
@@ -78,11 +90,7 @@ function formatHours(hours) {
 function StatusPill({ status }) {
   const s = STATUS_STYLES[status];
   if (!s) return null;
-  return (
-    <span className="status-badge" style={{ background: s.bg, color: s.color, cursor: "default" }}>
-      {s.label}
-    </span>
-  );
+  return <span className={`pill ${s.pill}`}>{s.label}</span>;
 }
 
 export default function AttendancePage() {
@@ -91,6 +99,7 @@ export default function AttendancePage() {
     attendance,
     leaves,
     publicHolidays,
+    leaveTypes,
     officeSettings,
     updateOfficeSettings,
     currentEmployee,
@@ -185,7 +194,8 @@ export default function AttendancePage() {
   const sheet = useMemo(() => {
     if (!selectedEmployee) return [];
 
-    const holidaySet = new Set(publicHolidays.map((h) => h.date));
+    const holidayTitles = new Map(publicHolidays.map((h) => [h.date, h.title]));
+    const leaveTypeNames = new Map((leaveTypes || []).map((t) => [t.id, t.name]));
     const empLeaves = leaves.filter((l) => l.employee_name === selectedEmployee);
     const empAttendance = new Map(
       attendance.filter((a) => a.employee_name === selectedEmployee).map((a) => [a.date, a])
@@ -196,8 +206,9 @@ export default function AttendancePage() {
       const [y, m, d] = dateStr.split("-").map(Number);
       const dow = new Date(y, m - 1, d).getDay();
       const isWeekend = dow === 0 || dow === 6;
-      const isHoliday = holidaySet.has(dateStr);
-      const onLeave = empLeaves.some((l) => dateStr >= l.start_date && dateStr <= l.end_date);
+      const isHoliday = holidayTitles.has(dateStr);
+      const leave = empLeaves.find((l) => dateStr >= l.start_date && dateStr <= l.end_date);
+      const onLeave = !!leave;
       const record = empAttendance.get(dateStr);
       const hours =
         record?.check_in_at && record?.check_out_at
@@ -214,10 +225,16 @@ export default function AttendancePage() {
       else if (dateStr === todayStr) status = "pending";
       else status = "upcoming";
 
-      days.push({ dateStr, record, status, hours });
+      // Short context beside the status pill: minutes late, the holiday, the leave type.
+      let note = "";
+      if (status === "late" && record?.late_minutes) note = `${record.late_minutes} min late`;
+      else if (status === "holiday") note = holidayTitles.get(dateStr) || "";
+      else if (status === "leave") note = leaveTypeNames.get(leave.leave_type_id) || "";
+
+      days.push({ dateStr, record, status, hours, note, isToday: dateStr === todayStr });
     }
     return days;
-  }, [selectedEmployee, attendance, leaves, publicHolidays, range, todayStr]);
+  }, [selectedEmployee, attendance, leaves, publicHolidays, leaveTypes, range, todayStr]);
 
   // Headline for the period on screen, plus the same span expressed in the other calendar.
   const periodLabel =
@@ -289,129 +306,160 @@ export default function AttendancePage() {
     URL.revokeObjectURL(url);
   };
 
+  const sheetSub = [selectedEmployee, periodLabel].filter(Boolean).join(" · ");
+
   return (
     <section className="attendance-section">
-      <div className="fine-header">
-        <div>
-          <h3 className="section-title">📍 Attendance</h3>
-          <span className="fine-count">
-            {canPunchAttendance
-              ? "Punch in/out below, or check-in and check-out from the mobile app."
-              : "Check-in and check-out happen from the mobile app — this view is read-only."}
-          </span>
-        </div>
-        <div className="action-btns">
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setExpanded(true)}
-            disabled={!selectedEmployee}
-            title="Open the full sheet"
-          >
-            ⛶ Enlarge
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={handleExportCsv} disabled={!selectedEmployee}>
-            ⬇ Export CSV
-          </button>
-        </div>
-      </div>
-
-      {canPunchAttendance && <AttendancePunchWidget />}
-
-      <div className="attendance-filters">
-        <select
-          className="attendance-select"
-          value={selectedEmployee}
-          onChange={(e) => setSelectedEmployee(e.target.value)}
-        >
-          <option value="">Select employee…</option>
-          {activeEmployees.map((e) => (
-            <option key={e.id} value={e.name}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-        <div className="attendance-calendar-toggle">
-          <button
-            type="button"
-            className={`toggle-pill ${calendar === "AD" ? "active" : ""}`}
-            onClick={() => handleCalendarChange("AD")}
-          >
-            English
-          </button>
-          <button
-            type="button"
-            className={`toggle-pill ${calendar === "BS" ? "active" : ""}`}
-            onClick={() => handleCalendarChange("BS")}
-          >
-            नेपाली
-          </button>
-        </div>
-
-        {calendar === "AD" ? (
-          <input
-            type="month"
-            className="attendance-select"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-          />
-        ) : (
-          <>
-            <select
-              className="attendance-select"
-              value={bsPeriod.month}
-              onChange={(e) => setBsPeriod((p) => ({ ...p, month: Number(e.target.value) }))}
-            >
-              {BS_MONTH_NAMES.map((name, i) => (
-                <option key={name} value={i + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="attendance-select"
-              value={bsPeriod.year}
-              onChange={(e) => setBsPeriod((p) => ({ ...p, year: Number(e.target.value) }))}
-            >
-              {bsYearOptions.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </>
-        )}
-
-        {periodSubLabel && <span className="fine-count">{periodSubLabel}</span>}
-      </div>
-
-      {!selectedEmployee ? (
-        <p className="empty-msg">Select an employee to view their attendance sheet.</p>
+      {canPunchAttendance ? (
+        <AttendancePunchWidget />
       ) : (
-        <>
-          <div className="stats-grid">
-            <StatsCard icon="✅" label="Present" value={summary.present} color="var(--accent-green)" />
-            <StatsCard icon="⏰" label="Late" value={summary.late} color="var(--accent-amber)" />
-            <StatsCard icon="🚫" label="Absent" value={summary.absent} color="var(--accent-red)" />
-            <StatsCard icon="🏖️" label="Leave" value={summary.leave} color="var(--accent-indigo)" />
-            <StatsCard icon="🕒" label="Hours Worked" value={formatHours(summary.totalHours)} color="var(--accent-indigo)" />
+        <p className="attendance-note">
+          Check-in and check-out happen from the mobile app — this view is read-only.
+        </p>
+      )}
+
+      <section className="attendance-sheet glass-card" aria-labelledby="attendance-sheet-title">
+        <div className="attendance-sheet-head">
+          <div className="attendance-sheet-heading">
+            <h2 id="attendance-sheet-title" className="section-title">
+              Monthly sheet
+            </h2>
+            <span className="attendance-sheet-sub">
+              {sheetSub}
+              {periodSubLabel && (
+                <>
+                  {sheetSub && " · "}
+                  <span className="mono">{periodSubLabel}</span>
+                </>
+              )}
+            </span>
           </div>
 
-          <AttendanceSheetTable
-            sheet={sheet}
-            isAdmin={isAdmin}
-            calendar={calendar}
-            onEdit={setEditingDay}
-            onDelete={handleDeleteRecord}
+          <label className="attendance-filter-label">
+            Employee
+            <select
+              className="attendance-select"
+              value={selectedEmployee}
+              onChange={(e) => setSelectedEmployee(e.target.value)}
+            >
+              <option value="">Select employee…</option>
+              {activeEmployees.map((e) => (
+                <option key={e.id} value={e.name}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="status-tabs" role="group" aria-label="Calendar">
+            <button
+              type="button"
+              className={`tab ${calendar === "AD" ? "tab-active" : ""}`}
+              aria-pressed={calendar === "AD"}
+              onClick={() => handleCalendarChange("AD")}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              lang="ne"
+              className={`tab ${calendar === "BS" ? "tab-active" : ""}`}
+              aria-pressed={calendar === "BS"}
+              onClick={() => handleCalendarChange("BS")}
+            >
+              नेपाली
+            </button>
+          </div>
+
+          {calendar === "AD" ? (
+            <input
+              type="month"
+              aria-label="Month"
+              className="attendance-select attendance-month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            />
+          ) : (
+            <>
+              <select
+                aria-label="Nepali month"
+                className="attendance-select"
+                value={bsPeriod.month}
+                onChange={(e) => setBsPeriod((p) => ({ ...p, month: Number(e.target.value) }))}
+              >
+                {BS_MONTH_NAMES.map((name, i) => (
+                  <option key={name} value={i + 1}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="Nepali year"
+                className="attendance-select attendance-month"
+                value={bsPeriod.year}
+                onChange={(e) => setBsPeriod((p) => ({ ...p, year: Number(e.target.value) }))}
+              >
+                {bsYearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          <div className="attendance-sheet-actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setExpanded(true)}
+              disabled={!selectedEmployee}
+              title="Open the full sheet"
+            >
+              Enlarge
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleExportCsv}
+              disabled={!selectedEmployee}
+            >
+              <Icon name="download" size={15} strokeWidth={2} /> Export CSV
+            </button>
+          </div>
+        </div>
+
+        {!selectedEmployee ? (
+          <p className="empty-msg">Select an employee to view their attendance sheet.</p>
+        ) : (
+          <>
+            <div className="stats-grid attendance-stats">
+              <StatsCard label="Present" value={summary.present} color={STAT_DOTS.present} />
+              <StatsCard label="Late" value={summary.late} color={STAT_DOTS.late} />
+              <StatsCard label="Absent" value={summary.absent} color={STAT_DOTS.absent} />
+              <StatsCard label="Leave" value={summary.leave} color={STAT_DOTS.leave} />
+              <StatsCard label="Hours worked" value={formatHours(summary.totalHours)} color={STAT_DOTS.hours} />
+            </div>
+
+            <AttendanceSheetTable
+              sheet={sheet}
+              isAdmin={isAdmin}
+              calendar={calendar}
+              onEdit={setEditingDay}
+              onDelete={handleDeleteRecord}
+            />
+          </>
+        )}
+      </section>
+
+      {isAdmin && (
+        <div className="attendance-access-grid">
+          <OfficeBoundPunchPanel
+            employees={activeEmployees}
+            setEmployeeOfficeBoundPunch={setEmployeeOfficeBoundPunch}
           />
-        </>
-      )}
-
-      {isAdmin && (
-        <WebPunchAccessPanel employees={activeEmployees} setEmployeePunchAccess={setEmployeePunchAccess} />
-      )}
-
-      {isAdmin && (
-        <OfficeBoundPunchPanel employees={activeEmployees} setEmployeeOfficeBoundPunch={setEmployeeOfficeBoundPunch} />
+          <WebPunchAccessPanel employees={activeEmployees} setEmployeePunchAccess={setEmployeePunchAccess} />
+        </div>
       )}
 
       {isAdmin && (
@@ -420,14 +468,16 @@ export default function AttendancePage() {
 
       <Modal isOpen={expanded} onClose={() => setExpanded(false)} size="modal-content-full">
         <div className="modal-header">
-          <h2>📍 {selectedEmployee} — {periodLabel}</h2>
-          <button className="modal-close" onClick={() => setExpanded(false)}>
-            ×
+          <h2>
+            {selectedEmployee} — {periodLabel}
+          </h2>
+          <button className="modal-close" onClick={() => setExpanded(false)} aria-label="Close">
+            <Icon name="x" size={18} />
           </button>
         </div>
-        <p className="fine-count">
-          {periodSubLabel} · {summary.present} present · {summary.late} late · {summary.absent} absent ·{" "}
-          {summary.leave} leave · {formatHours(summary.totalHours)}
+        <p className="attendance-sheet-sub">
+          <span className="mono">{periodSubLabel}</span> · {summary.present} present · {summary.late} late ·{" "}
+          {summary.absent} absent · {summary.leave} leave · {formatHours(summary.totalHours)}
         </p>
         <AttendanceSheetTable
           sheet={sheet}
@@ -451,16 +501,22 @@ export default function AttendancePage() {
 
 function AttendanceSheetTable({ sheet, isAdmin, calendar, onEdit, onDelete, tall }) {
   return (
-    <div className={`table-wrapper ${tall ? "scrollable-table-tall" : "scrollable-table"}`}>
-      <table className="data-table">
+    <div className={`attendance-table-scroll ${tall ? "scrollable-table-tall" : ""}`}>
+      <table className="data-table attendance-table">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Check In</th>
-            <th>Check Out</th>
-            <th>Hours</th>
-            <th>Status</th>
-            {isAdmin && <th>Actions</th>}
+            <th scope="col">Date</th>
+            <th scope="col">Check In</th>
+            <th scope="col">Check Out</th>
+            <th scope="col" className="attendance-num">
+              Hours
+            </th>
+            <th scope="col">Status</th>
+            {isAdmin && (
+              <th scope="col" className="attendance-num">
+                Actions
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -471,59 +527,114 @@ function AttendanceSheetTable({ sheet, isAdmin, calendar, onEdit, onDelete, tall
               </td>
             </tr>
           ) : (
-            sheet.map((d) => (
-              <tr key={d.dateStr}>
-                <td className="date-cell">
-                  {calendar === "BS" ? (
-                    <>
-                      <span title={formatBsDevanagari(d.dateStr)}>
-                        {formatWeekday(d.dateStr)}, {formatBs(d.dateStr)}
-                      </span>
-                      <span className="date-cell-alt">{formatMonthDay(d.dateStr)}</span>
-                    </>
-                  ) : (
-                    <>
-                      {formatDate(d.dateStr)}
-                      <span className="date-cell-alt" title={formatBsDevanagari(d.dateStr)}>
-                        {formatBs(d.dateStr)}
-                      </span>
-                    </>
-                  )}
-                </td>
-                <td>{formatTime(d.record?.check_in_at)}</td>
-                <td>{formatTime(d.record?.check_out_at)}</td>
-                <td>{formatHours(d.hours)}</td>
-                <td>
-                  <StatusPill status={d.status} />
-                </td>
-                {isAdmin && (
+            sheet.map((d) => {
+              const primaryDate =
+                calendar === "BS" ? `${formatWeekday(d.dateStr)}, ${formatBs(d.dateStr)}` : formatDate(d.dateStr);
+              const altDate = calendar === "BS" ? formatMonthDay(d.dateStr) : formatBs(d.dateStr);
+              const quiet = d.status === "weekend" || d.status === "holiday";
+              return (
+                <tr key={d.dateStr} className={d.isToday ? "attendance-row-today" : undefined}>
                   <td>
-                    <div className="action-btns">
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => onEdit(d)}
-                        title={d.record ? "Edit attendance" : "Add attendance"}
-                      >
-                        {d.record ? "✏️" : "＋"}
-                      </button>
-                      {d.record && (
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => onDelete(d.record)}
-                          title="Delete"
-                        >
-                          🗑
-                        </button>
-                      )}
-                    </div>
+                    <span className="attendance-date" title={formatBsDevanagari(d.dateStr)}>
+                      <span className={`attendance-date-main ${quiet ? "is-quiet" : ""}`}>
+                        {primaryDate}
+                        {d.isToday && <span className="pill pill-cyan">Today</span>}
+                      </span>
+                      <span className="attendance-date-alt">{altDate}</span>
+                    </span>
                   </td>
-                )}
-              </tr>
-            ))
+                  <td className={`attendance-time ${d.status === "late" ? "is-late" : ""}`}>
+                    {formatTime(d.record?.check_in_at)}
+                  </td>
+                  <td className="attendance-time">{formatTime(d.record?.check_out_at)}</td>
+                  <td className="attendance-num attendance-hours">{formatHours(d.hours)}</td>
+                  <td>
+                    <span className="attendance-status">
+                      <StatusPill status={d.status} />
+                      {d.note && <span className="attendance-status-note">{d.note}</span>}
+                    </span>
+                  </td>
+                  {isAdmin && (
+                    <td className="attendance-num">
+                      <span className="attendance-actions">
+                        {d.record ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm attendance-icon-btn"
+                              onClick={() => onEdit(d)}
+                              aria-label={`Edit attendance for ${primaryDate}`}
+                              title="Edit attendance"
+                            >
+                              <Icon name="edit" size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-icon btn-sm attendance-icon-btn attendance-icon-delete"
+                              onClick={() => onDelete(d.record)}
+                              aria-label={`Delete attendance for ${primaryDate}`}
+                              title="Delete"
+                            >
+                              <Icon name="trash" size={15} />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-icon btn-sm attendance-icon-btn attendance-icon-add"
+                            onClick={() => onEdit(d)}
+                            aria-label={`Add attendance for ${primaryDate}`}
+                            title="Add attendance"
+                          >
+                            <Icon name="plus" size={15} strokeWidth={2} />
+                          </button>
+                        )}
+                      </span>
+                    </td>
+                  )}
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
     </div>
+  );
+}
+
+// Checkbox chips for one web-punch category; a check icon marks the selected names.
+function PunchAccessCard({ icon, tone, title, description, groupLabel, employees, isChecked, onToggle, pendingId }) {
+  return (
+    <section className="attendance-access glass-card">
+      <div className="attendance-card-head">
+        <span className={`attendance-card-icon pill-${tone}`}>
+          <Icon name={icon} size={18} />
+        </span>
+        <h2 className="section-title">{title}</h2>
+        <span className="pill pill-gray">Admin</span>
+      </div>
+      <p className="attendance-card-desc">{description}</p>
+      {employees.length === 0 ? (
+        <p className="empty-msg">No employees yet.</p>
+      ) : (
+        <div className="project-member-picker" role="group" aria-label={groupLabel}>
+          {employees.map((emp) => {
+            const checked = isChecked(emp);
+            return (
+              <label
+                key={emp.id}
+                className={`project-member-chip ${checked ? "active" : ""}`}
+                style={pendingId === emp.id ? { opacity: 0.6, pointerEvents: "none" } : undefined}
+              >
+                <input type="checkbox" checked={checked} onChange={() => onToggle(emp)} />
+                {checked && <Icon name="check" size={14} strokeWidth={2.4} />}
+                <span>{emp.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -540,32 +651,17 @@ function WebPunchAccessPanel({ employees, setEmployeePunchAccess }) {
   };
 
   return (
-    <div className="attendance-card">
-      <h3 className="section-title">🏠 Freelance / WFH Employees</h3>
-      <span className="fine-count">
-        For employees without a fixed office desk to geofence against — freelancers, remote/WFH staff, etc.
-        Selected employees can punch in/out from this website (no location check), in addition to the mobile app.
-      </span>
-      {employees.length === 0 ? (
-        <p className="empty-msg">No employees yet.</p>
-      ) : (
-        <div className="project-member-picker">
-          {employees.map((emp) => {
-            const checked = emp.can_punch_web && !emp.web_punch_office_bound;
-            return (
-              <label
-                key={emp.id}
-                className={`project-member-chip ${checked ? "active" : ""}`}
-                style={pendingId === emp.id ? { opacity: 0.6, pointerEvents: "none" } : undefined}
-              >
-                <input type="checkbox" checked={checked} onChange={() => handleToggle(emp)} />
-                <span>{emp.name}</span>
-              </label>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <PunchAccessCard
+      icon="home"
+      tone="violet"
+      title="Freelance / WFH"
+      description="For employees without a fixed office desk to geofence against — freelancers, remote/WFH staff, etc. Selected employees can punch in/out from this website (no location check), in addition to the mobile app."
+      groupLabel="Freelance and WFH employees"
+      employees={employees}
+      isChecked={(emp) => emp.can_punch_web && !emp.web_punch_office_bound}
+      onToggle={handleToggle}
+      pendingId={pendingId}
+    />
   );
 }
 
@@ -582,33 +678,17 @@ function OfficeBoundPunchPanel({ employees, setEmployeeOfficeBoundPunch }) {
   };
 
   return (
-    <div className="attendance-card">
-      <h3 className="section-title">🏢 Office Employees (Geofenced Web Punch)</h3>
-      <span className="fine-count">
-        For on-site employees who want to punch from the tracker website instead of the mobile app. Unlike
-        Freelance/WFH, these employees must be within the office radius (below) to punch in or out — same rule
-        as the mobile app, checked via browser location.
-      </span>
-      {employees.length === 0 ? (
-        <p className="empty-msg">No employees yet.</p>
-      ) : (
-        <div className="project-member-picker">
-          {employees.map((emp) => {
-            const checked = emp.can_punch_web && emp.web_punch_office_bound;
-            return (
-              <label
-                key={emp.id}
-                className={`project-member-chip ${checked ? "active" : ""}`}
-                style={pendingId === emp.id ? { opacity: 0.6, pointerEvents: "none" } : undefined}
-              >
-                <input type="checkbox" checked={checked} onChange={() => handleToggle(emp)} />
-                <span>{emp.name}</span>
-              </label>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <PunchAccessCard
+      icon="building"
+      tone="blue"
+      title="Office employees"
+      description="Geofenced web punch. For on-site employees who want to punch from the tracker website instead of the mobile app. Unlike Freelance/WFH, these employees must be within the office radius (below) to punch in or out — same rule as the mobile app, checked via browser location."
+      groupLabel="Office employees with web punch"
+      employees={employees}
+      isChecked={(emp) => emp.can_punch_web && emp.web_punch_office_bound}
+      onToggle={handleToggle}
+      pendingId={pendingId}
+    />
   );
 }
 
@@ -655,52 +735,78 @@ function OfficeSettingsPanel({ officeSettings, updateOfficeSettings }) {
     }
   };
 
+  const fields = [
+    { key: "latitude", label: "Latitude", inputMode: "decimal" },
+    { key: "longitude", label: "Longitude", inputMode: "decimal" },
+    { key: "radius_meters", label: "Radius (meters)", inputMode: "numeric" },
+    { key: "late_fine_amount", label: "Late fine amount (Rs.)", inputMode: "numeric" },
+    { key: "checkin_reminder_time", label: "Missed check-in reminder time", type: "time" },
+    { key: "checkout_reminder_time", label: "Missed check-out reminder time", type: "time" },
+  ];
+  const radius = Number(form.radius_meters);
+
   return (
-    <div className="attendance-card">
-      <h3 className="section-title">📍 Office Location</h3>
-      <span className="fine-count">Employees must be within this radius to check in or out from the mobile app.</span>
-      <div className="attendance-card-grid">
-        <div className="attendance-field">
-          <label>Latitude</label>
-          <input className="attendance-input" value={form.latitude} onChange={handleChange("latitude")} />
+    <section className="attendance-settings glass-card" aria-labelledby="office-settings-title">
+      <div className="attendance-settings-main">
+        <div className="attendance-card-head">
+          <span className="attendance-card-icon pill-cyan">
+            <Icon name="pin" size={18} />
+          </span>
+          <h2 id="office-settings-title" className="section-title">
+            Office location &amp; rules
+          </h2>
+          <span className="pill pill-gray">Admin</span>
         </div>
-        <div className="attendance-field">
-          <label>Longitude</label>
-          <input className="attendance-input" value={form.longitude} onChange={handleChange("longitude")} />
+        <p className="attendance-card-desc">
+          Employees must be within this radius to check in or out from the mobile app or a geofenced web punch.
+        </p>
+        <div className="attendance-card-grid">
+          {fields.map((f) => (
+            <div key={f.key} className="attendance-field">
+              <label htmlFor={`office-${f.key}`}>{f.label}</label>
+              <input
+                id={`office-${f.key}`}
+                type={f.type || "text"}
+                inputMode={f.inputMode}
+                className="attendance-input"
+                value={form[f.key]}
+                onChange={handleChange(f.key)}
+              />
+            </div>
+          ))}
         </div>
-        <div className="attendance-field">
-          <label>Radius (meters)</label>
-          <input className="attendance-input" value={form.radius_meters} onChange={handleChange("radius_meters")} />
-        </div>
-        <div className="attendance-field">
-          <label>Late fine amount (Rs.)</label>
-          <input className="attendance-input" value={form.late_fine_amount} onChange={handleChange("late_fine_amount")} />
-        </div>
-        <div className="attendance-field">
-          <label>Missed check-in reminder time</label>
-          <input
-            type="time"
-            className="attendance-input"
-            value={form.checkin_reminder_time}
-            onChange={handleChange("checkin_reminder_time")}
-          />
-        </div>
-        <div className="attendance-field">
-          <label>Missed check-out reminder time</label>
-          <input
-            type="time"
-            className="attendance-input"
-            value={form.checkout_reminder_time}
-            onChange={handleChange("checkout_reminder_time")}
-          />
+        <div className="attendance-settings-foot">
+          <span className="attendance-settings-hint">
+            <Icon name="mail" size={16} strokeWidth={2} />
+            Employees who haven&apos;t checked in/out by these times (Asia/Kathmandu) get an email reminder.
+          </span>
+          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
         </div>
       </div>
-      <span className="fine-count">
-        Employees who haven't checked in/out by these times (Asia/Kathmandu) get an email reminder.
-      </span>
-      <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-        {saving ? "Saving…" : "Save"}
-      </button>
-    </div>
+
+      <figure className="attendance-geofence-figure">
+        <svg
+          width="200"
+          height="200"
+          viewBox="0 0 200 200"
+          fill="none"
+          role="img"
+          aria-label={Number.isFinite(radius) ? `Geofence: ${radius} m radius around the office` : "Geofence around the office"}
+        >
+          <circle className="attendance-fence-ring" cx="100" cy="100" r="88" strokeWidth="1.5" strokeDasharray="5 5" />
+          <circle className="attendance-fence-inner" cx="100" cy="100" r="52" strokeWidth="1" />
+          <path className="attendance-fence-ray" d="M100 100 L188 100" strokeWidth="1" strokeDasharray="2 3" />
+          {Number.isFinite(radius) && (
+            <text className="attendance-fence-label" x="144" y="94" textAnchor="middle">
+              {radius} m
+            </text>
+          )}
+          <circle className="attendance-fence-pin" cx="100" cy="100" r="7" strokeWidth="2" />
+        </svg>
+        <figcaption>Office pin and check-in radius</figcaption>
+      </figure>
+    </section>
   );
 }

@@ -1,69 +1,20 @@
-import { Text } from "react-native";
 import { Tabs } from "expo-router";
-import { useApp } from "../../context/AppContext";
-import { themes } from "../../lib/theme";
+import TabBar from "../../components/TabBar";
 
-function TabIcon({ emoji, focused }) {
-  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>;
-}
+// The canvas tab bar (components/TabBar.js) draws the five tabs. Each tab screen draws its own
+// header, components/TopBar.js, so the navigator's is off.
+const renderTabBar = (props) => <TabBar {...props} />;
 
 export default function TabsLayout() {
-  const { theme } = useApp();
-  const t = themes[theme];
-
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: t.bgElevated },
-        headerTintColor: t.textPrimary,
-        headerTitleStyle: { fontWeight: "700" },
-        tabBarStyle: { backgroundColor: t.bgElevated, borderTopColor: t.border },
-        tabBarActiveTintColor: t.accentIndigo,
-        tabBarInactiveTintColor: t.textMuted,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="attendance"
-        options={{
-          title: "Attendance",
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="fines"
-        options={{
-          title: "Fines",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💰" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="leaves"
-        options={{
-          title: "Leaves",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏖️" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="team"
-        options={{
-          title: "Team",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👥" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: "More",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⋯" focused={focused} />,
-        }}
-      />
+    <Tabs tabBar={renderTabBar} screenOptions={{ headerShown: false }}>
+      <Tabs.Screen name="index" options={{ title: "Home" }} />
+      {/* A tab route without a tab: Attendance opens from Home. */}
+      <Tabs.Screen name="attendance" options={{ title: "Attendance", href: null }} />
+      <Tabs.Screen name="fines" options={{ title: "Fines" }} />
+      <Tabs.Screen name="leaves" options={{ title: "Leaves" }} />
+      <Tabs.Screen name="team" options={{ title: "Team" }} />
+      <Tabs.Screen name="more" options={{ title: "More" }} />
     </Tabs>
   );
 }

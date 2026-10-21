@@ -1,6 +1,16 @@
 import { useEffect } from "react";
 import { StatusBar } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { useFonts } from "expo-font";
+import { SpaceGrotesk_500Medium } from "@expo-google-fonts/space-grotesk/500Medium";
+import { SpaceGrotesk_600SemiBold } from "@expo-google-fonts/space-grotesk/600SemiBold";
+import { SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk/700Bold";
+import { IBMPlexSans_400Regular } from "@expo-google-fonts/ibm-plex-sans/400Regular";
+import { IBMPlexSans_400Regular_Italic } from "@expo-google-fonts/ibm-plex-sans/400Regular_Italic";
+import { IBMPlexSans_500Medium } from "@expo-google-fonts/ibm-plex-sans/500Medium";
+import { IBMPlexSans_600SemiBold } from "@expo-google-fonts/ibm-plex-sans/600SemiBold";
+import { JetBrainsMono_400Regular } from "@expo-google-fonts/jetbrains-mono/400Regular";
+import { JetBrainsMono_500Medium } from "@expo-google-fonts/jetbrains-mono/500Medium";
 import { AppProvider, useApp } from "../context/AppContext";
 import { configureGoogleSignIn } from "../lib/googleSignIn";
 import HumanLoader from "../components/HumanLoader";
@@ -8,7 +18,27 @@ import UpdateBanner from "../components/UpdateBanner";
 
 configureGoogleSignIn();
 
-function AuthGate({ children }) {
+// The families lib/tokens.js names in `fonts`. Each import is a single weight's file (not the
+// package index, which pulls in every weight), so the app ships exactly these nine fonts.
+const FONT_FILES = {
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+  IBMPlexSans_400Regular,
+  IBMPlexSans_400Regular_Italic,
+  IBMPlexSans_500Medium,
+  IBMPlexSans_600SemiBold,
+  JetBrainsMono_400Regular,
+  JetBrainsMono_500Medium,
+};
+
+// Light text on the dark ink, dark text on the light ink.
+function ThemedStatusBar() {
+  const { theme } = useApp();
+  return <StatusBar barStyle={theme === "light" ? "dark-content" : "light-content"} />;
+}
+
+function AuthGate({ children, fontsReady }) {
   const { user, isAuthReady, isLoaded, currentEmployee } = useApp();
   const router = useRouter();
   const segments = useSegments();
@@ -17,15 +47,16 @@ function AuthGate({ children }) {
   const onLoginScreen = segments[0] === "login";
 
   useEffect(() => {
-    if (!isLoaded || !isAuthReady) return;
+    // No navigating while the loader stands in for the Stack: the router has nothing mounted.
+    if (!fontsReady || !isLoaded || !isAuthReady) return;
     if (!user && !onLoginScreen) {
       router.replace("/login");
     } else if (user && isAuthorized && onLoginScreen) {
       router.replace("/");
     }
-  }, [isLoaded, isAuthReady, user, isAuthorized, onLoginScreen]);
+  }, [fontsReady, isLoaded, isAuthReady, user, isAuthorized, onLoginScreen]);
 
-  if (!isLoaded || !isAuthReady || (user && !isAuthorized && !onLoginScreen)) {
+  if (!fontsReady || !isLoaded || !isAuthReady || (user && !isAuthorized && !onLoginScreen)) {
     return <HumanLoader />;
   }
 
@@ -33,11 +64,16 @@ function AuthGate({ children }) {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(FONT_FILES);
+  // The loader stays until the fonts are in or have failed. A failure never blocks the app: text
+  // falls back to the system font.
+  const fontsReady = fontsLoaded || Boolean(fontError);
+
   return (
     <AppProvider>
-      <StatusBar barStyle="light-content" />
+      <ThemedStatusBar />
       <UpdateBanner />
-      <AuthGate>
+      <AuthGate fontsReady={fontsReady}>
         <Stack screenOptions={{ headerShown: false }} />
       </AuthGate>
     </AppProvider>

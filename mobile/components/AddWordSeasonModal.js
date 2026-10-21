@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
-import { FormModal, TextField, Button } from "./ui";
+import { FormModal, TextField } from "./ui";
+import { SheetActions } from "./SheetParts";
 
+// A new Word of the Day season, in the record sheet's look (MobileRecordFine.dc.html).
 export default function AddWordSeasonModal({ isOpen, onClose }) {
   const { addWordSeason } = useApp();
   const [title, setTitle] = useState("");
@@ -20,9 +22,9 @@ export default function AddWordSeasonModal({ isOpen, onClose }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="📚 New Season">
+    <FormModal visible={isOpen} onClose={onClose} title="New Season">
       <TextField label="Season Title" value={title} onChangeText={setTitle} placeholder="e.g. Word of the Day - Season 3" />
-      <Button title={submitting ? "Creating..." : "Create Season"} onPress={handleSubmit} disabled={submitting} />
+      <SheetActions title={submitting ? "Creating..." : "Create Season"} icon="plus" onPress={handleSubmit} disabled={submitting} onCancel={onClose} />
     </FormModal>
   );
 }

@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Text } from "react-native";
 import { useApp } from "../context/AppContext";
 import { toDateStr } from "../lib/utils";
-import { FormModal, TextField, Button } from "./ui";
+import { FormModal, TextField } from "./ui";
+import { SheetNote, SheetActions } from "./SheetParts";
 import DateField from "./DateField";
-import { useThemeColors } from "../lib/theme";
 
 const emptyForm = () => ({
   name: "",
@@ -18,9 +17,10 @@ const emptyForm = () => ({
   address: "",
 });
 
+// A new employee, in the record sheet's look (MobileRecordFine.dc.html): the fields, the error as
+// the sheet's note, Create Employee with Cancel under it. New people start active, as before.
 export default function AddEmployeeModal({ isOpen, onClose }) {
   const { addEmployee, employees } = useApp();
-  const t = useThemeColors();
   const [form, setForm] = useState(emptyForm());
   const today = toDateStr(new Date());
   const [error, setError] = useState("");
@@ -49,8 +49,8 @@ export default function AddEmployeeModal({ isOpen, onClose }) {
       <TextField label="Work Email" value={form.workEmail} onChangeText={set("workEmail")} placeholder="work@gmail.com" keyboardType="email-address" />
       <TextField label="Personal Email" value={form.personalEmail} onChangeText={set("personalEmail")} placeholder="personal@gmail.com" keyboardType="email-address" />
       <TextField label="Address" value={form.address} onChangeText={set("address")} placeholder="City, District..." />
-      {error ? <Text style={{ color: t.accentRed, fontSize: 13, marginBottom: 12 }}>{error}</Text> : null}
-      <Button title="Create Employee" onPress={handleSubmit} />
+      {error ? <SheetNote>{error}</SheetNote> : null}
+      <SheetActions title="Create Employee" onPress={handleSubmit} onCancel={onClose} />
     </FormModal>
   );
 }

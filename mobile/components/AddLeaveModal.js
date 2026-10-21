@@ -1,33 +1,107 @@
 import { useState, useEffect } from "react";
-import { View, Text, Switch } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useApp } from "../context/AppContext";
 import { buildWorkingDates, toDateStr, computeLeaveBalances } from "../lib/utils";
-import { FormModal, TextField, Select, Button } from "./ui";
+import { LEAVE_TYPE_OPTIONS, SEGMENT_OPTIONS, DAY_OPTIONS } from "../lib/options";
+import { formatBs } from "../lib/nepaliDate";
+import { FormModal, TextField, Select } from "./ui";
+import { EmployeePicker, ChoiceGroup, SheetSubtitle, SheetSwitch, SheetNote, SheetActions } from "./SheetParts";
 import DateField from "./DateField";
-import { useThemeColors } from "../lib/theme";
+import Icon from "./Icon";
+import { useThemeColors, radius, fonts } from "../lib/theme";
 
-const TYPE_OPTIONS = [
-  { value: "full", label: "📅 Full Day" },
-  { value: "half", label: "🌗 Half Day" },
-  { value: "early", label: "🚪 Early Leave" },
-];
-const SEGMENT_OPTIONS = [
-  { value: "first", label: "🌅 First Half" },
-  { value: "second", label: "🌇 Second Half" },
-];
+// The record sheet of the canvas's MobileRecordLeave.dc.html, in its order: who, the leave category
+// (the canvas's "Leave type") with the admin's balance override, the leave type (its "Duration")
+// with the half-day segment, the dates, the reason. The edit sheet shares the parts below.
+
+// Which half of the day, as the canvas's two buttons under the Duration: the chosen one primary-soft
+// on a primary edge.
+export function HalfDaySegment({ value, onChange }) {
+  const t = useThemeColors();
+  return (
+    <View accessibilityRole="radiogroup" accessibilityLabel="Half Day Segment" style={styles.segments}>
+      {SEGMENT_OPTIONS.map((opt) => {
+        const selected = opt.value === value;
+        return (
+          <Pressable
+            key={opt.value}
+            onPress={() => onChange(opt.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
+            style={({ pressed }) => [
+              styles.segment,
+              selected ? { backgroundColor: t.primarySoft, borderColor: t.primary } : { borderColor: t.lineStrong, backgroundColor: pressed ? t.pbGray : "transparent" },
+            ]}
+          >
+            <Icon name={opt.icon} size={18} strokeWidth={1.9} color={selected ? t.primaryText : t.text2} />
+            <Text numberOfLines={1} style={[styles.segmentText, { color: selected ? t.text1 : t.text2, fontFamily: selected ? fonts.bodySemibold : fonts.bodyMedium }]}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// The days off: one date, or the first and the last side by side (the canvas's From and To), then
+// their Bikram Sambat dates and the working days they count.
+export function LeaveDates({ multiDay, onMultiDayChange, startDate, onStartChange, endDate, onEndChange, workingDayCount, showCount }) {
+  const t = useThemeColors();
+  const last = multiDay && endDate && endDate > startDate ? endDate : null;
+  const bsStart = startDate ? formatBs(startDate) : "";
+  const bsEnd = last ? formatBs(last) : "";
+  const bs = bsStart ? `${bsStart}${bsEnd ? ` – ${bsEnd}` : ""} BS` : "";
+  return (
+    <>
+      <ChoiceGroup label="Multiple Days?" value={multiDay ? "yes" : "no"} options={DAY_OPTIONS} onChange={onMultiDayChange} />
+      {multiDay ? (
+        <View style={styles.dateRow}>
+          <View style={styles.dateCell}>
+            <DateField label="Leave Date" value={startDate} onChange={onStartChange} />
+          </View>
+          <View style={styles.dateCell}>
+            <DateField label="End Date" value={endDate} onChange={onEndChange} minimumDate={startDate} />
+          </View>
+        </View>
+      ) : (
+        <DateField label="Leave Date" value={startDate} onChange={onStartChange} />
+      )}
+      {bs || showCount ? (
+        <View style={styles.dateNotes}>
+          {bs ? <Text style={[styles.dateNote, { color: t.text3 }]}>{bs}</Text> : null}
+          {showCount ? (
+            <Text style={[styles.dateNote, { color: t.cyanText }]}>
+              {workingDayCount} {workingDayCount === 1 ? "working day" : "working days"} · weekends & holidays skipped
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+// "Season · FY 2083/84" under the sheet's title, as the canvas.
+export function SeasonLine({ title }) {
+  return (
+    <SheetSubtitle>
+      <Text style={styles.seasonLine}>Season · {title}</Text>
+    </SheetSubtitle>
+  );
+}
 
 export default function AddLeaveModal({ isOpen, onClose }) {
   const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes, leaveSeasons } = useApp();
   const selectableEmployees = employees.filter(e => e.status !== "resigned" && e.name !== "Developers");
-  const t = useThemeColors();
   const today = toDateStr(new Date());
 
   // A new leave always belongs to the season that is current NOW — never an earlier season
   // and never the pre-season bucket (null), whichever season the Leaves screen is browsing.
   // null only remains possible when no leave season exists at all.
-  const currentSeasonId = leaveSeasons.length
-    ? [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0].id
+  const currentSeason = leaveSeasons.length
+    ? [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0]
     : null;
+  const currentSeasonId = currentSeason ? currentSeason.id : null;
 
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState(today);
@@ -39,6 +113,8 @@ export default function AddLeaveModal({ isOpen, onClose }) {
   const [leaveTypeId, setLeaveTypeId] = useState("");
   const [overrideBalance, setOverrideBalance] = useState(false);
   const [error, setError] = useState("");
+  // Not enough balance: the canvas's amber warning rather than the red error.
+  const [warning, setWarning] = useState("");
 
   const holidaySet = new Set((publicHolidays || []).map((h) => h.date?.split("T")[0]));
   const activeLeaveTypes = (leaveTypes || []).filter((lt) => lt.is_active);
@@ -67,6 +143,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
       setLeaveTypeId("");
       setOverrideBalance(false);
       setError("");
+      setWarning("");
     }
   }, [isOpen]);
 
@@ -75,6 +152,8 @@ export default function AddLeaveModal({ isOpen, onClose }) {
   const workingDayCount = type === "half" ? previewDates.length * 0.5 : previewDates.length;
 
   const handleSubmit = async () => {
+    setError("");
+    setWarning("");
     if (!name) return setError("Please select an employee");
     if (!startDate) return setError("Please select a start date");
     if (multiDay && endDate && endDate < startDate) return setError("End date cannot be before start date");
@@ -86,7 +165,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
     const requestedDays = type === "half" ? dates.length * 0.5 : dates.length;
     const selectedBalance = balances.find((b) => String(b.id) === String(leaveTypeId));
     if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
-      return setError(
+      return setWarning(
         `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`
       );
     }
@@ -117,15 +196,14 @@ export default function AddLeaveModal({ isOpen, onClose }) {
   };
 
   return (
-    <FormModal visible={isOpen} onClose={onClose} title="🏖️ Record Leave">
-      {!isAdmin && currentEmployee ? (
-        <TextField label="Employee" value={currentEmployee.name} editable={false} />
-      ) : (
-        <Select label="Employee" value={name} onSelect={setName} options={selectableEmployees.map((e) => ({ value: e.name, label: e.name }))} />
-      )}
+    <FormModal visible={isOpen} onClose={onClose} title="Record Leave">
+      {currentSeason ? <SeasonLine title={currentSeason.title} /> : null}
 
-      <Select label="Leave Type" value={type} onSelect={setType} options={TYPE_OPTIONS} />
-      {type === "half" && <Select label="Half Day Segment" value={segment} onSelect={setSegment} options={SEGMENT_OPTIONS} />}
+      {!isAdmin && currentEmployee ? (
+        <EmployeePicker value={currentEmployee.name} />
+      ) : (
+        <EmployeePicker value={name} names={selectableEmployees.map((e) => e.name)} onChange={setName} />
+      )}
 
       {selectableBalances.length > 0 && (
         <>
@@ -138,46 +216,49 @@ export default function AddLeaveModal({ isOpen, onClose }) {
               label: `${b.name} (${b.remaining}/${b.annual_days})`,
             }))}
           />
-          {isAdmin && (
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <Text style={{ color: t.textPrimary, fontSize: 14 }}>Override balance limit</Text>
-              <Switch value={overrideBalance} onValueChange={setOverrideBalance} trackColor={{ true: t.accentIndigo }} />
-            </View>
-          )}
+          {isAdmin && <SheetSwitch label="Override balance limit" value={overrideBalance} onValueChange={setOverrideBalance} last />}
         </>
       )}
 
-      <DateField label="Leave Date" value={startDate} onChange={setStartDate} />
+      <ChoiceGroup label="Leave Type" solid value={type} options={LEAVE_TYPE_OPTIONS} onChange={setType} />
+      {type === "half" && <HalfDaySegment value={segment} onChange={setSegment} />}
 
-      <View style={{ flexDirection: "row", marginBottom: 14 }}>
-        <Select
-          label="Multiple Days?"
-          value={multiDay ? "yes" : "no"}
-          onSelect={(v) => {
-            const isMulti = v === "yes";
-            setMultiDay(isMulti);
-            if (!isMulti) setEndDate("");
-          }}
-          options={[
-            { value: "no", label: "Single day" },
-            { value: "yes", label: "Multiple days" },
-          ]}
-        />
-      </View>
-
-      {multiDay && <DateField label="End Date" value={endDate} onChange={setEndDate} minimumDate={startDate} />}
-
-      {previewDates.length > 0 && (
-        <Text style={{ color: t.textSecondary, fontSize: 13, marginBottom: 14 }}>
-          {workingDayCount} {workingDayCount === 1 ? "working day" : "working days"} · weekends & holidays skipped
-        </Text>
-      )}
+      <LeaveDates
+        multiDay={multiDay}
+        onMultiDayChange={(v) => {
+          const isMulti = v === "yes";
+          setMultiDay(isMulti);
+          if (!isMulti) setEndDate("");
+        }}
+        startDate={startDate}
+        onStartChange={setStartDate}
+        endDate={endDate}
+        onEndChange={setEndDate}
+        workingDayCount={workingDayCount}
+        showCount={previewDates.length > 0}
+      />
 
       <TextField label="Reason" value={reason} onChangeText={setReason} placeholder="e.g. Doctor appointment" />
 
-      {error ? <Text style={{ color: t.accentRed, fontSize: 13, marginBottom: 12 }}>{error}</Text> : null}
+      {warning ? <SheetNote tone="warning">{warning}</SheetNote> : null}
+      {error ? <SheetNote>{error}</SheetNote> : null}
 
-      <Button title="Record Leave" onPress={handleSubmit} variant="accent" />
+      <SheetActions title="Record Leave" onPress={handleSubmit} onCancel={onClose} />
     </FormModal>
   );
 }
+
+// Sizes, gaps and type from MobileRecordLeave.dc.html: 6 between the Duration and its segments,
+// 8 between side-by-side fields.
+const styles = StyleSheet.create({
+  seasonLine: { fontFamily: fonts.mono, fontSize: 12 },
+  // Under the leave type's track (whose field keeps 16 below it), 6 apart from it.
+  segments: { flexDirection: "row", gap: 8, marginTop: -10, marginBottom: 16 },
+  segment: { flex: 1, height: 44, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 8 },
+  segmentText: { flexShrink: 1, fontSize: 14 },
+  dateRow: { flexDirection: "row", gap: 8 },
+  dateCell: { flex: 1 },
+  // Under the date fields (which keep 14 below them), 6 apart.
+  dateNotes: { gap: 4, marginTop: -8, marginBottom: 16, paddingLeft: 4 },
+  dateNote: { fontFamily: fonts.mono, fontSize: 12, lineHeight: 17 },
+});

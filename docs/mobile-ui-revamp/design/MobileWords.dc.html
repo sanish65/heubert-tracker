@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile — Word of the Day</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#8EA6FF}a:hover{color:#B7C6FF}
+.ht{--tab-bg:rgba(15,20,34,.9);--ink:#070A12;--surface:rgba(22,29,47,.55);--surface-solid:#121828;--surface-strong:rgba(22,29,47,.82);--raised:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);--text-1:#EDF1F8;--text-2:#B6BFCF;--text-3:#8E98AC;--primary:#3D63F0;--primary-hover:#5174FF;--primary-text:#8EA6FF;--primary-soft:rgba(61,99,240,.18);--cyan:#2DD4EF;--cyan-text:#67E3F5;--orange:#FF6A1F;--orange-hover:#FF8340;--orange-soft:rgba(255,106,31,.14);--unpaid:#F5A524;--glow:0 0 10px rgba(45,212,239,.7);--blur:blur(22px) saturate(160%);--glass-hi:inset 0 1px 0 rgba(255,255,255,.07);--shadow:0 8px 24px rgba(0,0,0,.28);--shadow-lift:0 16px 40px rgba(0,0,0,.45);--dots:rgba(255,255,255,.03);--pb-blue:rgba(61,99,240,.2);--pf-blue:#A5B8FF;--pb-green:rgba(34,197,94,.16);--pf-green:#6EE7A0;--pb-amber:rgba(245,165,36,.16);--pf-amber:#FCC560;--pb-red:rgba(244,63,94,.16);--pf-red:#FDA4B4;--pb-violet:rgba(167,139,250,.18);--pf-violet:#C4B5FD;--pb-cyan:rgba(45,212,239,.14);--pf-cyan:#67E3F5;--pb-gray:rgba(255,255,255,.07);--pf-gray:#B6BFCF;--f-display:'Space Grotesk',system-ui,sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate;overflow:hidden;font-family:var(--f-body);color:var(--text-2);background-color:var(--ink);background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:20px 20px;-webkit-font-smoothing:antialiased;color-scheme:dark}
+.ht.light{--tab-bg:rgba(255,255,255,.88);--ink:#EDF1F8;--surface:rgba(255,255,255,.6);--surface-solid:#FFFFFF;--surface-strong:rgba(255,255,255,.86);--raised:rgba(255,255,255,.65);--line:rgba(14,21,37,.08);--line-strong:rgba(14,21,37,.16);--text-1:#0E1525;--text-2:#3B4558;--text-3:#5A6478;--primary-hover:#3254D6;--primary-text:#2F52D8;--primary-soft:rgba(61,99,240,.1);--cyan:#06B6D4;--cyan-text:#0E7490;--orange-soft:rgba(255,106,31,.1);--glow:0 0 8px rgba(6,182,212,.55);--glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--shadow:0 8px 24px rgba(30,41,82,.08);--shadow-lift:0 16px 40px rgba(30,41,82,.14);--dots:rgba(14,21,37,.04);--pb-blue:rgba(61,99,240,.1);--pf-blue:#2F52D8;--pb-green:rgba(34,197,94,.12);--pf-green:#15803D;--pb-amber:rgba(245,165,36,.16);--pf-amber:#92400E;--pb-red:rgba(244,63,94,.1);--pf-red:#BE123C;--pb-violet:rgba(124,92,224,.1);--pf-violet:#6D28D9;--pb-cyan:rgba(6,182,212,.12);--pf-cyan:#0E7490;--pb-gray:rgba(14,21,37,.06);--pf-gray:#3B4558;color-scheme:light}
+.ht .aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.38),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.28),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(45,212,239,.16),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.12),transparent 70%)}
+.ht.light .aurora{background:radial-gradient(360px 300px at 10% 4%,rgba(61,99,240,.22),transparent 70%),radial-gradient(320px 280px at 95% 22%,rgba(124,92,224,.16),transparent 70%),radial-gradient(360px 320px at 80% 70%,rgba(6,182,212,.14),transparent 70%),radial-gradient(300px 260px at 10% 92%,rgba(255,106,31,.1),transparent 70%)}
+.ht .glass{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),var(--shadow)}
+.ht button,.ht input,.ht select,.ht textarea{font-family:inherit}
+.ht select option{background:var(--surface-solid);color:var(--text-1)}
+.ht :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</helmet>
+<div class="ht {{themeCls}}" style="width: 390px; min-height: 1400px; box-sizing: border-box; padding: 0 0 110px;">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header style="padding: 56px 16px 14px; display: flex; align-items: center; gap: 12px;">
+    <a href="MobileMore.dc.html" aria-label="Back" class="glass" style="width: 44px; height: 44px; flex-shrink: 0; box-sizing: border-box; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+    </a>
+    <h1 style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-1);">Word of the Day</h1>
+    <button class="glass" aria-label="Manage seasons" style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10v6M9 13h6M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path></svg>
+    </button>
+  </header>
+
+  <nav aria-label="Seasons" style="display: flex; gap: 8px; padding: 0 16px 14px; overflow-x: auto; white-space: nowrap;">
+    <sc-for list="{{seasons}}" as="s" hint-placeholder-count="3">
+      <button aria-pressed="{{s.pressed}}" style="flex-shrink: 0; height: 44px; padding: 0 16px; border: 1px solid {{s.border}}; border-radius: 9999px; background: {{s.bg}}; color: {{s.fg}}; font-size: 14px; font-weight: {{s.weight}}; display: inline-flex; align-items: center; gap: 8px;">
+        {{s.title}}
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{s.count}}</span>
+      </button>
+    </sc-for>
+  </nav>
+
+  <main style="padding: 0 16px; display: flex; flex-direction: column; gap: 14px;">
+    <section aria-labelledby="wotd-word" class="glass" style="position: relative; overflow: hidden; padding: 20px 18px 16px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 14px;">
+      <span aria-hidden="true" style="position: absolute; top: -70px; right: -50px; width: 200px; height: 200px; border-radius: 9999px; background: radial-gradient(circle, rgba(45,212,239,.2), transparent 70%); pointer-events: none;"></span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 7px; height: 7px; border-radius: 9999px; background: var(--cyan); box-shadow: var(--glow);" aria-hidden="true"></span>
+        <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-text);">Word of the day</span>
+        <span style="margin-left: auto; font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">Mon · Oct 19</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <h2 id="wotd-word" style="margin: 0; font-family: var(--f-display); font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; color: var(--text-1);">Candor</h2>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-family: var(--f-mono); font-size: 14px; color: var(--text-2);">/ˈkæn.dər/</span>
+          <span style="height: 24px; padding: 0 10px; border-radius: 9999px; background: var(--pb-blue); color: var(--pf-blue); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">noun</span>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 16px; line-height: 1.5; color: var(--text-1);">The quality of being open and honest in what you say, even when it is uncomfortable.</p>
+      <figure style="margin: 0; padding: 12px 14px; border-left: 3px solid var(--primary); border-radius: 4px 12px 12px 4px; background: var(--raised); display: flex; gap: 10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 2px; color: var(--primary-text);"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1zM15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+        <blockquote style="margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-2);">Retros work because the team brings candor, not polish.</blockquote>
+      </figure>
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; color: var(--text-3);"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"></path></svg>
+        <span style="font-family: var(--f-mono); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3);">Nepali</span>
+        <span lang="ne" style="font-size: 16px; font-weight: 500; color: var(--text-1);">स्पष्टवादिता</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line);">
+        <span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9999px; background: #3D63F0; color: #FFFFFF; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">RK</span>
+        <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+          <span style="font-size: 13px; color: var(--text-3);">Shared by</span>
+          <span style="font-size: 14px; font-weight: 600; color: var(--text-1);">Rohan KC</span>
+        </div>
+        <button aria-label="Edit word Candor" style="width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+        </button>
+        <button aria-label="Delete word Candor" style="width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--pf-red); display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+      </div>
+    </section>
+
+    <label class="glass" style="display: flex; align-items: center; gap: 10px; height: 48px; box-sizing: border-box; padding: 0 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text-3);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Search words</span>
+      <input type="search" placeholder="Search words, meanings, translations" style="flex-grow: 1; min-width: 0; height: 44px; border: 0; background: transparent; color: var(--text-1); font-size: 15px; outline: none;">
+    </label>
+
+    <section aria-labelledby="earlier-h" class="glass" style="padding: 16px 18px 6px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px;">
+        <h2 id="earlier-h" style="margin: 0; flex-grow: 1; font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">Earlier this season</h2>
+        <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">18 words</span>
+      </div>
+      <sc-for list="{{words}}" as="w" hint-placeholder-count="7">
+        <button style="width: 100%; min-height: 66px; padding: 10px 0; border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; display: flex; align-items: center; gap: 12px; color: inherit;">
+          <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <span style="display: flex; align-items: baseline; gap: 8px;">
+              <span style="font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--text-1);">{{w.word}}</span>
+              <span style="font-family: var(--f-mono); font-size: 12px; color: {{w.posFg}};">{{w.pos}}</span>
+            </span>
+            <span style="font-size: 13px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{w.short}}</span>
+          </div>
+          <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <span title="{{w.by}}" style="width: 26px; height: 26px; border-radius: 9999px; background: {{w.av}}; color: {{w.avFg}}; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">{{w.initials}}</span>
+            <span style="font-family: var(--f-mono); font-size: 12px; color: var(--text-3);">{{w.date}}</span>
+          </div>
+        </button>
+      </sc-for>
+    </section>
+  </main>
+
+  <button aria-label="Add Word" style="position: absolute; right: 16px; bottom: 28px; width: 56px; height: 56px; border: 0; border-radius: 9999px; background: var(--primary); color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 28px rgba(61,99,240,.45);">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg>
+  </button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const P = {
+      AS: ['Aarav Shrestha', '#3D63F0', '#FFFFFF'], SG: ['Sita Gurung', '#7C5CE0', '#FFFFFF'], BT: ['Bikash Thapa', '#0B7F90', '#FFFFFF'],
+      PM: ['Priya Maharjan', '#B4471A', '#FFFFFF'], RK: ['Rohan KC', '#3D63F0', '#FFFFFF'], KJ: ['Kriti Joshi', '#7C5CE0', '#FFFFFF'],
+      NT: ['Nabin Tamang', '#0B7F90', '#FFFFFF'], AR: ['Anisha Rai', '#B4471A', '#FFFFFF'], S: ['Sanish', '#FF6A1F', '#0A0E17']
+    };
+    const POS = { noun: 'var(--pf-blue)', verb: 'var(--pf-green)', adjective: 'var(--pf-violet)' };
+    const word = (w, pos, short, who, date) => ({
+      word: w, pos, posFg: POS[pos], short,
+      by: P[who][0], initials: who, av: P[who][1], avFg: P[who][2], date
+    });
+    const season = (title, count, active) => ({
+      title, count, pressed: active ? 'true' : 'false',
+      bg: active ? 'var(--primary-soft)' : 'var(--surface)',
+      border: active ? 'var(--primary)' : 'var(--line-strong)',
+      fg: active ? 'var(--text-1)' : 'var(--text-2)',
+      weight: active ? '600' : '500'
+    });
+    return {
+      themeCls: light ? 'light' : '',
+      seasons: [season('Season 3', '18', true), season('Season 2', '64', false), season('Season 1', '52', false)],
+      words: [
+        word('Pragmatic', 'adjective', 'Dealing with problems sensibly and realistically.', 'SG', 'Oct 16'),
+        word('Iterate', 'verb', 'To repeat a process, improving it a little each time.', 'AS', 'Oct 15'),
+        word('Bottleneck', 'noun', 'The point where work piles up and slows everything after it.', 'BT', 'Oct 14'),
+        word('Diligent', 'adjective', 'Showing steady care and effort in your work.', 'PM', 'Oct 13'),
+        word('Ambiguous', 'adjective', 'Open to more than one meaning.', 'NT', 'Oct 12'),
+        word('Rapport', 'noun', 'A friendly relationship where people understand each other.', 'AR', 'Oct 9'),
+        word('Leverage', 'verb', 'To use what you already have to get a bigger result.', 'S', 'Oct 8')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

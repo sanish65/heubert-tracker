@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { findExistingPublicHoliday, expandDateRange } from "@/lib/utils";
+import Icon from "@/components/Icon";
 
 export default function AddPublicHolidayModal({ isOpen, onClose }) {
   const { addPublicHoliday, publicHolidays } = useApp();
@@ -49,8 +50,9 @@ export default function AddPublicHolidayModal({ isOpen, onClose }) {
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>🌴 Add Public Holiday</h2>
-          <button className="close-btn" onClick={handleClose}>&times;</button>
+          <span className="modal-icon"><Icon name="flag" size={20} /></span>
+          <h2>Add public holiday</h2>
+          <button className="modal-close" onClick={handleClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="premium-form">
           <div className="form-row">
@@ -90,20 +92,23 @@ export default function AddPublicHolidayModal({ isOpen, onClose }) {
             </span>
           )}
           {backwards && (
-            <span className="form-error">The end date must be on or after the start date.</span>
+            <div className="form-error" role="alert"><Icon name="alert" size={16} />The end date must be on or after the start date.</div>
           )}
           {!backwards && clashes.length > 0 && (
-            <span className="form-error">
-              {clashes.length === 1
-                ? `${clashes[0].title} is already the holiday on ${String(clashes[0].date).split("T")[0]}.`
-                : `${clashes.length} of those days already have a holiday (${String(clashes[0].date).split("T")[0]} onwards).`}
-              {" "}Delete them first to replace them.
-            </span>
+            <div className="form-error" role="alert">
+              <Icon name="alert" size={16} />
+              <span>
+                {clashes.length === 1
+                  ? `${clashes[0].title} is already the holiday on ${String(clashes[0].date).split("T")[0]}.`
+                  : `${clashes.length} of those days already have a holiday (${String(clashes[0].date).split("T")[0]} onwards).`}
+                {" "}Delete them first to replace them.
+              </span>
+            </div>
           )}
-          {error && !clashes.length && !backwards && <span className="form-error">{error}</span>}
+          {error && !clashes.length && !backwards && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={handleClose}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={handleClose}>Cancel</button>
             <button
               type="submit"
               className="btn btn-primary"

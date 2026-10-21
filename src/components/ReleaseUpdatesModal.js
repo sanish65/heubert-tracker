@@ -1,6 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Icon from "@/components/Icon";
+
+// The commit categories /api/changelog returns, in the canvas pill colours.
+const TAG_PILLS = {
+  feature: "pill-green",
+  fix: "pill-red",
+  removal: "pill-amber",
+  refactor: "pill-violet",
+  update: "pill-blue",
+};
+
+const tagPill = (type) => (Object.hasOwn(TAG_PILLS, type) ? TAG_PILLS[type] : "pill-gray");
 
 export default function ReleaseUpdatesModal({ isOpen, onClose }) {
   const [releases, setReleases] = useState([]);
@@ -35,57 +47,49 @@ export default function ReleaseUpdatesModal({ isOpen, onClose }) {
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
       <div className="modal-content changelog-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>🚀 Release Updates</h3>
-          <button className="btn-close" onClick={onClose}>×</button>
+          <span className="modal-icon"><Icon name="gift" size={20} /></span>
+          <h2>Release updates</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
 
         <div className="changelog-body">
           {isLoading ? (
-            <div className="changelog-loading">
-               <span className="pulse-dot"></span> Fetching latest commits...
+            <div className="changelog-state empty-msg" role="status">
+              <span className="spinner" aria-hidden="true" />
+              Fetching latest commits...
             </div>
           ) : error ? (
-            <div className="changelog-empty text-muted">
-              {error}
-            </div>
+            <p className="changelog-state empty-msg">{error}</p>
           ) : releases.length === 0 ? (
-            <div className="changelog-empty text-muted">
-              No recent updates found.
-            </div>
+            <p className="changelog-state empty-msg">No recent updates found.</p>
           ) : (
-            <div className="changelog-timeline">
-              {releases.map(({ date, items }, rIdx) => (
-                <div key={date} className="changelog-day-group">
-                  <div className="changelog-date-sticky">
-                    <span className="changelog-date">
-                      {new Date(date).toLocaleDateString("en-US", {
-                         weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
-                      })}
-                    </span>
-                  </div>
-                  <div className="changelog-items">
+            <ol className="changelog-days">
+              {releases.map(({ date, items }) => (
+                <li key={date} className="changelog-day">
+                  <h3 className="eyebrow">
+                    {new Date(date).toLocaleDateString("en-US", {
+                      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                    })}
+                  </h3>
+                  <ul className="changelog-rows">
                     {items.map((commit, cIdx) => (
-                      <div key={commit.hash + cIdx} className="changelog-item group">
-                         <div className="changelog-item-header">
-                            <span className={`changelog-badge cl-badge-${commit.type}`}>
-                              {commit.typeLabel}
-                            </span>
-                            <span className="changelog-hash" title={commit.hash}>
-                              {commit.hash.substring(0, 7)}
-                            </span>
-                         </div>
-                         <div className="changelog-item-content">
-                            <h4 className="changelog-subject">{commit.subject}</h4>
-                            {commit.body && (
-                              <pre className="changelog-body-text text-muted">{commit.body}</pre>
-                            )}
-                         </div>
-                      </div>
+                      <li key={commit.hash + cIdx} className="changelog-row">
+                        <div className="changelog-row-head">
+                          <span className={`pill ${tagPill(commit.type)}`}>{commit.typeLabel}</span>
+                          <code className="changelog-hash" title={commit.hash}>
+                            {commit.hash.substring(0, 7)}
+                          </code>
+                        </div>
+                        <h4 className="changelog-subject">{commit.subject}</h4>
+                        {commit.body && (
+                          <pre className="changelog-body-text">{commit.body}</pre>
+                        )}
+                      </li>
                     ))}
-                  </div>
-                </div>
+                  </ul>
+                </li>
               ))}
-            </div>
+            </ol>
           )}
         </div>
       </div>

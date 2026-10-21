@@ -4,6 +4,7 @@ import { useState } from "react";
 import { postRetro } from "@/lib/retroApi";
 import { ACTION_ITEM_MAX } from "@/lib/retroBoardRules";
 import { useDialog } from "@/context/DialogContext";
+import Icon from "@/components/Icon";
 
 const formatDate = (iso) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
@@ -86,7 +87,7 @@ export default function RetroActionItems({ session, actionItems, members = [], p
 
     if (editingId === item.id) {
       return (
-        <li key={item.id} className="retro-todo-item retro-todo-item-editing">
+        <li key={item.id} className="retro-todo is-editing">
           <input
             className="retro-todo-input"
             value={editText}
@@ -100,14 +101,17 @@ export default function RetroActionItems({ session, actionItems, members = [], p
             }}
           />
           {ownerSelect(editOwner, setEditOwner, "Owner")}
-          <button type="button" className="retro-todo-btn retro-todo-btn-primary" onClick={() => handleSaveEdit(item)} disabled={saving || !editText.trim()}>Save</button>
-          <button type="button" className="retro-todo-btn" onClick={cancelEdit}>Cancel</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => handleSaveEdit(item)} disabled={saving || !editText.trim()}>Save</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={cancelEdit}>Cancel</button>
         </li>
       );
     }
 
+    const origin = isCarried && item.origin_title;
+    const hasMeta = item.owner_name || item.source_card_id || origin || done;
+
     return (
-      <li key={item.id} className={`retro-todo-item${done ? " retro-todo-item-done" : ""}`}>
+      <li key={item.id} className={`retro-todo${done ? " is-done" : ""}`}>
         <input
           type="checkbox"
           className="retro-todo-check"
@@ -116,59 +120,93 @@ export default function RetroActionItems({ session, actionItems, members = [], p
           onChange={() => handleToggle(item)}
           aria-label={done ? "Mark action item as open" : "Mark action item as done"}
         />
-        <span className="retro-todo-text">{item.content}</span>
-        {item.owner_name && <span className="retro-todo-owner">👤 {item.owner_name}</span>}
-        {item.source_card_id && <span className="retro-todo-owner retro-todo-voted">🗳️ From votes</span>}
-        {isCarried && item.origin_title && (
-          <span className="retro-todo-origin">from {item.origin_title} · {formatDate(item.origin_created_at)}</span>
-        )}
-        {done && <span className="retro-todo-origin">✓ {item.done_by} · {formatDate(item.done_at)}</span>}
+        <div className="retro-todo-body">
+          <span className="retro-todo-text">{item.content}</span>
+          {hasMeta && (
+            <div className="retro-todo-meta">
+              {item.owner_name && (
+                <span className="pill pill-gray">
+                  <Icon name="user" size={12} strokeWidth={2} />
+                  {item.owner_name}
+                </span>
+              )}
+              {item.source_card_id && <span className="pill pill-violet">From votes</span>}
+              {origin && (
+                <span className="retro-todo-origin">
+                  from {item.origin_title} · <span className="mono">{formatDate(item.origin_created_at)}</span>
+                </span>
+              )}
+              {done && (
+                <span className="retro-todo-origin">
+                  <Icon name="check" size={12} strokeWidth={2.4} />
+                  {item.done_by} · <span className="mono">{formatDate(item.done_at)}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         {editable && (
-          <span className="retro-todo-actions">
-            <button type="button" className="retro-todo-icon-btn" onClick={() => startEdit(item)} disabled={saving} aria-label="Edit action item" title="Edit">✏️</button>
-            <button type="button" className="retro-todo-icon-btn" onClick={() => handleDelete(item)} disabled={saving} aria-label="Delete action item" title="Delete">✕</button>
+          <span className="retro-todo-tools">
+            <button type="button" className="retro-icon-btn" onClick={() => startEdit(item)} disabled={saving} aria-label="Edit action item" title="Edit">
+              <Icon name="edit" size={14} strokeWidth={2} />
+            </button>
+            <button type="button" className="retro-icon-btn retro-icon-btn-danger" onClick={() => handleDelete(item)} disabled={saving} aria-label="Delete action item" title="Delete">
+              <Icon name="trash" size={14} strokeWidth={2} />
+            </button>
           </span>
         )}
       </li>
     );
   };
 
+  // Action items (Retro.dc.html): open count, earlier retros' items, this retro's, the add form.
   return (
-    <section className="retro-todo-panel">
-      <h3 className="retro-todo-title">✅ Action Items <span className="retro-todo-count">{openCount}</span></h3>
+    <section className="glass retro-actions-panel" aria-labelledby="retro-actions-title">
+      <div className="retro-actions-head">
+        <h2 id="retro-actions-title" className="retro-section-title">Action Items</h2>
+        <span className="pill pill-blue"><span className="mono">{openCount}</span> open</span>
+      </div>
 
-      {error && <div className="retro-todo-error" role="alert">{error}</div>}
+      {error && (
+        <div className="form-error retro-error" role="alert">
+          <Icon name="alert" size={16} />
+          <span className="retro-error-text">{error}</span>
+        </div>
+      )}
 
       {carried.length > 0 && (
         <div className="retro-todo-group">
-          <div className="retro-todo-group-title">From earlier retros</div>
+          <h3 className="eyebrow retro-todo-group-title">From earlier retros</h3>
           <ul className="retro-todo-list">{carried.map((item) => renderItem(item, true))}</ul>
         </div>
       )}
 
       <div className="retro-todo-group">
-        <div className="retro-todo-group-title">New this retro</div>
+        <h3 className="eyebrow retro-todo-group-title">New this retro</h3>
         {own.length === 0 ? (
-          <div className="retro-todo-empty">No action items yet.</div>
+          <p className="empty-msg">No action items yet.</p>
         ) : (
           <ul className="retro-todo-list">{own.map((item) => renderItem(item, false))}</ul>
         )}
-        {editable && (
-          <div className="retro-todo-form">
+      </div>
+
+      {editable && (
+        <div className="retro-todo-form">
+          <label className="retro-todo-new">
+            <span>New action item</span>
             <input
               className="retro-todo-input"
               value={newText}
               maxLength={ACTION_ITEM_MAX}
               placeholder="What will we do?"
-              aria-label="New action item"
               onChange={(e) => setNewText(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
             />
-            {ownerSelect(newOwner, setNewOwner, "Owner for new action item")}
-            <button type="button" className="retro-todo-btn retro-todo-btn-primary" onClick={handleAdd} disabled={saving || !newText.trim()}>Add</button>
-          </div>
-        )}
-      </div>
+          </label>
+          {ownerSelect(newOwner, setNewOwner, "Owner for new action item")}
+          <button type="button" className="btn btn-primary" onClick={handleAdd} disabled={saving || !newText.trim()}>Add</button>
+        </div>
+      )}
     </section>
   );
 }

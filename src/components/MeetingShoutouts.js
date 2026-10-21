@@ -5,11 +5,20 @@ import { supabase } from "@/lib/supabase";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import { isWorkingDay } from "@/lib/attendanceTime";
+import Avatar from "@/components/Avatar";
+import Icon from "@/components/Icon";
 
 export const SHOUTOUT_MAX = 280;
 // Colleagues post from their own laptops while the meeting screen is shared, so the list
 // polls like the other live features (retro, planning poker) instead of loading once.
 const POLL_MS = 3000;
+
+// "09:20 AM" when a shoutout was posted, in office time like the standup submissions.
+const POSTED_AT_FORMAT = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Kathmandu",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 // Parse a YYYY-MM-DD day as local midnight: new Date("2026-10-08") is UTC midnight, which
 // lands on the previous day anywhere west of UTC.
@@ -28,11 +37,24 @@ const nextMeetingDay = (ymd, holidays) => {
   return day;
 };
 
+const postedAt = (createdAt) => {
+  if (!createdAt) return "";
+  const d = new Date(createdAt);
+  return Number.isNaN(d.getTime()) ? "" : POSTED_AT_FORMAT.format(d);
+};
+
+// A person on the meeting page: their photo, else initials over their colour; the
+// signed-in user is marked orange (the one place orange marks a person).
+export function MeetingAvatar({ name, isMe = false }) {
+  return <Avatar name={name} isMe={isMe} className="avatar meeting-avatar" aria-hidden="true" />;
+}
+
 // Shoutouts and kudos on the Start Meeting page. Anyone signed in can post one for today's
 // meeting or the next one (written the evening before, shown when that meeting starts),
 // optionally tagging the colleagues it is for; you edit and delete your own, admins can
 // delete any. Row Level Security enforces the same (scripts/meeting-shoutouts-schema.sql).
-// ◀ looks back at earlier days, read-only; ▶ goes as far as the next meeting day.
+// The previous-day arrow looks back at earlier days, read-only; the next-day arrow goes as
+// far as the next meeting day.
 export default function MeetingShoutouts({ today }) {
   const { employees, currentEmployee, isAdmin, publicHolidays } = useApp();
   const { confirmDialog } = useDialog();
@@ -156,19 +178,30 @@ export default function MeetingShoutouts({ today }) {
   };
 
   return (
-    <section className="meeting-card shoutouts-card">
+    <section className="glass meeting-panel shoutouts-card" aria-labelledby="meeting-shoutouts-title">
       <div className="shoutouts-head">
-        <h2 className="card-title">🙌 Shoutouts &amp; Kudos</h2>
-        <span className="shoutouts-sub">Thank a colleague or celebrate a win.</span>
+        <div className="shoutouts-head-text">
+          <h2 id="meeting-shoutouts-title" className="meeting-panel-title">Shoutouts &amp; kudos</h2>
+          <span className="shoutouts-sub">Thank a colleague or celebrate a win.</span>
+        </div>
         {today && (
-          <div className="date-navigator shoutouts-date-nav">
-            <button className="btn-nav" onClick={() => { setEditingId(null); setPickedDate(shiftDay(date, -1)); }} title="Previous day">◀</button>
-            <span className="view-date-label">
+          <div className="meeting-date-nav" role="group" aria-label="Shoutout date">
+            <button
+              type="button"
+              className="meeting-date-btn"
+              onClick={() => { setEditingId(null); setPickedDate(shiftDay(date, -1)); }}
+              aria-label="Previous day"
+              title="Previous day"
+            >
+              <Icon name="chevron-left" size={16} strokeWidth={2} />
+            </button>
+            <span className="meeting-date-label">
               {isToday ? "Today" : localDay(date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
               {isUpcoming && " · next meeting"}
             </span>
             <button
-              className="btn-nav"
+              type="button"
+              className="meeting-date-btn"
               onClick={() => {
                 setEditingId(null);
                 if (isToday) { setPickedDate(upcoming); return; }
@@ -176,8 +209,11 @@ export default function MeetingShoutouts({ today }) {
                 setPickedDate(next >= today ? null : next);
               }}
               disabled={isUpcoming}
+              aria-label="Next day"
               title="Next day"
-            >▶</button>
+            >
+              <Icon name="chevron-right" size={16} strokeWidth={2} />
+            </button>
           </div>
         )}
       </div>
@@ -186,47 +222,24 @@ export default function MeetingShoutouts({ today }) {
         <p className="empty-msg">{loadError}</p>
       ) : (
         <>
-          {currentEmployee && isOpen && (
-            <div className="shoutouts-compose">
-              <textarea
-                className="shoutouts-input"
-                placeholder={isUpcoming
-                  ? `Queue a shoutout for ${localDay(date).toLocaleDateString("en-US", { weekday: "long" })}'s meeting…`
-                  : "Who deserves a shoutout, and for what?"}
-                value={text}
-                maxLength={SHOUTOUT_MAX}
-                rows={2}
-                onChange={e => setText(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handlePost(); }}
-              />
-              <div className="shoutouts-compose-row">
-                <TagPicker value={tags} onChange={setTags} options={taggable} nameById={nameById} />
-                <button className="btn btn-primary" onClick={handlePost} disabled={!text.trim() || saving}>
-                  {saving && !editingId ? "Posting…" : "🎉 Post"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {error && <p className="shoutouts-error" role="alert">{error}</p>}
-
           {shoutouts.length === 0 ? (
             <p className="empty-msg">
-              {isToday ? "No shoutouts yet today — be the first. ✨"
-                : isUpcoming ? "Nothing queued for the next meeting yet. Add one now and it shows up when the meeting starts. ✨"
+              {isToday ? "No shoutouts yet today — be the first."
+                : isUpcoming ? "Nothing queued for the next meeting yet. Add one now and it shows up when the meeting starts."
                 : "No shoutouts on this day."}
             </p>
           ) : (
-            <div className="shoutouts-list">
+            <ul className="shoutouts-list">
               {shoutouts.map(s => {
                 const tagged = (s.tagged_employee_ids || []).map(id => nameById.get(id)).filter(Boolean);
                 const canEdit = isOpen && isMine(s);
                 const canDelete = isOpen && (isMine(s) || isAdmin);
                 if (editingId === s.id) {
                   return (
-                    <div key={s.id} className="shoutout-item shoutout-item-editing">
+                    <li key={s.id} className="shoutout-item shoutout-item-editing">
                       <textarea
                         className="shoutouts-input"
+                        aria-label="Edit shoutout"
                         value={editText}
                         maxLength={SHOUTOUT_MAX}
                         rows={2}
@@ -239,28 +252,75 @@ export default function MeetingShoutouts({ today }) {
                       />
                       <TagPicker value={editTags} onChange={setEditTags} options={taggable} nameById={nameById} />
                       <div className="shoutout-edit-actions">
-                        <button className="btn btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
-                        <button className="btn btn-primary" onClick={handleSaveEdit} disabled={!editText.trim() || saving}>Save</button>
+                        <button type="button" className="btn btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
+                        <button type="button" className="btn btn-primary" onClick={handleSaveEdit} disabled={!editText.trim() || saving}>Save</button>
                       </div>
-                    </div>
+                    </li>
                   );
                 }
+                const time = postedAt(s.created_at);
                 return (
-                  <div key={s.id} className="shoutout-item">
-                    {tagged.length > 0 && <div className="shoutout-to">🙌 {tagged.join(", ")}</div>}
-                    <p className="shoutout-text">{s.content}</p>
-                    <div className="shoutout-foot">
-                      <span className="shoutout-author">— {s.author}</span>
-                      {(canEdit || canDelete) && (
-                        <div className="shoutout-actions">
-                          {canEdit && <button onClick={() => startEdit(s)} title="Edit">✏️</button>}
-                          {canDelete && <button onClick={() => handleDelete(s)} title="Delete">🗑</button>}
-                        </div>
-                      )}
+                  <li key={s.id} className="shoutout-item">
+                    <MeetingAvatar name={s.author} isMe={!!isMine(s)} />
+                    <div className="shoutout-body">
+                      <div className="shoutout-meta">
+                        <span className="shoutout-author">{s.author}</span>
+                        {tagged.length > 0 && (
+                          <>
+                            <Icon name="chevron-right" size={14} strokeWidth={2} className="shoutout-arrow" />
+                            {tagged.map((name, i) => (
+                              <span key={`${s.id}-tag-${i}`} className="shoutout-tagged">{name}</span>
+                            ))}
+                          </>
+                        )}
+                        {time && <span className="shoutout-time">{time}</span>}
+                        {(canEdit || canDelete) && (
+                          <div className="meeting-actions shoutout-actions">
+                            {canEdit && (
+                              <button type="button" className="btn-icon btn-sm" onClick={() => startEdit(s)} aria-label="Edit shoutout" title="Edit">
+                                <Icon name="edit" size={15} />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button type="button" className="btn-icon btn-sm meeting-delete" onClick={() => handleDelete(s)} aria-label="Delete shoutout" title="Delete">
+                                <Icon name="trash" size={15} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <p className="shoutout-text">{s.content}</p>
                     </div>
-                  </div>
+                  </li>
                 );
               })}
+            </ul>
+          )}
+
+          {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
+
+          {currentEmployee && isOpen && (
+            <div className="shoutouts-compose">
+              <label className="shoutouts-field">
+                <span className="shoutouts-field-label">New shoutout</span>
+                <textarea
+                  className="shoutouts-input"
+                  placeholder={isUpcoming
+                    ? `Queue a shoutout for ${localDay(date).toLocaleDateString("en-US", { weekday: "long" })}'s meeting…`
+                    : "Who deserves a shoutout, and for what?"}
+                  value={text}
+                  maxLength={SHOUTOUT_MAX}
+                  rows={2}
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handlePost(); }}
+                />
+              </label>
+              <div className="shoutouts-compose-row">
+                <TagPicker value={tags} onChange={setTags} options={taggable} nameById={nameById} />
+                <button type="button" className="btn btn-orange" onClick={handlePost} disabled={!text.trim() || saving}>
+                  {saving && !editingId ? "Posting…" : "Post"}
+                </button>
+              </div>
             </div>
           )}
         </>
@@ -274,15 +334,26 @@ function TagPicker({ value, onChange, options, nameById }) {
   const remaining = options.filter(e => !value.includes(e.id));
   return (
     <div className="shoutouts-tags">
-      {value.map(id => (
-        <span key={id} className="shoutouts-tag">
-          {nameById.get(id) || "Unknown"}
-          <button type="button" onClick={() => onChange(value.filter(v => v !== id))} title="Remove">✕</button>
-        </span>
-      ))}
+      {value.map(id => {
+        const name = nameById.get(id) || "Unknown";
+        return (
+          <span key={id} className="shoutouts-tag">
+            {name}
+            <button
+              type="button"
+              onClick={() => onChange(value.filter(v => v !== id))}
+              aria-label={`Remove ${name}`}
+              title="Remove"
+            >
+              <Icon name="x" size={12} strokeWidth={2} />
+            </button>
+          </span>
+        );
+      })}
       {remaining.length > 0 && (
         <select
           className="shoutouts-tag-select"
+          aria-label="Tag a colleague"
           value=""
           onChange={e => { if (e.target.value) onChange([...value, Number(e.target.value)]); }}
         >

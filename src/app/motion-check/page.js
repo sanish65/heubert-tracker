@@ -112,7 +112,7 @@ export default function MotionCheck() {
         </div>
       </div>
 
-      <p style={{ marginBottom: 8, fontSize: 13 }}>D — the real StatsCard (hover for tilt + spotlight)</p>
+      <p style={{ marginBottom: 8, fontSize: 13 }}>D — the real StatsCard (hover to lift)</p>
       <div style={{ display: "flex", gap: 16, maxWidth: 700 }}>
         <StatsCard icon="✅" label="Present" value="12" color="var(--accent-green)" />
         <StatsCard icon="⏰" label="Late" value="3" sub="this week" color="var(--accent-amber)" />
