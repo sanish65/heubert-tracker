@@ -1,24 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import { isWorkingDay } from "@/lib/attendanceTime";
 import Avatar from "@/components/Avatar";
 import Icon from "@/components/Icon";
+import { useShoutouts, postedAt, SHOUTOUT_MAX } from "@/lib/useShoutouts";
 
-export const SHOUTOUT_MAX = 280;
-// Colleagues post from their own laptops while the meeting screen is shared, so the list
-// polls like the other live features (retro, planning poker) instead of loading once.
-const POLL_MS = 3000;
-
-// "09:20 AM" when a shoutout was posted, in office time like the standup submissions.
-const POSTED_AT_FORMAT = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Asia/Kathmandu",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+export { SHOUTOUT_MAX };
 
 // Parse a YYYY-MM-DD day as local midnight: new Date("2026-10-08") is UTC midnight, which
 // lands on the previous day anywhere west of UTC.
@@ -37,12 +27,6 @@ const nextMeetingDay = (ymd, holidays) => {
   return day;
 };
 
-const postedAt = (createdAt) => {
-  if (!createdAt) return "";
-  const d = new Date(createdAt);
-  return Number.isNaN(d.getTime()) ? "" : POSTED_AT_FORMAT.format(d);
-};
-
 // A person on the meeting page: their photo, else initials over their colour; the
 // signed-in user is marked orange (the one place orange marks a person).
 export function MeetingAvatar({ name, isMe = false }) {
@@ -52,11 +36,12 @@ export function MeetingAvatar({ name, isMe = false }) {
 // Shoutouts and kudos on the Start Meeting page. Anyone signed in can post one for today's
 // meeting or the next one (written the evening before, shown when that meeting starts),
 // optionally tagging the colleagues it is for; you edit and delete your own, admins can
-// delete any. Row Level Security enforces the same (scripts/meeting-shoutouts-schema.sql).
+// delete any. Row Level Security enforces the same (scripts/meeting-shoutouts-schema.sql);
+// the reads and writes live in useShoutouts, shared with the Daily standup page.
 // The previous-day arrow looks back at earlier days, read-only; the next-day arrow goes as
 // far as the next meeting day.
 export default function MeetingShoutouts({ today }) {
-  const { employees, currentEmployee, isAdmin, publicHolidays } = useApp();
+  const { currentEmployee, publicHolidays } = useApp();
   const { confirmDialog } = useDialog();
 
   // null = follow today; set once someone steps back through the days.
@@ -68,10 +53,9 @@ export default function MeetingShoutouts({ today }) {
   // Past meetings stay as they were; today's and the next one are still open.
   const isOpen = isToday || isUpcoming;
 
-  const [shoutouts, setShoutouts] = useState([]);
-  const [loadError, setLoadError] = useState("");
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const {
+    shoutouts, loadError, error, setError, saving, post, saveEdit, remove, isMine, canDelete: mayDelete, taggable, nameById,
+  } = useShoutouts(date);
 
   const [text, setText] = useState("");
   const [tags, setTags] = useState([]);
@@ -80,69 +64,10 @@ export default function MeetingShoutouts({ today }) {
   const [editText, setEditText] = useState("");
   const [editTags, setEditTags] = useState([]);
 
-  const nameById = useMemo(() => new Map(employees.map(e => [e.id, e.name])), [employees]);
-  const taggable = useMemo(
-    () => employees.filter(e => e.status !== "resigned").sort((a, b) => a.name.localeCompare(b.name)),
-    [employees]
-  );
-
-  // Resolves to what the list should show; state is set in the .then, so the polling
-  // effect below only subscribes and never sets state synchronously.
-  const loadShoutouts = useCallback(async () => {
-    const { data, error: err } = await supabase
-      .from("meeting_shoutouts")
-      .select("*")
-      .eq("shoutout_date", date)
-      .order("created_at", { ascending: true });
-    if (!err) return { rows: data || [], message: "" };
-    return {
-      rows: null,
-      message: /meeting_shoutouts/.test(err.message)
-        ? "Shoutouts need scripts/meeting-shoutouts-schema.sql applied."
-        : "Couldn't load shoutouts.",
-    };
-  }, [date]);
-
-  const fetchShoutouts = useCallback(
-    () => loadShoutouts().then(({ rows, message }) => {
-      setLoadError(message);
-      if (rows) setShoutouts(rows);
-    }),
-    [loadShoutouts]
-  );
-
-  useEffect(() => {
-    if (!date) return;
-    let live = true;
-    const tick = () => loadShoutouts().then(({ rows, message }) => {
-      if (!live) return;
-      setLoadError(message);
-      if (rows) setShoutouts(rows);
-    });
-    tick();
-    const id = setInterval(tick, POLL_MS);
-    return () => { live = false; clearInterval(id); };
-  }, [date, loadShoutouts]);
-
-  const isMine = (s) => currentEmployee && s.author_employee_id === currentEmployee.id;
-
   const handlePost = async () => {
-    const content = text.trim();
-    if (!content || saving || !currentEmployee) return;
-    setSaving(true);
-    setError("");
-    const { error: err } = await supabase.from("meeting_shoutouts").insert({
-      shoutout_date: date,
-      content,
-      author: currentEmployee.name,
-      author_employee_id: currentEmployee.id,
-      tagged_employee_ids: tags,
-    });
-    setSaving(false);
-    if (err) { setError("Couldn't post your shoutout. Try again."); return; }
+    if (!(await post({ content: text, tags }))) return;
     setText("");
     setTags([]);
-    fetchShoutouts();
   };
 
   const startEdit = (s) => {
@@ -153,28 +78,12 @@ export default function MeetingShoutouts({ today }) {
   };
 
   const handleSaveEdit = async () => {
-    const content = editText.trim();
-    if (!content || saving) return;
-    setSaving(true);
-    setError("");
-    // .select() so a write RLS quietly refused (0 rows) shows up as an error, not a no-op.
-    const { data, error: err } = await supabase
-      .from("meeting_shoutouts")
-      .update({ content, tagged_employee_ids: editTags })
-      .eq("id", editingId)
-      .select();
-    setSaving(false);
-    if (err || !data?.length) { setError("Couldn't save your changes."); return; }
-    setEditingId(null);
-    fetchShoutouts();
+    if (await saveEdit(editingId, { content: editText, tags: editTags })) setEditingId(null);
   };
 
   const handleDelete = async (s) => {
     if (!(await confirmDialog("Delete this shoutout?", { danger: true, confirmText: "Delete" }))) return;
-    setError("");
-    const { data, error: err } = await supabase.from("meeting_shoutouts").delete().eq("id", s.id).select();
-    if (err || !data?.length) { setError("Couldn't delete that shoutout."); return; }
-    setShoutouts(prev => prev.filter(x => x.id !== s.id));
+    remove(s.id);
   };
 
   return (
@@ -233,7 +142,7 @@ export default function MeetingShoutouts({ today }) {
               {shoutouts.map(s => {
                 const tagged = (s.tagged_employee_ids || []).map(id => nameById.get(id)).filter(Boolean);
                 const canEdit = isOpen && isMine(s);
-                const canDelete = isOpen && (isMine(s) || isAdmin);
+                const canDelete = isOpen && mayDelete(s);
                 if (editingId === s.id) {
                   return (
                     <li key={s.id} className="shoutout-item shoutout-item-editing">
@@ -261,7 +170,7 @@ export default function MeetingShoutouts({ today }) {
                 const time = postedAt(s.created_at);
                 return (
                   <li key={s.id} className="shoutout-item">
-                    <MeetingAvatar name={s.author} isMe={!!isMine(s)} />
+                    <MeetingAvatar name={s.author} isMe={isMine(s)} />
                     <div className="shoutout-body">
                       <div className="shoutout-meta">
                         <span className="shoutout-author">{s.author}</span>

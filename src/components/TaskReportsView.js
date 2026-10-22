@@ -10,6 +10,8 @@ import {
   countsTowardPoints,
   daysBetween,
 } from "@/lib/taskBoard";
+import { isDone, isInProgress } from "@/lib/taskWorkflow";
+import { flowStats, formatDuration } from "@/lib/taskExtras";
 import { formatShortDate } from "@/components/TaskBits";
 import { getNepalDateStr } from "@/lib/attendanceTime";
 
@@ -194,7 +196,36 @@ function VelocityChart({ data }) {
   );
 }
 
-export default function TaskReportsView({ tasks, sprints, today }) {
+// Kanban boards have no sprints, so their report is flow: how much finishes and how long
+// it takes, over the last week and month, plus the time logged on the project.
+function FlowReport({ tasks }) {
+  // Read once per mount: "the last 7 days" doesn't need to tick while the report is open.
+  const [now] = useState(() => Date.now());
+  const week = flowStats(tasks, now, 7);
+  const month = flowStats(tasks, now, 30);
+  const inProgress = tasks.filter((t) => t.type !== "epic" && isInProgress(t)).length;
+  const logged = tasks.reduce((sum, t) => sum + (Number(t.time_spent_min) || 0), 0);
+  return (
+    <section className="reports-card glass-card">
+      <div className="reports-card-head">
+        <h3 className="section-title">Flow</h3>
+        <span className="reports-card-sub">Kanban board</span>
+      </div>
+      <div className="reports-stats">
+        <div className="reports-stat"><strong>{week.throughput}</strong><span>done in the last 7 days</span></div>
+        <div className="reports-stat"><strong>{month.throughput}</strong><span>done in the last 30 days</span></div>
+        <div className="reports-stat">
+          <strong>{month.avgCycleDays == null ? "—" : `${month.avgCycleDays} d`}</strong>
+          <span>average time from created to done</span>
+        </div>
+        <div className="reports-stat"><strong>{inProgress}</strong><span>in progress or review now</span></div>
+        <div className="reports-stat"><strong>{logged ? formatDuration(logged) : "—"}</strong><span>time logged on this project</span></div>
+      </div>
+    </section>
+  );
+}
+
+export default function TaskReportsView({ tasks, sprints, today, boardMode = "scrum" }) {
   const sprint = activeSprintOf(sprints);
   const sprintIssues = useMemo(() => boardIssues(tasks, sprint?.id ?? null), [tasks, sprint]);
   // completed_at is a UTC timestamp; the chart's days are Nepal days, so work done
@@ -212,10 +243,18 @@ export default function TaskReportsView({ tasks, sprints, today }) {
 
   const standard = sprintIssues.filter(countsTowardPoints);
   const totalPoints = sumPoints(standard);
-  const donePoints = sumPoints(standard.filter((t) => t.status === "done"));
-  const doneCount = standard.filter((t) => t.status === "done").length;
+  const donePoints = sumPoints(standard.filter((t) => isDone(t)));
+  const doneCount = standard.filter((t) => isDone(t)).length;
   const daysLeft = sprint?.end_date ? daysBetween(today, sprint.end_date) : null;
   const averageVelocity = velocity.length ? Math.round(velocity.reduce((s, v) => s + v.completed, 0) / velocity.length) : null;
+
+  if (boardMode === "kanban") {
+    return (
+      <div className="reports-view">
+        <FlowReport tasks={tasks} />
+      </div>
+    );
+  }
 
   return (
     <div className="reports-view">

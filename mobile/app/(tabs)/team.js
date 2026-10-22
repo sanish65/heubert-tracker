@@ -9,12 +9,15 @@ import Icon from "../../components/Icon";
 import AddEmployeeModal from "../../components/AddEmployeeModal";
 import EmployeeDetailModal from "../../components/EmployeeDetailModal";
 import { EMPLOYEE_STATUSES, employeeStatus } from "../../lib/options";
+import { SORTS, sortRows } from "../../lib/employeeDirectory";
 
 // Team, as the canvas's MobileTeam.dc.html: the top bar (Add for admins, as before), the search,
 // the status filter, then the directory. A row opens the employee's screen (EmployeeDetailModal),
 // which now holds the admin's Edit and Delete; the rows carried them before the redesign, along
 // with the ID, joined date, phone and fines total that the employee's screen shows. You come first
 // and people who resigned last, as on the canvas; the rest keep the directory's order (by name).
+// Sort, as the web's Employees: Name A–Z is that order; Joined date puts the longest-serving first
+// and Unpaid fines the most owed first, across everyone.
 
 // The filter: everyone, then each status. On Leave, which the canvas does not draw, shows while
 // someone has that status (or while it is the one chosen).
@@ -84,6 +87,25 @@ function StatusChip({ label, count, checked, onPress }) {
   );
 }
 
+// A sort order: the status chip's quieter twin, no count, primary-soft when chosen.
+function SortChip({ label, checked, onPress }) {
+  const t = useThemeColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked }}
+      accessibilityLabel={`Sort by ${label}`}
+      style={({ pressed }) => [
+        styles.chip,
+        checked ? { backgroundColor: t.primarySoft, borderColor: t.primary } : { backgroundColor: pressed ? t.raised : t.surface, borderColor: t.lineStrong },
+      ]}
+    >
+      <Text style={[styles.chipText, { color: checked ? t.text1 : t.text2, fontFamily: checked ? fonts.bodySemibold : fonts.bodyMedium }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 // A person in the directory, as the canvas's row: photo or initials, name and email, the status
 // pill, the chevron to their screen. The canvas dims a resigned row; that would take its text under
 // 4.5:1, so the red pill says it instead.
@@ -117,7 +139,9 @@ function EmployeeRow({ employee, isMe, first, onPress }) {
 }
 
 export default function TeamScreen() {
-  const { employees, isAdmin, currentEmployee } = useApp();
+  const t = useThemeColors();
+  const { employees, isAdmin, currentEmployee, getEmployeeStats } = useApp();
+  const [sort, setSort] = useState("name");
   const [showAdd, setShowAdd] = useState(false);
   // The person whose screen is open, by id: it shows each edit, and closes once they are deleted.
   const [viewingId, setViewingId] = useState(null);
@@ -135,8 +159,10 @@ export default function TeamScreen() {
       else if (employeeStatus(emp).value === "resigned") resigned.push(emp);
       else here.push(emp);
     }
-    return [...me, ...here, ...resigned];
-  }, [employees, myId]);
+    const grouped = [...me, ...here, ...resigned];
+    if (sort === "name") return grouped;
+    return sortRows(grouped.map((emp) => ({ emp, stats: getEmployeeStats(emp.name) })), sort).map((row) => row.emp);
+  }, [employees, myId, sort, getEmployeeStats]);
 
   // The search narrows the list and the filter applies on top, so each chip counts within the
   // search, as the web's Employees.
@@ -181,6 +207,15 @@ export default function TeamScreen() {
         </View>
       </ScrollView>
 
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters} contentContainerStyle={styles.filtersContent}>
+        <View accessibilityRole="radiogroup" accessibilityLabel="Sort" style={styles.filtersRow}>
+          <Text style={[styles.sortLabel, { color: t.text3 }]}>Sort</Text>
+          {SORTS.map((s) => (
+            <SortChip key={s.id} label={s.label} checked={sort === s.id} onPress={() => setSort(s.id)} />
+          ))}
+        </View>
+      </ScrollView>
+
       <Card style={styles.directory}>
         {visible.length === 0 ? (
           <EmptyState icon="users" text="No employees found" />
@@ -215,6 +250,7 @@ const styles = StyleSheet.create({
   chip: { flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1 },
   chipText: { fontSize: 14 },
   chipCount: { fontFamily: fonts.mono, fontSize: 12 },
+  sortLabel: { alignSelf: "center", fontFamily: fonts.bodyMedium, fontSize: 13 },
 
   // The directory: a 20-round glass card, 4 by 16 in; rows at least 68 high on a hairline.
   directory: { borderRadius: radius.xl, paddingVertical: 4, paddingHorizontal: 16 },

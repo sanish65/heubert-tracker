@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { StatusBar } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
+import * as Notifications from "expo-notifications";
 import { SpaceGrotesk_500Medium } from "@expo-google-fonts/space-grotesk/500Medium";
 import { SpaceGrotesk_600SemiBold } from "@expo-google-fonts/space-grotesk/600SemiBold";
 import { SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk/700Bold";
@@ -38,6 +39,25 @@ function ThemedStatusBar() {
   return <StatusBar barStyle={theme === "light" ? "dark-content" : "light-content"} />;
 }
 
+// A tapped push notification opens what it's about. Task notifications (sent by the web's
+// /api/task-notifications) carry { type: "task", issue: "POR-4" }; the others open the app as
+// before. Also handles the tap that launched the app. Mounted only once someone is signed in.
+function NotificationTaps() {
+  const router = useRouter();
+  const response = Notifications.useLastNotificationResponse();
+  const handled = useRef(null);
+  useEffect(() => {
+    const id = response?.notification?.request?.identifier;
+    const data = response?.notification?.request?.content?.data;
+    if (!id || handled.current === id) return;
+    handled.current = id;
+    if (data?.type === "task" && typeof data.issue === "string") {
+      router.push({ pathname: "/tasks", params: { issue: data.issue, at: String(Date.now()) } });
+    }
+  }, [response, router]);
+  return null;
+}
+
 function AuthGate({ children, fontsReady }) {
   const { user, isAuthReady, isLoaded, currentEmployee } = useApp();
   const router = useRouter();
@@ -60,7 +80,12 @@ function AuthGate({ children, fontsReady }) {
     return <HumanLoader />;
   }
 
-  return children;
+  return (
+    <>
+      {user && isAuthorized ? <NotificationTaps /> : null}
+      {children}
+    </>
+  );
 }
 
 export default function RootLayout() {

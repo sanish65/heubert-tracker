@@ -25,6 +25,14 @@ test('a section heading takes its group label as the eyebrow', () => {
   });
 });
 
+test('the standup page is the Team group\'s daily standup, for either day', () => {
+  assert.deepEqual(pageMetaFor('standup-form', { groupLabel: 'Team' }), {
+    eyebrow: 'Team',
+    title: 'Daily standup',
+    subtitle: 'Your update for the meeting, and a thank-you for someone who helped. Fill or edit either day, any time.',
+  });
+});
+
 test('every tab has a heading, and an unknown tab falls back to the dashboard', () => {
   for (const id of TAB_IDS) assert.ok(PAGE_META[id] && PAGE_META[id].title, id);
   assert.deepEqual(pageMetaFor('nope', { hour: 9 }), pageMetaFor('dashboard', { hour: 9 }));

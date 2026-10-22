@@ -611,7 +611,7 @@ export function AppProvider({ children }) {
     if (data) {
       setFines(prev => [data[0], ...prev]);
       // Not awaited — the fine is recorded either way, and SMTP must not stall the UI.
-      notifyFineAdded({ kind: "late", employeeName: fine.name, date: fine.date, amount: fine.amount });
+      notifyFineAdded({ kind: "late", employeeName: fine.name, date: fine.date, amount: fine.amount, status: data[0].status });
     }
     return { data, error };
   };
@@ -983,6 +983,20 @@ export function AppProvider({ children }) {
     return { data: data?.[0], error };
   };
 
+  // Scrum or Kanban, and the Kanban columns' WIP limits, for one project's Tasks board.
+  const setProjectBoardSettings = async (id, { boardMode, wipLimits }) => {
+    if (!isAdmin) return denied("change a project's board settings");
+    const { data, error } = await supabase
+      .from("projects")
+      .update({ board_mode: boardMode, wip_limits: wipLimits || {}, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select();
+    if (!error && data?.[0]) {
+      setProjects(prev => prev.map(p => (p.id === id ? data[0] : p)).sort(sortProjectsByName));
+    }
+    return { data: data?.[0], error };
+  };
+
   const addStandupFine = async (record) => {
     if (!canManageFines) return denied("record a standup fine");
 
@@ -997,7 +1011,7 @@ export function AppProvider({ children }) {
     const { data, error } = await supabase.from("standup_records").insert([payload]).select();
     if (data) {
       setStandupFines(prev => [data[0], ...prev]);
-      notifyFineAdded({ kind: "standup", employeeName: record.name, date: record.date });
+      notifyFineAdded({ kind: "standup", employeeName: record.name, date: record.date, status: data[0].status });
     }
     return { data, error };
   };
@@ -1631,6 +1645,7 @@ export function AppProvider({ children }) {
         updateProject,
         deleteProject,
         setProjectIssueKey,
+        setProjectBoardSettings,
       }}
     >
       {children}

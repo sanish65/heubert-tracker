@@ -63,3 +63,45 @@ export function unseenCount(items, seenAt) {
   if (!Number.isFinite(seen)) return list.length;
   return list.filter((item) => Date.parse(item.at) > seen).length;
 }
+
+// ── Task notifications ──────────────────────────────────────────────────────
+
+const STATUS_LABELS = { todo: "To Do", in_progress: "In Progress", review: "In Review", done: "Done" };
+
+// A database timestamp as a plain ISO string (milliseconds, Z), so every engine reads it
+// back: the phone's may refuse Supabase's six fraction digits. One that doesn't parse stays
+// as it was.
+function isoAt(value) {
+  const ms = Date.parse(value ?? "");
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : value;
+}
+
+// A row of task_notifications (with its issue embedded as `task`) as the bell shows it.
+// `key` is the issue key, e.g. "POR-4", worked out by the caller from the project.
+export function taskNotificationItem(row, key) {
+  const who = row.actor_name || "Someone";
+  const title = row.task?.title || "an issue";
+  let text;
+  if (row.kind === "assigned") text = `${who} assigned ${key} to you`;
+  else if (row.kind === "mentioned") text = `${who} mentioned you on ${key}`;
+  else if (row.kind === "commented") text = `${who} commented on ${key}`;
+  else text = `${who} moved ${key} to ${STATUS_LABELS[row.detail] || row.detail || "a new status"}`;
+  return {
+    id: `task-${row.id}`,
+    notificationId: row.id,
+    kind: "task",
+    taskKind: row.kind,
+    at: isoAt(row.created_at),
+    read: Boolean(row.read_at),
+    issueKey: key,
+    text,
+    sub: row.kind === "mentioned" || row.kind === "commented" ? row.detail || title : title,
+  };
+}
+
+// Fines and task notifications in one list, newest first.
+export function mergeNotifications(fineItems, taskItems, limit = 15) {
+  return [...(fineItems || []), ...(taskItems || [])]
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, limit);
+}

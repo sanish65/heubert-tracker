@@ -88,3 +88,39 @@ export function taskQuery(text) {
   const title = String(text ?? "").replace(PATTERN_CHARS, "").trim();
   return title.length >= 2 ? { title } : null;
 }
+
+const firstName = (name) => String(name ?? "").trim().split(/\s+/)[0] || "";
+
+// Up to three queries the empty search panel offers, built from data already loaded so
+// each one finds something: a current person's first name, the first name of someone
+// else with a fine on a list they are not excluded from, and the newest issue key of an
+// open project (issue_seq is the last number it handed out).
+export function searchExamples({ employees, fines, standupFines, projects } = {}) {
+  const examples = [];
+  const people = employees || [];
+  const personName = firstName(people.find((e) => e.status !== "resigned" && firstName(e.name))?.name);
+  if (personName) examples.push({ kind: "person", query: personName });
+
+  const employeeByName = new Map(people.map((e) => [e.name, e]));
+  const fined = (kind) => (fine) => {
+    const employee = employeeByName.get(fine.employee_name);
+    if (kind === "late" ? employee?.late_fine_excluded : employee?.standup_fine_excluded) return false;
+    const name = firstName(fine.employee_name);
+    return name !== "" && name.toLowerCase() !== personName.toLowerCase();
+  };
+  const fine = (fines || []).find(fined("late")) || (standupFines || []).find(fined("standup"));
+  if (fine) examples.push({ kind: "fine", query: firstName(fine.employee_name) });
+
+  const project = (projects || []).find((p) => p.issue_key && p.status !== "archived" && Number(p.issue_seq) > 0);
+  if (project) examples.push({ kind: "task", query: `${project.issue_key}-${Number(project.issue_seq)}` });
+  return examples;
+}
+
+// What the panel says when a query finds nothing: which kinds were searched, since a
+// query too short for a task search only looked at people and fines.
+export function noMatchNote(query) {
+  const text = String(query ?? "").trim();
+  return taskQuery(text)
+    ? `No people, fines or tasks match “${text}”.`
+    : `No people or fines match “${text}”. Tasks need at least 2 characters.`;
+}

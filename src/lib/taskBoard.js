@@ -1,7 +1,9 @@
-// Pure rules for the Tasks tab (Jira-style issues, sprints and boards). No imports, so it
-// runs under `npm test`. The database enforces the same hierarchy and sprint rules in
-// supabase/migrations/20261019125521_jira_issues.sql; these copies exist so the UI can
-// offer only valid choices instead of letting a save fail.
+// Pure rules for the Tasks tab (Jira-style issues, sprints and boards). Only relative
+// imports of other pure modules, so it runs under `npm test`. The database enforces the
+// same hierarchy and sprint rules in supabase/migrations/20261019125521_jira_issues.sql;
+// these copies exist so the UI can offer only valid choices instead of letting a save fail.
+
+import { DEFAULT_WORKFLOW, statusMeta, isDone } from "./taskWorkflow.js";
 
 export const ISSUE_TYPES = [
   { value: "epic", label: "Epic", icon: "⚡", color: "#8b5cf6" },
@@ -11,13 +13,9 @@ export const ISSUE_TYPES = [
   { value: "subtask", label: "Sub-task", icon: "↳", color: "#60a5fa" },
 ];
 
-// Statuses carry Jira's three categories, which drive the lozenge colour.
-export const STATUSES = [
-  { value: "todo", label: "To Do", category: "todo" },
-  { value: "in_progress", label: "In Progress", category: "progress" },
-  { value: "review", label: "In Review", category: "progress" },
-  { value: "done", label: "Done", category: "done" },
-];
+// The default workflow. Each project can have its own (src/lib/taskWorkflow.js); every
+// rule below asks a status's category rather than comparing to these keys.
+export const STATUSES = DEFAULT_WORKFLOW;
 
 export const PRIORITIES = [
   { value: "highest", label: "Highest", icon: "⏫" },
@@ -51,7 +49,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const byValue = (list, value) => list.find((item) => item.value === value);
 export const issueType = (value) => byValue(ISSUE_TYPES, value) || ISSUE_TYPES[2];
-export const statusInfo = (value) => byValue(STATUSES, value) || STATUSES[0];
+export const statusInfo = (value, workflow = DEFAULT_WORKFLOW) => statusMeta(value, workflow);
 export const priorityInfo = (value) => byValue(PRIORITIES, value) || PRIORITIES[2];
 
 // ── Keys ────────────────────────────────────────────────────────────────────
@@ -125,7 +123,7 @@ export function sumPoints(tasks) {
 
 export function childProgress(parentId, tasks) {
   const children = tasks.filter((t) => t.parent_id === parentId);
-  const done = children.filter((t) => t.status === "done").length;
+  const done = children.filter(isDone).length;
   return { total: children.length, done, percent: children.length ? Math.round((done / children.length) * 100) : 0 };
 }
 
@@ -219,7 +217,7 @@ export function describeIssueLink(link, viewingId) {
 // ── Dates and permissions ───────────────────────────────────────────────────
 
 export function isOverdue(task, todayStr) {
-  if (!task?.due_date || task.status === "done") return false;
+  if (!task?.due_date || isDone(task)) return false;
   return String(task.due_date).slice(0, 10) < todayStr;
 }
 
@@ -257,9 +255,11 @@ export function nextSprintName(projectKey, sprints) {
 
 // filters: { search, onlyMine, recent, types: [], epicId, assigneeId }
 export function filterIssues(tasks, filters, { currentEmployeeId = null, nowMs = Date.now(), keyOf = () => "" } = {}) {
-  const { search = "", onlyMine = false, recent = false, types = [], epicId = null, assigneeId = null } = filters || {};
+  // predicate: a compiled JQL query (src/lib/taskQuery.js), applied on top of the rest.
+  const { search = "", onlyMine = false, recent = false, types = [], epicId = null, assigneeId = null, predicate = null } = filters || {};
   const needle = search.trim().toLowerCase();
   return tasks.filter((task) => {
+    if (predicate && !predicate(task)) return false;
     if (onlyMine && (currentEmployeeId == null || task.assignee_id !== currentEmployeeId)) return false;
     if (assigneeId != null && task.assignee_id !== assigneeId) return false;
     if (types.length && !types.includes(task.type)) return false;
@@ -289,9 +289,17 @@ export function boardIssues(tasks, sprintId) {
   return tasks.filter((t) => t.sprint_id === sprintId && t.type !== "epic");
 }
 
-export function groupByStatus(tasks) {
-  const groups = Object.fromEntries(STATUSES.map((s) => [s.value, []]));
-  for (const task of tasks) (groups[task.status] || groups.todo).push(task);
+// One list per column of the workflow. An issue whose status the workflow no longer has
+// shows in the first column of its category, so nothing disappears from the board.
+export function groupByStatus(tasks, workflow = DEFAULT_WORKFLOW) {
+  const groups = Object.fromEntries(workflow.map((s) => [s.value, []]));
+  for (const task of tasks) {
+    const home =
+      groups[task.status] ||
+      groups[workflow.find((s) => s.category === task.status_category)?.value] ||
+      groups[workflow[0].value];
+    home.push(task);
+  }
   for (const key of Object.keys(groups)) groups[key] = sortByRank(groups[key]);
   return groups;
 }
@@ -336,8 +344,8 @@ export function backlogSections(tasks, sprints) {
   const backlogAll = rows.filter((t) => t.sprint_id == null);
   return {
     sprints: open.map((sprint) => ({ sprint, issues: sortByRank(rows.filter((t) => t.sprint_id === sprint.id)) })),
-    backlog: sortByRank(backlogAll.filter((t) => t.status !== "done")),
-    hiddenDone: backlogAll.filter((t) => t.status === "done").length,
+    backlog: sortByRank(backlogAll.filter((t) => !isDone(t))),
+    hiddenDone: backlogAll.filter(isDone).length,
   };
 }
 
@@ -357,7 +365,7 @@ export function burndownSeries(sprint, sprintIssues, todayStr) {
     let remaining = null;
     if (date <= todayStr) {
       const doneBy = counted
-        .filter((t) => t.status === "done" && t.completed_at && String(t.completed_at).slice(0, 10) <= date)
+        .filter((t) => isDone(t) && t.completed_at && String(t.completed_at).slice(0, 10) <= date)
         .reduce((sum, t) => sum + (Number(t.estimate) || 0), 0);
       remaining = total - doneBy;
     }
@@ -400,7 +408,7 @@ export function describeActivity(entry, resolve = {}) {
   const show = (value) => {
     if (value == null || value === "") return "None";
     switch (entry.field) {
-      case "status": return statusInfo(value).label;
+      case "status": return resolve.status?.(value) || statusInfo(value).label;
       case "priority": return priorityInfo(value).label;
       case "type": return issueType(value).label;
       case "assignee_id":

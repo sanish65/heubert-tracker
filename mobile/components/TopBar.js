@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useApp } from "../context/AppContext";
 import { useThemeColors, fonts, radius } from "../lib/theme";
-import { NOTIFY_DAYS, myFineNotifications, unseenCount } from "../lib/notifications";
+import { NOTIFY_DAYS, myFineNotifications, unseenCount, taskNotificationItem, mergeNotifications } from "../lib/notifications";
+import { useTaskNotifications, markTaskNotificationsRead } from "../lib/useTaskNotifications";
 import { formatBs } from "../lib/nepaliDate";
 import { localToday } from "../lib/dates";
 import { Eyebrow, IconButton, FormModal, EmptyState, Pill } from "./ui";
@@ -94,6 +95,44 @@ function NotificationRow({ item, isNew, onPress }) {
   );
 }
 
+// "POR-4" for an issue, as the web's issueKey (src/lib/taskBoard.js).
+function issueKey(project, task) {
+  if (!task) return "";
+  if (!project?.issue_key || task.number == null) return `#${task.id}`;
+  return `${project.issue_key}-${task.number}`;
+}
+
+const TASK_ICONS = { assigned: "user", mentioned: "message", commented: "message-square", status: "kanban" };
+
+// An issue update in the bell, as the web bell's task rows: what happened, the issue's title or the
+// comment under it. It opens the issue in Tasks.
+function TaskNotificationRow({ item, isNew, onPress }) {
+  const t = useThemeColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={[item.text, item.sub, isNew ? "New" : ""].filter(Boolean).join(", ")}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: t.pbGray }]}
+    >
+      <View style={[styles.rowIcon, { backgroundColor: t.pbBlue }]}>
+        <Icon name={TASK_ICONS[item.taskKind] || "kanban"} size={16} color={t.pfBlue} />
+      </View>
+      <View style={styles.rowText}>
+        <Text numberOfLines={2} style={[styles.rowTitle, { color: t.text1 }]}>
+          {item.text}
+        </Text>
+        {item.sub ? (
+          <Text numberOfLines={1} style={[styles.rowSub, { color: t.text3 }]}>
+            {item.sub}
+          </Text>
+        ) : null}
+      </View>
+      {isNew ? <View style={[styles.newDot, { backgroundColor: t.cyan }]} /> : null}
+    </Pressable>
+  );
+}
+
 // The header of the tab screens, as the canvas's Home and Fines: the eyebrow and the title, then the
 // bell (the fines recorded against you lately, as the web bell) and your avatar, the account button,
 // which opens More. Put it first inside <Screen>; it clears the status bar itself. `right` holds a
@@ -106,7 +145,8 @@ export default function TopBar({ title, eyebrow, right, bell = true, account = t
   const t = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { fines, standupFines, currentEmployee, user } = useApp();
+  const { fines, standupFines, currentEmployee, user, projects } = useApp();
+  const taskRows = useTaskNotifications(Boolean(bell && currentEmployee));
   const seen = useSyncExternalStore(subscribeSeen, readSeenAt);
   const [open, setOpen] = useState(false);
   // The seen time from before this opening, so the rows that were new still say so.
@@ -115,8 +155,12 @@ export default function TopBar({ title, eyebrow, right, bell = true, account = t
   // Keyed on today's date as well as the data: the 30-day window moves on each day even when no
   // fine changes, and any render after midnight (opening the bell is one) picks the new day up.
   const today = localToday();
-  const notifications = useMemo(
-    () =>
+  // Fines worked out from AppContext, and the task notifications the database wrote, in one list
+  // newest first, as the web bell. A notification whose project has no issue key can't be opened,
+  // so it's left out, as on the web.
+  const notifications = useMemo(() => {
+    const projectById = new Map((projects || []).map((p) => [p.id, p]));
+    return mergeNotifications(
       myFineNotifications({
         fines,
         standupFines,
@@ -125,16 +169,26 @@ export default function TopBar({ title, eyebrow, right, bell = true, account = t
         lateExcluded: Boolean(currentEmployee?.late_fine_excluded),
         standupExcluded: Boolean(currentEmployee?.standup_fine_excluded),
       }),
+      taskRows
+        .filter((n) => n.task && projectById.get(n.task.project_id)?.issue_key)
+        .map((n) => taskNotificationItem(n, issueKey(projectById.get(n.task.project_id), n.task)))
+    );
     // `today` is not read inside: it is the key that renews `now` once a day.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fines, standupFines, currentEmployee, today]
-  );
+  }, [fines, standupFines, currentEmployee, taskRows, projects, today]);
   const unseen = unseenCount(notifications, seen);
 
   const openBell = () => {
     setOpenedSeenAt(seen);
     markSeen(new Date().toISOString());
     setOpen(true);
+    // Seen once the bell is opened, as fines already are.
+    markTaskNotificationsRead(notifications.filter((n) => n.kind === "task" && !n.read).map((n) => n.notificationId));
+  };
+
+  const openIssue = (key) => {
+    setOpen(false);
+    router.navigate({ pathname: "/tasks", params: { issue: key, at: String(Date.now()) } });
   };
 
   // The sheet closes first: the tab under it stays mounted, and so would the open sheet.
@@ -182,12 +236,16 @@ export default function TopBar({ title, eyebrow, right, bell = true, account = t
 
       <FormModal visible={bell && open} onClose={() => setOpen(false)} title="Notifications">
         {notifications.length === 0 ? (
-          <EmptyState icon="bell" text={`Nothing new. Fines recorded against you in the last ${NOTIFY_DAYS} days show here.`} />
+          <EmptyState icon="bell" text={`Nothing new. Fines recorded against you and updates on your issues in the last ${NOTIFY_DAYS} days show here.`} />
         ) : (
           <View style={styles.list}>
-            {notifications.map((item) => (
-              <NotificationRow key={item.id} item={item} isNew={unseenCount([item], openedSeenAt) > 0} onPress={openFines} />
-            ))}
+            {notifications.map((item) =>
+              item.kind === "task" ? (
+                <TaskNotificationRow key={item.id} item={item} isNew={unseenCount([item], openedSeenAt) > 0} onPress={() => openIssue(item.issueKey)} />
+              ) : (
+                <NotificationRow key={item.id} item={item} isNew={unseenCount([item], openedSeenAt) > 0} onPress={openFines} />
+              )
+            )}
           </View>
         )}
       </FormModal>
@@ -211,5 +269,6 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, minWidth: 0, gap: 1 },
   rowTitle: { fontFamily: fonts.bodyMedium, fontSize: 14 },
   rowDate: { fontFamily: fonts.mono, fontSize: 12 },
+  rowSub: { fontFamily: fonts.body, fontSize: 12 },
   newDot: { width: 6, height: 6, borderRadius: radius.pill },
 });

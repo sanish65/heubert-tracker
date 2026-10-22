@@ -11,6 +11,7 @@ import {
   allowedParentTypes,
   issueKey,
 } from "@/lib/taskBoard";
+import { isDone } from "@/lib/taskWorkflow";
 
 function emptyForm(defaults) {
   return {
@@ -25,12 +26,13 @@ function emptyForm(defaults) {
     labels: "",
     due_date: "",
     external_url: "",
+    fix_version_id: null,
   };
 }
 
 // Jira's Create dialog: one form for every issue type, showing only the fields and
 // parents that are valid for the type picked.
-export default function TaskCreateModal({ isOpen, onClose, project, tasks, sprints, employees, board, defaults = {}, onCreated }) {
+export default function TaskCreateModal({ isOpen, onClose, project, tasks, sprints, versions = [], employees, board, defaults = {}, onCreated }) {
   const [form, setForm] = useState(() => emptyForm(defaults));
   const [createAnother, setCreateAnother] = useState(false);
   const [error, setError] = useState("");
@@ -51,7 +53,7 @@ export default function TaskCreateModal({ isOpen, onClose, project, tasks, sprin
 
   const parentOptions = useMemo(() => {
     const types = allowedParentTypes(form.type);
-    return tasks.filter((t) => types.includes(t.type) && t.status !== "done");
+    return tasks.filter((t) => types.includes(t.type) && !isDone(t));
   }, [tasks, form.type]);
 
   const openSprints = sprints.filter((s) => s.state !== "closed");
@@ -208,6 +210,20 @@ export default function TaskCreateModal({ isOpen, onClose, project, tasks, sprin
               onChange={(e) => setField("labels", e.target.value)}
             />
           </div>
+          {versions.some((v) => v.status === "unreleased") && (
+            <div className="form-group-interactive">
+              <label>Fix version</label>
+              <select
+                value={form.fix_version_id ?? ""}
+                onChange={(e) => setField("fix_version_id", e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">None</option>
+                {versions.filter((v) => v.status === "unreleased").map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="form-group-interactive">

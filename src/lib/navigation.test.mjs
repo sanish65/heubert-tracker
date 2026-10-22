@@ -8,7 +8,7 @@ test('sidebar groups read Overview, Records, Team, Admin in that order (AC 1)', 
   assert.deepEqual(navGroupsFor({ isAdmin: true }).map((g) => g.label), ['Overview', 'Records', 'Team', 'Admin']);
   assert.deepEqual(ids(navGroupsFor({ isAdmin: true })), [
     'dashboard', 'records', 'standup', 'leaves', 'attendance',
-    'tasks', 'calendar', 'poker', 'retro', 'words', 'events',
+    'standup-form', 'tasks', 'calendar', 'poker', 'retro', 'words', 'events',
     'employees', 'projects', 'settings',
   ]);
 });
@@ -16,6 +16,7 @@ test('sidebar groups read Overview, Records, Team, Admin in that order (AC 1)', 
 test('a non-admin keeps Employees but not Projects or Settings (AC 4)', () => {
   const shown = ids(navGroupsFor({ isAdmin: false }));
   assert.ok(shown.includes('employees'));
+  assert.ok(shown.includes('standup-form'));
   assert.ok(!shown.includes('projects'));
   assert.ok(!shown.includes('settings'));
 });
@@ -44,5 +45,17 @@ test('an admin-only tab falls back to the dashboard for everyone else (AC 4)', (
 });
 
 test('TAB_IDS covers every row plus the tabs reached another way', () => {
-  for (const id of [...ids(NAV_GROUPS), 'standup-form', 'memories', 'capacity']) assert.ok(TAB_IDS.includes(id), id);
+  for (const id of [...ids(NAV_GROUPS), 'memories', 'capacity']) assert.ok(TAB_IDS.includes(id), id);
+  assert.equal(new Set(TAB_IDS).size, TAB_IDS.length);
+});
+
+test('the Standup row opens the Team group, before Tasks, with the message icon', () => {
+  const team = NAV_GROUPS.find((g) => g.id === 'team');
+  assert.deepEqual(team.items.slice(0, 2).map((i) => i.id), ['standup-form', 'tasks']);
+  const row = team.items[0];
+  assert.equal(row.label, 'Standup');
+  assert.equal(row.icon, 'message');
+  assert.ok(!row.adminOnly);
+  const records = NAV_GROUPS.find((g) => g.id === 'records');
+  assert.ok(!records.items.some((i) => i.id === 'standup-form'));
 });

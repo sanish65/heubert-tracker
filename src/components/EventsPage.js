@@ -105,7 +105,10 @@ export default function EventsPage({ onAddEvent, onEditEvent }) {
       {companyEvents.length === 0 ? (
         <p className="empty-msg">No custom events recorded.</p>
       ) : (
-        <div className="event-list">{companyEvents.map(renderEvent)}</div>
+        // Latest date first. AppContext keeps them oldest first for the upcoming lists.
+        <div className="event-list">
+          {[...companyEvents].sort((a, b) => String(b.date).localeCompare(String(a.date))).map(renderEvent)}
+        </div>
       )}
     </section>
   );

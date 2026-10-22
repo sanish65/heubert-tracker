@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import { computeLeaveBalances } from "@/lib/utils";
+import { getNepalDateStr } from "@/lib/attendanceTime";
+import { SORTS, recentRecords, sortRows } from "@/lib/employeeDirectory";
 import Avatar from "./Avatar";
 import Icon from "./Icon";
-import EmployeeDetailModal, { EMPLOYEE_STATUSES, employeeStatus } from "./EmployeeDetailModal";
+import EmployeeDetailPanel, { EMPLOYEE_STATUSES, employeeStatus } from "./EmployeeDetailPanel";
 
 const STATUS_FILTERS = [{ id: "all", label: "All" }, ...EMPLOYEE_STATUSES];
 
@@ -24,9 +26,11 @@ const formatDate = (dateStr) => {
 
 // openEmployeeId: a person opened from the top bar's search. page.js remounts the list
 // (a new key) for each such request, so it only ever seeds the first render.
-export default function EmployeeList({ onEditEmployee, openEmployeeId }) {
+// onRecordFine(name): opens Record Fine for that person; absent for those who can't.
+export default function EmployeeList({ onEditEmployee, onRecordFine, openEmployeeId }) {
   const {
     employees,
+    fines,
     removeEmployee,
     getEmployeeStats,
     isAdmin,
@@ -39,6 +43,9 @@ export default function EmployeeList({ onEditEmployee, openEmployeeId }) {
   const [viewingId, setViewingId] = useState(openEmployeeId ?? null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sort, setSort] = useState("name");
+  const panelRef = useRef(null);
+  const today = getNepalDateStr(new Date());
 
   const holidaySet = useMemo(
     () => new Set((publicHolidays || []).map((h) => h.date?.split("T")[0])),
@@ -102,11 +109,24 @@ export default function EmployeeList({ onEditEmployee, openEmployeeId }) {
   }, [searched]);
 
   const visible = useMemo(
-    () => (statusFilter === "all" ? searched : searched.filter((row) => row.status.id === statusFilter)),
-    [searched, statusFilter]
+    () => sortRows(statusFilter === "all" ? searched : searched.filter((row) => row.status.id === statusFilter), sort),
+    [searched, statusFilter, sort]
   );
 
   const viewing = viewingId === null ? null : rows.find((row) => row.emp.id === viewingId) || null;
+  const viewingRecords = viewing
+    ? recentRecords({ name: viewing.emp.name, leaves: leavesByName.get(viewing.emp.name) || [], fines, leaveTypes, today })
+    : [];
+  // Record Fine lists only people who can be fined (AddFineModal's own rule).
+  const canFineViewing = Boolean(
+    onRecordFine && viewing && viewing.status.id !== "resigned" && !viewing.emp.late_fine_excluded
+  );
+
+  // On a narrow screen the panel sits above the table; bring it into view.
+  const openDetails = (id) => {
+    setViewingId(id);
+    requestAnimationFrame(() => panelRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  };
 
   const handleDelete = async (emp) => {
     if (!(await confirmDialog(`Are you sure you want to delete ${emp.name}?`, { danger: true }))) return;
@@ -142,8 +162,17 @@ export default function EmployeeList({ onEditEmployee, openEmployeeId }) {
             </button>
           ))}
         </div>
+        <label className="emp-sort">
+          Sort
+          <select value={sort} onChange={(e) => setSort(e.target.value)}>
+            {SORTS.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
+      <div className="emp-layout">
       <section className="emp-table-card glass" aria-label="Employees">
         <div className="emp-table-scroll">
           <table className="data-table emp-table">
@@ -173,8 +202,8 @@ export default function EmployeeList({ onEditEmployee, openEmployeeId }) {
                   return (
                     <tr
                       key={emp.id}
-                      className={`clickable-row${status.id === "resigned" ? " is-resigned" : ""}`}
-                      onClick={() => setViewingId(emp.id)}
+                      className={`clickable-row${status.id === "resigned" ? " is-resigned" : ""}${viewingId === emp.id ? " is-selected" : ""}`}
+                      onClick={() => openDetails(emp.id)}
                     >
                       <td>
                         {/* The row's click opens the details; the button is its keyboard stop. */}
@@ -252,14 +281,21 @@ export default function EmployeeList({ onEditEmployee, openEmployeeId }) {
         </div>
       </section>
 
-      <EmployeeDetailModal
-        isOpen={!!viewing}
-        onClose={() => setViewingId(null)}
-        employee={viewing?.emp}
-        balances={viewing?.balances}
-        seasonTitle={leaveSeason?.title}
-        stats={viewing?.stats}
-      />
+      {viewing && (
+        <EmployeeDetailPanel
+          ref={panelRef}
+          employee={viewing.emp}
+          balances={viewing.balances}
+          seasonTitle={leaveSeason?.title}
+          stats={viewing.stats}
+          records={viewingRecords}
+          today={today}
+          onClose={() => setViewingId(null)}
+          onEdit={isAdmin ? () => onEditEmployee(viewing.emp) : null}
+          onRecordFine={canFineViewing ? () => onRecordFine(viewing.emp.name) : null}
+        />
+      )}
+      </div>
     </div>
   );
 }

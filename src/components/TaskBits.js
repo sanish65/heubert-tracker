@@ -4,7 +4,9 @@
 
 import Icon from "@/components/Icon";
 import PersonAvatar from "@/components/Avatar";
-import { issueType, priorityInfo, statusInfo, EPIC_COLORS } from "@/lib/taskBoard";
+import { issueType, priorityInfo, EPIC_COLORS } from "@/lib/taskBoard";
+import { statusMeta } from "@/lib/taskWorkflow";
+import { useWorkflow } from "@/components/TaskWorkflowContext";
 
 // Line icons for the issue types; the type's pill colour comes from .type-<value> in CSS.
 const TYPE_ICONS = { epic: "sparkles", story: "book", task: "check", bug: "alert", subtask: "chevron-right" };
@@ -50,13 +52,18 @@ export function PriorityIcon({ priority }) {
   );
 }
 
+// A custom status wears its category's colour; the built-in four keep their own.
 export function StatusLozenge({ status }) {
-  const info = statusInfo(status);
-  return <span className={`pill task-status task-status--${info.value}`}>{info.label}</span>;
+  const meta = statusMeta(status, useWorkflow());
+  return <span className={`pill task-status task-status--${meta.cls}`}>{meta.label}</span>;
 }
 
+// Also used for things that aren't statuses ("backlog", a sprint's state), which keep
+// their own dot colour.
 export function StatusDot({ status }) {
-  return <span className={`task-status-dot task-status-dot--${status}`} aria-hidden="true" />;
+  const workflow = useWorkflow();
+  const cls = workflow.some((s) => s.value === status) ? statusMeta(status, workflow).cls : status;
+  return <span className={`task-status-dot task-status-dot--${cls}`} aria-hidden="true" />;
 }
 
 export function Avatar({ employee }) {

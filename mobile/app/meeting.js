@@ -16,14 +16,15 @@ import AddLeaveModal from "../components/AddLeaveModal";
 import EditLeaveModal from "../components/EditLeaveModal";
 import AddWordModal from "../components/AddWordModal";
 import EditWordModal from "../components/EditWordModal";
+import ShoutoutsMeetingCard from "../components/ShoutoutsMeetingCard";
 import { parseHalfDaySegment } from "../lib/utils";
 import { formatBs } from "../lib/nepaliDate";
 import { pad, localToday, parseTimestamp } from "../lib/dates";
 
 // Meeting mode, as the canvas's MobileMeeting.dc.html: Back to More with the live mark, the clock,
 // the quick actions, the day's standup submissions (who is in, who is missing, each person's
-// answers), who is on leave, today's late fines, then the app's own standup records and the word
-// of the meeting. The data, the permissions and the actions are the ones this screen had before the
+// answers), who is on leave, the shout-outs and kudos (as the web's Start Meeting board), today's
+// late fines, then the app's own standup records and the word of the meeting. The data, the permissions and the actions are the ones this screen had before the
 // redesign: fine admins (canManageFines) record late fines and standups and edit or delete them;
 // anyone records a leave and edits or deletes the leaves canManageLeave allows; admins edit or
 // delete the word; anyone sets it while there is none.
@@ -647,6 +648,8 @@ export default function MeetingScreen() {
           ))
         )}
       </Card>
+
+      <ShoutoutsMeetingCard today={today} />
 
       <Card style={styles.panel}>
         <View style={styles.panelHead}>
