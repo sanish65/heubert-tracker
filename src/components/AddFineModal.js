@@ -5,7 +5,9 @@ import { useApp } from "@/context/AppContext";
 import { findExistingLateFine, fineToday } from "@/lib/utils";
 import Icon from "@/components/Icon";
 
-export default function AddFineModal({ isOpen, onClose }) {
+// defaultName: the person to fine, when opened from someone's details (page.js gives
+// each such opening its own key, so the form starts fresh).
+export default function AddFineModal({ isOpen, onClose, defaultName = "" }) {
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
   const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && !emp.late_fine_excluded);
   const today = fineToday();
@@ -19,7 +21,7 @@ export default function AddFineModal({ isOpen, onClose }) {
     : null;
   const currentSeasonTitle = (fineSeasons || []).find((season) => season.id === currentSeasonId)?.title;
   const [form, setForm] = useState({
-    name: "",
+    name: defaultName,
     date: today,
     amount: 25,
     status: "unpaid",

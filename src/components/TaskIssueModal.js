@@ -8,7 +8,6 @@ import { useDialog } from "@/context/DialogContext";
 import { useIssueDetail } from "@/lib/useTasks";
 import {
   ISSUE_TYPES,
-  STATUSES,
   PRIORITIES,
   ESTIMATE_OPTIONS,
   LINK_TYPES,
@@ -26,6 +25,11 @@ import {
   issueType,
 } from "@/lib/taskBoard";
 import { TypeIcon, PriorityIcon, StatusLozenge, Avatar, formatDateTime, epicColor } from "@/components/TaskBits";
+import TaskMarkdown from "@/components/TaskMarkdown";
+import { MentionTextarea, TimeTrackingPanel, WorklogList, AttachmentsSection, WatchButton } from "@/components/TaskIssueExtras";
+import { mentionedIds, sortVersions } from "@/lib/taskExtras";
+import { isDone, nextStatuses, statusMeta } from "@/lib/taskWorkflow";
+import { useWorkflow } from "@/components/TaskWorkflowContext";
 
 // Every way a link can read from this issue. Inward ones are stored reversed.
 const LINK_CHOICES = LINK_TYPES.flatMap((t) =>
@@ -97,7 +101,7 @@ function ChildRow({ child, project, employeesById, onOpen }) {
     <li className="issue-child-row" onClick={() => onOpen(child.id)}>
       <TypeIcon type={child.type} />
       <span className="issue-key-text">{issueKey(project, child)}</span>
-      <span className={`issue-child-title ${child.status === "done" ? "is-done" : ""}`}>{child.title}</span>
+      <span className={`issue-child-title ${isDone(child) ? "is-done" : ""}`}>{child.title}</span>
       <PriorityIcon priority={child.priority} />
       <Avatar employee={employeesById.get(child.assignee_id)} />
       <StatusLozenge status={child.status} />
@@ -105,10 +109,11 @@ function ChildRow({ child, project, employeesById, onOpen }) {
   );
 }
 
-export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project, tasks, sprints, employees, board, today }) {
+export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project, tasks, sprints, versions = [], employees, board, today }) {
   const { user, isAdmin, currentEmployee, projects } = useApp();
   const { confirmDialog, alertDialog } = useDialog();
   const detail = useIssueDetail(issueId);
+  const workflow = useWorkflow();
 
   const issue = tasks.find((t) => t.id === issueId) || null;
   const tasksById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
@@ -123,6 +128,7 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
   const [linkUrlDraft, setLinkUrlDraft] = useState(null);
   const [activityTab, setActivityTab] = useState("comments");
   const [commentDraft, setCommentDraft] = useState("");
+  const [commentMentions, setCommentMentions] = useState([]);
   const [isPosting, setIsPosting] = useState(false);
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkChoice, setLinkChoice] = useState(LINK_CHOICES[0].id);
@@ -236,13 +242,31 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
   const postComment = async () => {
     if (isPosting || !commentDraft.trim()) return;
     setIsPosting(true);
-    const { error } = await detail.addComment(commentDraft);
+    const { error } = await detail.addComment(commentDraft, mentionedIds(commentDraft, commentMentions));
     setIsPosting(false);
     if (error) {
       await alertDialog(`Couldn't post comment: ${error.message}`, { tone: "error" });
       return;
     }
     setCommentDraft("");
+    setCommentMentions([]);
+  };
+
+  // Jira's Clone: same content and plan, a new number, opened straight away.
+  const cloneIssue = async () => {
+    const { data, error } = await board.cloneIssue(issue);
+    if (error) {
+      await alertDialog(`Couldn't clone: ${error.message}`, { tone: "error" });
+      return;
+    }
+    onOpenIssue(data.id, data);
+  };
+
+  const removeWorklog = async (w) => {
+    if (!(await confirmDialog("Delete this work log? The time comes off the issue's time spent.", { danger: true }))) return;
+    const { error } = await detail.deleteWorklog(w.id);
+    if (error) await alertDialog(`Couldn't delete: ${error.message}`, { tone: "error" });
+    else board.reload();
   };
 
   const removeComment = async (comment) => {
@@ -283,6 +307,7 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
       return t ? `${issueKey(project, t)} ${t.title}` : null;
     },
     project: (id) => projects.find((p) => p.id === id)?.name,
+    status: (key) => statusMeta(key, workflow).label,
   };
 
   const history = [...detail.activity].reverse();
@@ -308,7 +333,7 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
             </button>
           )}
         </div>
-        <p className="issue-comment-body">{comment.body}</p>
+        <TaskMarkdown text={comment.body} className="issue-comment-body" />
       </li>
     );
   };
@@ -348,6 +373,19 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
           </span>
         </nav>
         <div className="issue-modal-actions">
+          <button
+            type="button"
+            className={`btn btn-ghost btn-sm ${issue.flagged ? "is-flagged" : ""}`}
+            aria-pressed={Boolean(issue.flagged)}
+            onClick={() => save({ flagged: !issue.flagged })}
+            title={issue.flagged ? "Remove the flag" : "Flag as impeded"}
+          >
+            <Icon name="flag" size={16} /> {issue.flagged ? "Flagged" : "Flag"}
+          </button>
+          <WatchButton detail={detail} currentEmployee={currentEmployee} employeesById={employeesById} />
+          <button type="button" className="btn btn-ghost btn-sm" onClick={cloneIssue} title="Copy this issue as a new one">
+            <Icon name="copy" size={16} /> Clone
+          </button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={copyLink}>
             <Icon name={copied ? "check" : "link"} size={16} /> {copied ? "Copied" : "Copy link"}
           </button>
@@ -387,6 +425,12 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
             </h2>
           )}
 
+          {issue.flagged && (
+            <div className="issue-flag-banner" role="status">
+              <Icon name="flag" size={16} /> Flagged as impeded. It needs help before it can move on.
+            </div>
+          )}
+
           <section className="issue-section">
             <h3 className="eyebrow issue-section-title">Description</h3>
             {editingDescription ? (
@@ -401,6 +445,7 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
                 <div className="issue-edit-actions">
                   <button type="button" className="btn btn-primary btn-sm" onClick={commitDescription}>Save</button>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingDescription(false)}>Cancel</button>
+                  <span className="issue-md-hint">**bold**, *italic*, `code`, - lists, links, {project.issue_key}-12</span>
                 </div>
               </>
             ) : (
@@ -412,10 +457,12 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
                 }}
                 title="Click to edit"
               >
-                {issue.description || "Add a description…"}
+                {issue.description ? <TaskMarkdown text={issue.description} /> : "Add a description…"}
               </div>
             )}
           </section>
+
+          <AttachmentsSection detail={detail} myEmail={myEmail} isAdmin={isAdmin} />
 
           {!isSubtask && (
             <section className="issue-section">
@@ -497,7 +544,7 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
                         <>
                           <TypeIcon type={other.type} />
                           <span className="issue-key-text">{issueKey(project, other)}</span>
-                          <span className={`issue-child-title ${other.status === "done" ? "is-done" : ""}`}>{other.title}</span>
+                          <span className={`issue-child-title ${isDone(other) ? "is-done" : ""}`}>{other.title}</span>
                           <StatusLozenge status={other.status} />
                         </>
                       ) : (
@@ -531,6 +578,7 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
                   { value: "all", label: "All" },
                   { value: "comments", label: `Comments (${detail.comments.length})` },
                   { value: "history", label: "History" },
+                  { value: "worklog", label: `Work log (${detail.worklogs.length})` },
                 ].map((tab) => (
                   <button
                     key={tab.value}
@@ -544,16 +592,16 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
               </div>
             </div>
 
-            {activityTab !== "history" && (
+            {(activityTab === "all" || activityTab === "comments") && (
               <div className="issue-comment-compose">
-                <textarea
-                  rows={2}
-                  placeholder="Add a comment… (Ctrl+Enter to post)"
+                <MentionTextarea
+                  placeholder="Add a comment… Type @ to mention someone (Ctrl+Enter to post)"
                   value={commentDraft}
-                  onChange={(e) => setCommentDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) postComment();
-                  }}
+                  onChange={setCommentDraft}
+                  mentions={commentMentions}
+                  onMentionsChange={setCommentMentions}
+                  employees={employees}
+                  onSubmit={postComment}
                 />
                 <button type="button" className="btn btn-secondary btn-sm" onClick={postComment} disabled={isPosting || !commentDraft.trim()}>
                   {isPosting ? "Posting..." : "Save"}
@@ -569,6 +617,9 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
                   [...detail.comments].reverse().map(renderComment)
                 ))}
               {activityTab === "history" && history.map(renderHistory)}
+              {activityTab === "worklog" && (
+                <WorklogList worklogs={detail.worklogs} myEmail={myEmail} isAdmin={isAdmin} onDelete={removeWorklog} />
+              )}
               {activityTab === "all" &&
                 timeline.map((entry) => (entry.kind === "comment" ? renderComment(entry.item) : renderHistory(entry.item)))}
             </ul>
@@ -578,10 +629,14 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
         <aside className="issue-sidebar">
           <div className="issue-field">
             <label>Status</label>
-            <select className={`issue-status-select status-${issue.status}`} value={issue.status} onChange={(e) => save({ status: e.target.value })}>
-              {STATUSES.map((s) => (
+            <select className={`issue-status-select status-${statusMeta(issue.status, workflow).cls}`} value={issue.status} onChange={(e) => save({ status: e.target.value })}>
+              {/* Only the statuses this one may move to, as Jira's transition menu. */}
+              {nextStatuses(issue.status, workflow).map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
+              {!workflow.some((s) => s.value === issue.status) && (
+                <option value={issue.status}>{statusMeta(issue.status, workflow).label}</option>
+              )}
             </select>
           </div>
 
@@ -691,6 +746,25 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
               </select>
             </div>
           )}
+
+          <div className="issue-field">
+            <label>Fix version</label>
+            <select
+              value={issue.fix_version_id ?? ""}
+              onChange={(e) => save({ fix_version_id: e.target.value ? Number(e.target.value) : null })}
+            >
+              <option value="">None</option>
+              {sortVersions(versions)
+                .filter((v) => v.status !== "archived" || v.id === issue.fix_version_id)
+                .map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}{v.status === "released" ? " (released)" : v.status === "archived" ? " (archived)" : ""}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <TimeTrackingPanel issue={issue} detail={detail} save={save} today={today} onLogged={board.reload} />
 
           <div className="issue-field">
             <label>Due date</label>

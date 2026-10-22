@@ -1,5 +1,6 @@
-// The bell's list: the fines recorded against you lately (late and standup), newest first, and how
-// many of them arrived since the bell was last opened. Mirrors src/lib/notifications.js because the
+// The bell's list: the fines recorded against you lately (late and standup) and the task
+// notifications (assigned, mentioned, comments, status changes), newest first, and how many of
+// them arrived since the bell was last opened. Mirrors src/lib/notifications.js because the
 // app cannot import from src/. src/lib/mobileNotifications.test.mjs runs both on the same inputs
 // and fails when they differ: change a rule there and here together. Pure: its one import is
 // lib/dates.js, itself pure.
@@ -69,4 +70,45 @@ export function unseenCount(items, seenAt) {
   const seen = Date.parse(seenAt ?? "");
   if (!Number.isFinite(seen)) return list.length;
   return list.filter((item) => Date.parse(item.at) > seen).length;
+}
+
+// ── Task notifications ──────────────────────────────────────────────────────
+
+const STATUS_LABELS = { todo: "To Do", in_progress: "In Progress", review: "In Review", done: "Done" };
+
+// A database timestamp as a plain ISO string (milliseconds, Z), which Hermes reads back; one that
+// doesn't parse stays as it was. The web's isoAt, through lib/dates.js.
+function isoAt(value) {
+  const parsed = parseTimestamp(value);
+  return parsed ? parsed.toISOString() : value;
+}
+
+// A row of task_notifications (with its issue embedded as `task`) as the bell shows it.
+// `key` is the issue key, e.g. "POR-4", worked out by the caller from the project.
+export function taskNotificationItem(row, key) {
+  const who = row.actor_name || "Someone";
+  const title = row.task?.title || "an issue";
+  let text;
+  if (row.kind === "assigned") text = `${who} assigned ${key} to you`;
+  else if (row.kind === "mentioned") text = `${who} mentioned you on ${key}`;
+  else if (row.kind === "commented") text = `${who} commented on ${key}`;
+  else text = `${who} moved ${key} to ${STATUS_LABELS[row.detail] || row.detail || "a new status"}`;
+  return {
+    id: `task-${row.id}`,
+    notificationId: row.id,
+    kind: "task",
+    taskKind: row.kind,
+    at: isoAt(row.created_at),
+    read: Boolean(row.read_at),
+    issueKey: key,
+    text,
+    sub: row.kind === "mentioned" || row.kind === "commented" ? row.detail || title : title,
+  };
+}
+
+// Fines and task notifications in one list, newest first.
+export function mergeNotifications(fineItems, taskItems, limit = 15) {
+  return [...(fineItems || []), ...(taskItems || [])]
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, limit);
 }

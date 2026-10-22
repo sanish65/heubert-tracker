@@ -8,6 +8,26 @@ import { useDialog } from "@/context/DialogContext";
 import { groupPublicHolidays } from "@/lib/utils";
 import Avatar from "@/components/Avatar";
 import Icon from "@/components/Icon";
+import { formatBs, formatBsDevanagari } from "@/lib/nepaliDate";
+import { getNepalDateStr } from "@/lib/attendanceTime";
+
+// "Fri, Oct 16 · 30 Ashwin 2083": English then Nepali, as in the page header and on
+// Leaves. The English year only shows for a date from another year.
+function englishAndNepali(dateStr) {
+  const day = String(dateStr || "").slice(0, 10);
+  const [y, m, d] = day.split("-").map(Number);
+  if (!y || !m || !d) return String(dateStr || "");
+  const sameYear = y === Number(getNepalDateStr(new Date()).slice(0, 4));
+  const english = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+    timeZone: "UTC",
+  });
+  const nepali = formatBs(day);
+  return nepali ? `${english} · ${nepali}` : english;
+}
 
 // Parsed as local time — a bare "YYYY-MM-DD" goes through Date() as UTC and can render as
 // the day before in timezones behind it.
@@ -285,7 +305,7 @@ export default function Dashboard() {
                     <Avatar name={f.employee_name} className="avatar" aria-hidden="true" />
                     <div className="dash-item-text">
                       <span className="dash-item-name">{f.employee_name}</span>
-                      <span className="dash-row-meta">Missed standup · {f.date}</span>
+                      <span className="dash-row-meta" title={formatBsDevanagari(String(f.date).slice(0, 10))}>{englishAndNepali(f.date)}</span>
                     </div>
                     <span className="pill pill-amber">Pending</span>
                   </div>

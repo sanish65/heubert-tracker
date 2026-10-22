@@ -8,12 +8,14 @@ import Icon from "@/components/Icon";
 import ThemeToggle from "@/components/ThemeToggle";
 import AnimationToggle from "@/components/AnimationToggle";
 import { StatusLozenge } from "@/components/TaskBits";
-import { employeeStatus } from "@/components/EmployeeDetailModal";
+import { TaskWorkflowProvider } from "@/components/TaskWorkflowContext";
+import { employeeStatus } from "@/components/EmployeeDetailPanel";
 import Avatar from "@/components/Avatar";
 import { formatBs } from "@/lib/nepaliDate";
 import { issueKey } from "@/lib/taskBoard";
-import { normalizeQuery, matchPeople, matchFineRows, taskQuery } from "@/lib/globalSearch";
-import { NOTIFY_DAYS, myFineNotifications, unseenCount } from "@/lib/notifications";
+import { normalizeQuery, matchPeople, matchFineRows, taskQuery, searchExamples, noMatchNote } from "@/lib/globalSearch";
+import { NOTIFY_DAYS, myFineNotifications, unseenCount, taskNotificationItem, mergeNotifications } from "@/lib/notifications";
+import { useTaskNotifications } from "@/lib/useTasks";
 
 const SEARCH_DEBOUNCE_MS = 250;
 const TASK_TIMEOUT_MS = 8000;
@@ -79,7 +81,22 @@ async function searchTasks(request, projects, signal) {
   }
   const { data, error } = await query.limit(TASK_LIMIT).abortSignal(signal);
   if (error) throw error;
-  return data || [];
+  const tasks = data || [];
+  // Each project names its own statuses (task_statuses); without them a custom status
+  // would show as its raw key. A failed lookup just leaves the built-in names.
+  if (tasks.length) {
+    const { data: statuses } = await supabase
+      .from("task_statuses")
+      .select("project_id, key, name, category")
+      .in("project_id", [...new Set(tasks.map((t) => t.project_id))])
+      .in("key", [...new Set(tasks.map((t) => t.status))])
+      .abortSignal(signal);
+    for (const t of tasks) {
+      const row = (statuses || []).find((r) => r.project_id === t.project_id && r.key === t.status);
+      if (row) t.statusWorkflow = [{ value: row.key, label: row.name, category: row.category }];
+    }
+  }
+  return tasks;
 }
 
 // An issue opens as a shared link does: page.js and the Tasks tab follow #issue=KEY.
@@ -129,8 +146,10 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
   const listId = useId();
 
   const q = normalizeQuery(query);
+  // Focus opens the panel: a guide to what the search finds while the field is empty,
+  // the results once something is typed.
   const listOpen = searchOpen && q !== "";
-  useOutsideClose(searchRef, listOpen, setSearchOpen);
+  useOutsideClose(searchRef, searchOpen, setSearchOpen);
 
   const people = useMemo(() => matchPeople(employees, q), [employees, q]);
   const fineRows = useMemo(
@@ -138,6 +157,11 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
     [fines, standupFines, employees, q]
   );
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+  const examples = useMemo(
+    () => searchExamples({ employees, fines, standupFines, projects }),
+    [employees, fines, standupFines, projects]
+  );
+  const exampleKey = examples.find((e) => e.kind === "task")?.query || "HTT-12";
 
   // What the tasks table would be asked, as a string: the query below re-runs only when
   // that changes, so a trailing space costs nothing.
@@ -195,7 +219,16 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
 
   let note = "";
   if (tasksPending) note = "Searching tasks…";
-  else if (options.length === 0) note = `No matches for “${query.trim()}”`;
+  else if (options.length === 0) note = noMatchNote(query);
+  const noMatches = listOpen && !tasksPending && options.length === 0;
+
+  // An example fills the field and keeps focus there, so its results show at once.
+  const tryExample = (text) => {
+    setQuery(text);
+    setActiveIndex(0);
+    setSearchOpen(true);
+    inputRef.current?.focus();
+  };
 
   const choose = (option) => {
     setQuery("");
@@ -239,18 +272,31 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
       case "Escape":
         // Kept from the browser, which would clear a search field, and from page-wide
         // Escape handlers (the retro board's drops a card being written): the first
-        // Escape closes the list, the second leaves the field.
+        // Escape closes the panel (results or guide), the second leaves the field.
         e.preventDefault();
         e.stopPropagation();
-        if (listOpen) setSearchOpen(false);
+        if (searchOpen) setSearchOpen(false);
         else e.currentTarget.blur();
-        return;
-      case "Tab":
-        setSearchOpen(false);
         return;
       default:
     }
   };
+
+  // Focus leaving the field and its panel (Tab past an example, a click elsewhere)
+  // closes the panel; moving between them keeps it open.
+  const handleSearchBlur = (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setSearchOpen(false);
+  };
+
+  const handlePanelKeyDown = (e) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    setSearchOpen(false);
+    inputRef.current?.focus();
+  };
+
+  const shortcut = isApple ? "⌘K" : "Ctrl K";
 
   // Ctrl+K (⌘K on Apple) focuses the search from anywhere in the app shell. Below 900px
   // the field is hidden, and an open dialog keeps the keyboard: then the browser keeps
@@ -310,7 +356,13 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
         <>
           <span className="issue-key-text">{option.issue}</span>
           <span className="topbar-row-title">{option.task.title}</span>
-          <StatusLozenge status={option.task.status} />
+          {option.task.statusWorkflow ? (
+            <TaskWorkflowProvider value={option.task.statusWorkflow}>
+              <StatusLozenge status={option.task.status} />
+            </TaskWorkflowProvider>
+          ) : (
+            <StatusLozenge status={option.task.status} />
+          )}
         </>
       );
     }
@@ -349,17 +401,25 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
     );
   }, [currentEmployee, user, employees]);
 
+  // Task notifications (assigned, mentioned, comments and status changes on issues you
+  // watch) come from the database; fines are worked out from AppContext as before.
+  const taskNotes = useTaskNotifications(Boolean(me));
   const notifications = useMemo(
     () =>
-      myFineNotifications({
-        fines,
-        standupFines,
-        name: me?.name,
-        now: new Date(),
-        lateExcluded: Boolean(me?.late_fine_excluded),
-        standupExcluded: Boolean(me?.standup_fine_excluded),
-      }),
-    [fines, standupFines, me]
+      mergeNotifications(
+        myFineNotifications({
+          fines,
+          standupFines,
+          name: me?.name,
+          now: new Date(),
+          lateExcluded: Boolean(me?.late_fine_excluded),
+          standupExcluded: Boolean(me?.standup_fine_excluded),
+        }),
+        taskNotes.items
+          .filter((n) => n.task && projectById.get(n.task.project_id)?.issue_key)
+          .map((n) => taskNotificationItem(n, issueKey(projectById.get(n.task.project_id), n.task)))
+      ),
+    [fines, standupFines, me, taskNotes.items, projectById]
   );
   const unseen = unseenCount(notifications, seenAt);
 
@@ -374,10 +434,16 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
     writeSeenAt(now);
     setNotifyOpen(true);
     setShowPrefs(false);
+    // Seen once the bell is opened, as fines already are.
+    taskNotes.markRead(notifications.filter((n) => n.kind === "task" && !n.read).map((n) => n.notificationId));
   };
 
   const openNotification = (item) => {
     setNotifyOpen(false);
+    if (item.kind === "task") {
+      openIssueLink(item.issueKey);
+      return;
+    }
     if (item.kind === "late") onNavigate?.({ tab: "records", employeeName: me?.name, seasonId: item.seasonId });
     else onNavigate?.({ tab: "standup", employeeName: me?.name });
   };
@@ -396,7 +462,7 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
         <Icon name="menu" />
       </button>
 
-      <div className="topbar-search" ref={searchRef}>
+      <div className="topbar-search" ref={searchRef} onBlur={handleSearchBlur}>
         <label className="topbar-search-field">
           <Icon name="search" size={16} strokeWidth={2} />
           <input
@@ -409,7 +475,7 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
             aria-autocomplete="list"
             aria-activedescendant={active >= 0 ? optionId(active) : undefined}
             aria-keyshortcuts={isApple ? "Meta+K" : "Control+K"}
-            placeholder="Search people, fines, tasks…"
+            placeholder={`Search people, fines or tasks (name or ${exampleKey})`}
             autoComplete="off"
             spellCheck={false}
             maxLength={QUERY_MAX_LENGTH}
@@ -424,12 +490,76 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
               setNotifyOpen(false);
               setShowPrefs(false);
             }}
+            // A click in the field it already has focus in (after Escape) reopens it.
+            onClick={() => setSearchOpen(true)}
             onKeyDown={handleSearchKeyDown}
           />
-          <kbd>{isApple ? "⌘K" : "Ctrl K"}</kbd>
+          <kbd>{shortcut}</kbd>
         </label>
         {/* mousedown keeps focus in the field, so a click on a row is not a blur first. */}
-        <div className="topbar-panel topbar-results" hidden={!listOpen} onMouseDown={(e) => e.preventDefault()}>
+        <div
+          className="topbar-panel topbar-results"
+          hidden={!searchOpen}
+          onMouseDown={(e) => e.preventDefault()}
+          onKeyDown={handlePanelKeyDown}
+        >
+          {q === "" && (
+            <div className="topbar-guide">
+              <div className="topbar-results-label">Search finds</div>
+              <ul className="topbar-guide-list">
+                <li>
+                  <span className="topbar-row-icon" aria-hidden="true">
+                    <Icon name="user" size={16} />
+                  </span>
+                  <span className="topbar-row-text">
+                    <span className="topbar-row-title">People</span>
+                    <span className="topbar-guide-sub">By name or email · opens their details</span>
+                  </span>
+                </li>
+                <li>
+                  <span className="topbar-row-icon" aria-hidden="true">
+                    <Icon name="wallet" size={16} />
+                  </span>
+                  <span className="topbar-row-text">
+                    <span className="topbar-row-title">Fines</span>
+                    <span className="topbar-guide-sub">By the person&apos;s name · opens their Late or Standup fines</span>
+                  </span>
+                </li>
+                <li>
+                  <span className="topbar-row-icon" aria-hidden="true">
+                    <Icon name="kanban" size={16} />
+                  </span>
+                  <span className="topbar-row-text">
+                    <span className="topbar-row-title">Tasks</span>
+                    <span className="topbar-guide-sub">
+                      By key like <span className="mono">{exampleKey}</span> or words from the title · opens the issue
+                    </span>
+                  </span>
+                </li>
+              </ul>
+              {examples.length > 0 && (
+                <div className="topbar-guide-try">
+                  <span className="topbar-guide-try-label">Try</span>
+                  {examples.map((example) => (
+                    <button
+                      key={example.kind}
+                      type="button"
+                      className="topbar-guide-chip"
+                      onClick={() => tryExample(example.query)}
+                    >
+                      <span className={example.kind === "task" ? "mono" : undefined}>{example.query}</span>
+                      <span className="topbar-guide-chip-kind">
+                        {example.kind === "person" ? "person" : example.kind === "fine" ? "fines" : "issue"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="topbar-guide-foot">
+                <kbd>{shortcut}</kbd> searches from anywhere · <kbd>↑</kbd> <kbd>↓</kbd> to move · <kbd>Enter</kbd> to open
+              </p>
+            </div>
+          )}
           <div id={listId} role="listbox" aria-label="Search results">
             {groups.map((group) => (
               <div key={group.id} role="group" aria-labelledby={`${listId}-${group.id}`}>
@@ -441,8 +571,13 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
             ))}
           </div>
           <p className="topbar-results-note" role="status">
-            {note}
+            {listOpen ? note : ""}
           </p>
+          {noMatches && (
+            <p className="topbar-results-hint">
+              Try a first name, an email, an issue key like <span className="mono">{exampleKey}</span> or a word from a task title.
+            </p>
+          )}
         </div>
       </div>
 
@@ -477,11 +612,33 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
             </div>
             {notifications.length === 0 ? (
               <p className="topbar-notify-empty">
-                Nothing new. Fines recorded against you in the last {NOTIFY_DAYS} days show here.
+                Nothing new. Issues assigned to you, mentions, and fines from the last {NOTIFY_DAYS} days show here.
               </p>
             ) : (
               <ul className="topbar-notify-list">
                 {notifications.map((item) => {
+                  if (item.kind === "task") {
+                    const icon = item.taskKind === "assigned" ? "user" : item.taskKind === "status" ? "refresh" : "message";
+                    return (
+                      <li key={item.id}>
+                        <button type="button" className="topbar-row topbar-notify-row" onClick={() => openNotification(item)}>
+                          <span className="topbar-row-icon" aria-hidden="true">
+                            <Icon name={icon} size={16} />
+                          </span>
+                          <span className="topbar-row-text">
+                            <span className="topbar-row-title">{item.text}</span>
+                            <span className="topbar-row-sub">{item.sub}</span>
+                          </span>
+                          {unseenCount([item], openedSeenAt) > 0 && (
+                            <span className="topbar-notify-new">
+                              <span className="topbar-hidden-label">New</span>
+                            </span>
+                          )}
+                          <span className="pill pill-blue mono">{item.issueKey}</span>
+                        </button>
+                      </li>
+                    );
+                  }
                   const late = item.kind === "late";
                   const paid = item.status === "paid";
                   return (

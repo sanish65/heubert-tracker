@@ -89,3 +89,14 @@ test('only what came after the last opening is unseen', () => {
 test('a stored time that does not parse counts as never opened', () => {
   assert.equal(unseenCount(items, 'not a date'), 2);
 });
+
+test('task notifications read like Jira and merge with fines by time', async () => {
+  const { taskNotificationItem, mergeNotifications } = await import('./notifications.js');
+  const base = { id: 7, actor_name: 'Bob Dev', created_at: '2026-10-21T10:00:00Z', task: { title: 'Build login' } };
+  assert.equal(taskNotificationItem({ ...base, kind: 'assigned' }, 'POR-4').text, 'Bob Dev assigned POR-4 to you');
+  assert.equal(taskNotificationItem({ ...base, kind: 'status', detail: 'in_progress' }, 'POR-4').text, 'Bob Dev moved POR-4 to In Progress');
+  const mention = taskNotificationItem({ ...base, kind: 'mentioned', detail: '@Alice look', read_at: '2026-10-21T11:00:00Z' }, 'POR-4');
+  assert.deepEqual([mention.sub, mention.read, mention.id], ['@Alice look', true, 'task-7']);
+  const merged = mergeNotifications([{ id: 'late-1', at: '2026-10-20T00:00:00Z' }], [mention], 15);
+  assert.deepEqual(merged.map((i) => i.id), ['task-7', 'late-1']);
+});

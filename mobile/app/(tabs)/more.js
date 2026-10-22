@@ -10,8 +10,8 @@ import Icon from "../../components/Icon";
 
 // More, as the canvas's MobileMore.dc.html: your profile with a way into Settings, then every other
 // screen in the canvas's groups, each row an icon tile, its name and a chevron, and the app's version
-// at the foot. The destinations are the ones More had before the redesign; Leave Settings, under
-// Admin, is still for admins only.
+// at the foot. Daily Standup, Tasks and Team Calendar joined the Team group with the web's tabs of
+// the same names (docs/mobile-web-parity.md); Leave Settings, under Admin, is still for admins only.
 
 // The canvas's groups and rows. `sub` is the line under a name: the canvas's words where they say
 // what the screen has. Word of the Day's line on the canvas is sample data ("Today: …"), so it has
@@ -20,6 +20,9 @@ const GROUPS = [
   {
     title: "Team",
     rows: [
+      { label: "Daily Standup", sub: "Your update and shout-outs", href: "/standup", icon: "message", tone: "cyan" },
+      { label: "Tasks", sub: "Board, backlog and issues", href: "/tasks", icon: "kanban", tone: "blue" },
+      { label: "Team Calendar", sub: "Everyone's meetings, leaves and holidays", href: "/calendar", icon: "clock", tone: "violet" },
       { label: "Word of the Day", href: "/words", icon: "book", tone: "blue" },
       { label: "Events", sub: "Company events", href: "/events", icon: "calendar-days", tone: "cyan" },
       { label: "Planning Poker", sub: "Estimate stories together", href: "/planning-poker", icon: "cards", tone: "violet" },

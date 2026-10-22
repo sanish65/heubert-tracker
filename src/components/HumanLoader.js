@@ -23,15 +23,16 @@ const LOADER_FIREWORKS = [
   { left: "30%", top: "10%", color: "#fb923c", delay: 2.4, wide: true },
 ];
 
-// Children cheering in front of the rooftops. Their lines take turns on a 9s
-// cycle, so neighbours never talk over each other.
+// Children cheering in front of the rooftops, in festival clothes (see Kid in
+// DashainBanner.js): `head` is the skin tone, `outfit` daura (with a topi), frock or
+// kurta. Their lines take turns on a 9s cycle, so neighbours never talk over each other.
 const LOADER_KIDS = [
-  { left: "6%", pose: "kite", shirt: "#ef4444", head: "#fcd34d", say: "दुई धार्के धागो छोड!", sayDelay: 0 },
-  { left: "22%", pose: "jump", shirt: "#22c55e", head: "#fdba74", say: "दशैं आयो!", sayDelay: 4.5, wide: true },
-  { left: "36%", pose: "wave", shirt: "#3b82f6", head: "#fcd34d", say: "मासु भात खाउँ!", sayDelay: 1.5, wide: true },
-  { left: "52%", pose: "kite", shirt: "#a855f7", head: "#fdba74", say: "चेट!", sayDelay: 3 },
-  { left: "64%", pose: "jump", shirt: "#f97316", head: "#fcd34d", say: "नयाँ लुगा लगाएँ!", sayDelay: 6, wide: true },
-  { left: "76%", pose: "wave", shirt: "#ec4899", head: "#fdba74", say: "देउसी रे!", sayDelay: 7.5, wide: true },
+  { left: "6%", pose: "kite", shirt: "#ef4444", head: "#e2ac7f", outfit: "daura", say: "दुई धार्के धागो छोड!", sayDelay: 0 },
+  { left: "22%", pose: "jump", shirt: "#22c55e", head: "#c98e5e", outfit: "frock", say: "दशैं आयो!", sayDelay: 4.5, wide: true },
+  { left: "36%", pose: "wave", shirt: "#3b82f6", head: "#d9a273", outfit: "daura", say: "मासु भात खाउँ!", sayDelay: 1.5, wide: true },
+  { left: "52%", pose: "kite", shirt: "#a855f7", head: "#b97a4c", outfit: "kurta", say: "चेट!", sayDelay: 3 },
+  { left: "64%", pose: "jump", shirt: "#f97316", head: "#e2ac7f", outfit: "daura", say: "नयाँ लुगा लगाएँ!", sayDelay: 6, wide: true },
+  { left: "76%", pose: "wave", shirt: "#ec4899", head: "#c98e5e", outfit: "frock", say: "देउसी रे!", sayDelay: 7.5, wide: true },
 ];
 
 // Known categorizations

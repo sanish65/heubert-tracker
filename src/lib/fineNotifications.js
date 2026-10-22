@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
  * runs, so a slow or dead SMTP host must not hold up the UI or make the add look like
  * it failed. Nothing here throws.
  */
-export function notifyFineAdded({ kind, employeeName, date, amount }) {
+export function notifyFineAdded({ kind, employeeName, date, amount, status }) {
   (async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -19,7 +19,7 @@ export function notifyFineAdded({ kind, employeeName, date, amount }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ kind, employeeName, date, amount }),
+        body: JSON.stringify({ kind, employeeName, date, amount, status }),
       });
 
       if (!res.ok) {

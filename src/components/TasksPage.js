@@ -7,10 +7,16 @@ import Modal from "@/components/Modal";
 import Icon from "@/components/Icon";
 import { useTasks } from "@/lib/useTasks";
 import { getNepalDateStr } from "@/lib/attendanceTime";
-import { ISSUE_TYPES, issueKey, parseIssueKey, suggestProjectKey, validateProjectKey, activeSprintOf, boardIssues } from "@/lib/taskBoard";
+import { issueKey, parseIssueKey, suggestProjectKey, validateProjectKey, activeSprintOf, boardIssues, filterIssues } from "@/lib/taskBoard";
+import { compileQuery } from "@/lib/taskQuery";
 import TaskBoardView from "@/components/TaskBoardView";
+import TaskIssuesView from "@/components/TaskIssuesView";
+import TaskFilterBar from "@/components/TaskFilterBar";
+import { TaskWorkflowProvider } from "@/components/TaskWorkflowContext";
 import TaskBacklogView from "@/components/TaskBacklogView";
 import TaskReportsView from "@/components/TaskReportsView";
+import TaskReleasesView from "@/components/TaskReleasesView";
+import TaskBoardSettings from "@/components/TaskBoardSettings";
 import TaskIssueModal from "@/components/TaskIssueModal";
 import TaskCreateModal from "@/components/TaskCreateModal";
 import { SprintFormModal, CompleteSprintModal } from "@/components/TaskSprintModals";
@@ -20,9 +26,11 @@ const VIEW_KEY = "heubert-tasks-view";
 const VIEWS = [
   { value: "board", label: "Board" },
   { value: "backlog", label: "Backlog" },
+  { value: "issues", label: "Issues" },
+  { value: "releases", label: "Releases" },
   { value: "reports", label: "Reports" },
 ];
-const FILTER_TYPES = ISSUE_TYPES.filter((t) => t.value !== "epic");
+const FILTERS_WITH = new Set(["board", "backlog", "issues"]);
 
 function readStored(key, fallback) {
   try {
@@ -158,9 +166,11 @@ function FileUnfiledModal({ task, projects, board, onClose }) {
 }
 
 function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
-  const { employees, currentEmployee } = useApp();
+  const { employees, currentEmployee, isAdmin } = useApp();
   const board = useTasks(project.id);
-  const { tasks, sprints, unfiled, isLoading, loadError, hasLoaded } = board;
+  const { tasks, sprints, versions, unfiled, isLoading, loadError, hasLoaded } = board;
+  const isKanban = project.board_mode === "kanban";
+  const [showBoardSettings, setShowBoardSettings] = useState(false);
   const today = getNepalDateStr(new Date());
   const searchRef = useRef(null);
 
@@ -168,6 +178,11 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
   const [onlyMine, setOnlyMine] = useState(false);
   const [recent, setRecent] = useState(false);
   const [types, setTypes] = useState([]);
+  const [searchMode, setSearchMode] = useState("basic");
+  const [jqlText, setJqlText] = useState("");
+  const [activeFilterId, setActiveFilterId] = useState(null);
+  // Relative dates in a query ("updated >= -7d") count from when the project was opened.
+  const [nowMs] = useState(() => Date.now());
 
   const [openIssueId, setOpenIssueId] = useState(null);
   const [pendingNumber, setPendingNumber] = useState(issueLink?.number ?? null);
@@ -186,7 +201,26 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
 
   const employeesById = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees]);
   const tasksById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
-  const filters = { search, onlyMine, recent, types };
+  const keyOf = (t) => issueKey(project, t);
+  const compiled = compileQuery(searchMode === "jql" ? jqlText : "", {
+    me: currentEmployee?.id ?? null,
+    employees,
+    employeesById,
+    sprints,
+    versions,
+    workflow: board.workflow,
+    tasks,
+    tasksById,
+    keyOf,
+    nowMs,
+    todayStr: today,
+  });
+  // JQL replaces the basic search while it's on; a query that doesn't parse yet filters
+  // nothing, so the board doesn't empty out mid-word.
+  const filters =
+    searchMode === "jql"
+      ? { predicate: compiled.ok && !compiled.empty ? compiled.predicate : null }
+      : { search, onlyMine, recent, types };
 
   // A shared link names an issue by number; open it once this project's issues arrive.
   // Resolved during render rather than in an effect, so there's no extra pass.
@@ -196,9 +230,11 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
     if (match) setOpenIssueId(match.id);
   }
 
-  const openIssue = (id) => {
+  // `known` is the issue itself when the caller has it before this list does (a clone
+  // that was just created), so the address bar still points at the right issue.
+  const openIssue = (id, known) => {
     setOpenIssueId(id);
-    const task = tasks.find((t) => t.id === id);
+    const task = known || tasks.find((t) => t.id === id);
     if (task) setHashIssue(issueKey(project, task));
   };
 
@@ -207,7 +243,7 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
     setHashIssue(null);
   };
 
-  const activeSprint = activeSprintOf(sprints);
+  const activeSprint = isKanban ? null : activeSprintOf(sprints);
 
   // From the board, new issues go into the active sprint; elsewhere, the backlog.
   const createDefaultsFor = () => ({ sprint_id: view === "board" ? activeSprint?.id ?? null : null });
@@ -240,7 +276,24 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const toggleType = (value) => setTypes((prev) => (prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]));
-  const filtersOn = search.trim() || onlyMine || recent || types.length;
+  const basic = {
+    search, setSearch, onlyMine, setOnlyMine, recent, setRecent, types, toggleType,
+    clear: () => {
+      setSearch("");
+      setOnlyMine(false);
+      setRecent(false);
+      setTypes([]);
+    },
+  };
+  const jql = {
+    mode: searchMode,
+    setMode: setSearchMode,
+    text: jqlText,
+    setText: setJqlText,
+    activeId: activeFilterId,
+    setActiveId: setActiveFilterId,
+  };
+  const searched = filterIssues(tasks, filters, { currentEmployeeId: currentEmployee?.id ?? null, nowMs, keyOf });
 
   if (loadError && !hasLoaded) {
     const missing = /42P01|PGRST205|does not exist|Could not find/i.test(`${loadError.code || ""} ${loadError.message || ""}`);
@@ -264,7 +317,7 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
   }
 
   return (
-    <>
+    <TaskWorkflowProvider value={board.workflow}>
       <div className="tasks-subnav">
         <div className="status-tabs" role="tablist">
           {VIEWS.map((v) => (
@@ -279,9 +332,16 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
             </button>
           ))}
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => openCreate()} title="Create issue (c)">
-          <Icon name="plus" size={16} strokeWidth={2.2} /> Create
-        </button>
+        <div className="tasks-subnav-actions">
+          {isAdmin && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowBoardSettings(true)} title="Scrum or Kanban, workflow and WIP limits">
+              <Icon name="sliders" size={16} /> Board settings
+            </button>
+          )}
+          <button className="btn btn-primary btn-sm" onClick={() => openCreate()} title="Create issue (c)">
+            <Icon name="plus" size={16} strokeWidth={2.2} /> Create
+          </button>
+        </div>
       </div>
 
       {loadError && hasLoaded && (
@@ -301,44 +361,16 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
         </div>
       )}
 
-      {view !== "reports" && (
-        <div className="tasks-filters">
-          <label className="tasks-search">
-            <Icon name="search" size={16} strokeWidth={2} />
-            <input
-              ref={searchRef}
-              type="search"
-              aria-label={`Search ${project.issue_key} issues`}
-              placeholder="Search title, label or issue key…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </label>
-          <button className={`project-filter-chip ${onlyMine ? "active" : ""}`} onClick={() => setOnlyMine((v) => !v)}>
-            Only my issues
-          </button>
-          <button className={`project-filter-chip ${recent ? "active" : ""}`} onClick={() => setRecent((v) => !v)}>
-            Recently updated
-          </button>
-          {FILTER_TYPES.map((t) => (
-            <button key={t.value} className={`project-filter-chip ${types.includes(t.value) ? "active" : ""}`} onClick={() => toggleType(t.value)}>
-              {t.label}
-            </button>
-          ))}
-          {filtersOn ? (
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setSearch("");
-                setOnlyMine(false);
-                setRecent(false);
-                setTypes([]);
-              }}
-            >
-              Clear filters
-            </button>
-          ) : null}
-        </div>
+      {FILTERS_WITH.has(view) && (
+        <TaskFilterBar
+          project={project}
+          board={board}
+          basic={basic}
+          jql={jql}
+          compiled={compiled}
+          matchCount={searched.length}
+          searchRef={searchRef}
+        />
       )}
 
       {isLoading ? (
@@ -363,6 +395,7 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
           project={project}
           tasks={tasks}
           sprints={sprints}
+          versions={versions}
           filters={filters}
           currentEmployeeId={currentEmployee?.id ?? null}
           employeesById={employeesById}
@@ -374,8 +407,30 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
           onStartSprint={(sprint, issueCount) => setSprintModal({ mode: "start", sprint, issueCount })}
           onCompleteSprint={setCompleting}
         />
+      ) : view === "issues" ? (
+        <TaskIssuesView
+          project={project}
+          issues={searched}
+          order={compiled.ok ? compiled.order : []}
+          invalid={!compiled.ok}
+          sprints={sprints}
+          versions={versions}
+          employeesById={employeesById}
+          today={today}
+          onOpenIssue={openIssue}
+        />
+      ) : view === "releases" ? (
+        <TaskReleasesView
+          project={project}
+          tasks={tasks}
+          versions={versions}
+          employeesById={employeesById}
+          board={board}
+          today={today}
+          onOpenIssue={openIssue}
+        />
       ) : (
-        <TaskReportsView tasks={tasks} sprints={sprints} today={today} />
+        <TaskReportsView tasks={tasks} sprints={sprints} today={today} boardMode={project.board_mode} />
       )}
 
       {openIssueId != null && (
@@ -387,10 +442,15 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
           project={project}
           tasks={tasks}
           sprints={sprints}
+          versions={versions}
           employees={employees}
           board={board}
           today={today}
         />
+      )}
+
+      {showBoardSettings && (
+        <TaskBoardSettings project={project} workflow={board.workflow} tasks={tasks} board={board} onClose={() => setShowBoardSettings(false)} />
       )}
 
       {createDefaults && (
@@ -401,6 +461,7 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
           project={project}
           tasks={tasks}
           sprints={sprints}
+          versions={versions}
           employees={employees}
           board={board}
           defaults={createDefaults}
@@ -434,7 +495,7 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
       )}
 
       {filing && <FileUnfiledModal task={filing} projects={projects} board={board} onClose={() => setFiling(null)} />}
-    </>
+    </TaskWorkflowProvider>
   );
 }
 

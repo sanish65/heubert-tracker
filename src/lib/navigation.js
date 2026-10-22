@@ -17,6 +17,7 @@ export const NAV_GROUPS = [
     id: "team",
     label: "Team",
     items: [
+      { id: "standup-form", label: "Standup", icon: "message" },
       { id: "tasks", label: "Tasks", icon: "kanban" },
       { id: "calendar", label: "Calendar", icon: "clock" },
       { id: "poker", label: "Planning Poker", icon: "layers" },
@@ -36,9 +37,9 @@ export const NAV_GROUPS = [
   },
 ];
 
-// Tabs opened another way: the standup form (floating button), Memories (sidebar foot),
-// and Capacity (no entry today, kept so an old saved tab still opens).
-const EXTRA_TABS = ["standup-form", "memories", "capacity"];
+// Tabs opened another way: Memories (sidebar foot) and Capacity (no entry today, kept
+// so an old saved tab still opens).
+const EXTRA_TABS = ["memories", "capacity"];
 
 // The two admin settings tabs became one Settings section.
 const RENAMED = { "leave-settings": "settings", "privilege-settings": "settings" };

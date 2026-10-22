@@ -144,3 +144,25 @@ test('unseenCount gives what the web gives, for every opening time', () => {
     [[{ id: 'x' }, { id: 'y', at: 'garbage' }], '2026-10-17T00:00:00.000Z'],
   ]);
 });
+
+// Task notifications: every kind, a status key and a custom status name, a missing actor and
+// issue, a read row, and Supabase's six-digit timestamps (stored back as plain ISO).
+const taskRows = [
+  { id: 1, kind: 'assigned', actor_name: 'Bob Dev', created_at: '2026-10-21T10:00:00.123456+00:00', task: { title: 'Build login' } },
+  { id: 2, kind: 'mentioned', actor_name: 'Ana', detail: '@Sanish look', created_at: '2026-10-21T09:00:00Z', read_at: '2026-10-21T09:30:00Z', task: { title: 'Pay' } },
+  { id: 3, kind: 'commented', detail: '', created_at: '2026-10-20T09:00:00Z', task: null },
+  { id: 4, kind: 'status', actor_name: 'Ana', detail: 'in_progress', created_at: '2026-10-19T09:00:00Z', task: { title: 'A' } },
+  { id: 5, kind: 'status', actor_name: 'Ana', detail: 'In QA', created_at: 'garbage', task: { title: 'B' } },
+  { id: 6, kind: 'status', created_at: null },
+];
+
+test('taskNotificationItem gives what the web gives', () => {
+  sameOnEvery('taskNotificationItem', taskRows.map((row) => [row, 'POR-4']));
+  assert.equal(phone.taskNotificationItem(taskRows[0], 'POR-4').at, '2026-10-21T10:00:00.123Z');
+});
+
+test('mergeNotifications gives what the web gives', () => {
+  const tasks = taskRows.slice(0, 4).map((row) => web.taskNotificationItem(row, 'POR-4'));
+  const fineItems = web.myFineNotifications({ fines, standupFines, name: 'Sanish', now });
+  sameOnEvery('mergeNotifications', [[fineItems, tasks], [fineItems, tasks, 3], [null, tasks], [fineItems, undefined], [[], []]]);
+});

@@ -29,8 +29,8 @@ test('confirm, alert and prompt open above every other dialog', () => {
   assert.ok(Math.min(...zIndexes('.modal-overlay.dialog-host-overlay')) > dialog);
 });
 
-test('the phone drawer, its scrim, the standup button and the top bar stay under dialogs', () => {
-  for (const layer of ['.app-sidebar', '.app-sidebar-scrim', '.standup-fab', '.app-topbar']) {
+test('the phone drawer, its scrim and the top bar stay under dialogs', () => {
+  for (const layer of ['.app-sidebar', '.app-sidebar-scrim', '.app-topbar']) {
     assert.ok(Math.max(...zIndexes(layer)) < dialog, `${layer} covers dialogs`);
   }
 });

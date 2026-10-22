@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeQuery, matchPeople, matchFineRows, taskQuery } from './globalSearch.js';
+import { normalizeQuery, matchPeople, matchFineRows, taskQuery, searchExamples, noMatchNote } from './globalSearch.js';
 
 const person = (name, extra = {}) => ({ name, work_email: null, personal_email: null, status: 'active', ...extra });
 const names = (list) => list.map((p) => p.name);
@@ -139,4 +139,57 @@ test('fewer than two characters left is no task search', () => {
   assert.equal(taskQuery('%_\\'), null);
   assert.equal(taskQuery(''), null);
   assert.equal(taskQuery(undefined), null);
+});
+
+// ── searchExamples ──────────────────────────────────────────────────────────
+
+const project = (issue_key, issue_seq, extra = {}) => ({ id: issue_seq, name: issue_key, issue_key, issue_seq, status: 'active', ...extra });
+
+test('examples: a current person, someone else with fines, and the newest issue key', () => {
+  const examples = searchExamples({
+    employees: [bikram, abik, bikesh],
+    fines: [late(1, 'Bikesh Shrestha', 50, 'unpaid')],
+    standupFines: [],
+    projects: [project('HTT', 12)],
+  });
+  assert.deepEqual(examples, [
+    { kind: 'person', query: 'Abik' },
+    { kind: 'fine', query: 'Bikesh' },
+    { kind: 'task', query: 'HTT-12' },
+  ]);
+});
+
+test('examples: no fine example when only the person example has fines', () => {
+  const examples = searchExamples({ employees: [abik], fines: [late(1, 'Abik Rai', 20, 'paid')], standupFines: [standup(1, 'Abik Rai', 'paid')], projects: [] });
+  assert.deepEqual(examples, [{ kind: 'person', query: 'Abik' }]);
+});
+
+test('examples: a fine is skipped for a person excluded from that list, and standup fines count', () => {
+  const examples = searchExamples({
+    employees: [abik, person('Nina Karki', { late_fine_excluded: true }), sita],
+    fines: [late(1, 'Nina Karki', 20, 'unpaid')],
+    standupFines: [standup(1, 'Sita Gurung', 'unpaid')],
+    projects: [],
+  });
+  assert.deepEqual(examples, [{ kind: 'person', query: 'Abik' }, { kind: 'fine', query: 'Sita' }]);
+});
+
+test('examples: a task key only from an open project that has handed out a number', () => {
+  const projects = [project('ARC', 9, { status: 'archived' }), project('NEW', 0), project(null, 4), project('WEB', 3)];
+  assert.deepEqual(searchExamples({ employees: [], fines: [], standupFines: [], projects }), [{ kind: 'task', query: 'WEB-3' }]);
+});
+
+test('examples: nothing loaded gives no examples', () => {
+  assert.deepEqual(searchExamples({}), []);
+  assert.deepEqual(searchExamples({ employees: [bikram, person('  ')] }), []);
+});
+
+// ── noMatchNote ─────────────────────────────────────────────────────────────
+
+test('no match: says every kind was searched, with the query trimmed', () => {
+  assert.equal(noMatchNote('  zzz '), 'No people, fines or tasks match “zzz”.');
+});
+
+test('no match: a query too short for tasks says tasks were not searched', () => {
+  assert.equal(noMatchNote('z'), 'No people or fines match “z”. Tasks need at least 2 characters.');
 });

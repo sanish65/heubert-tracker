@@ -4,6 +4,7 @@ import { useState } from "react";
 import Modal from "@/components/Modal";
 import Icon from "@/components/Icon";
 import { defaultSprintDates, nextSprintName, daysBetween, countsTowardPoints, sumPoints } from "@/lib/taskBoard";
+import { isDone } from "@/lib/taskWorkflow";
 
 const DURATIONS = [1, 2, 3, 4];
 
@@ -159,12 +160,12 @@ export function CompleteSprintModal({ isOpen, onClose, sprint, project, sprints,
   const [isSaving, setIsSaving] = useState(false);
 
   const standard = sprintIssues.filter(countsTowardPoints);
-  const done = standard.filter((t) => t.status === "done");
-  const open = standard.filter((t) => t.status !== "done");
+  const done = standard.filter((t) => isDone(t));
+  const open = standard.filter((t) => !isDone(t));
   // complete_task_sprint refuses these: a sub-task follows its parent, and a done
   // parent stays in the closed sprint, so the sub-task would vanish with it.
   const doneIds = new Set(done.map((t) => t.id));
-  const stranded = sprintIssues.filter((t) => t.type === "subtask" && t.status !== "done" && doneIds.has(t.parent_id));
+  const stranded = sprintIssues.filter((t) => t.type === "subtask" && !isDone(t) && doneIds.has(t.parent_id));
 
   const handleComplete = async () => {
     if (isSaving) return;

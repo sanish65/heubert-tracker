@@ -40,7 +40,6 @@ import ProjectsPage from "@/components/ProjectsPage";
 import TasksPage from "@/components/TasksPage";
 import CalendarPage from "@/components/CalendarPage";
 import StandupFormPage from "@/components/StandupFormPage";
-import StandupFloatingButton from "@/components/StandupFloatingButton";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import PageHead from "@/components/PageHead";
@@ -51,7 +50,7 @@ import { formatBs } from "@/lib/nepaliDate";
 import { getNepalParts } from "@/lib/standupWindow";
 
 export default function Home() {
-  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin, canManageFines, animationsEnabled } = useApp();
+  const { isLoaded, resetData, isSyncing, syncLocalToCloud, user, signOut, currentEmployee, isAuthReady, isAdmin, canManageFines, animationsEnabled, employees } = useApp();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
 
@@ -67,6 +66,8 @@ export default function Home() {
   const [showReleaseUpdates, setShowReleaseUpdates] = useState(false);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [showAddFine, setShowAddFine] = useState(false);
+  // Who Record Fine opens for, when it's opened from someone's details on Employees.
+  const [fineFor, setFineFor] = useState(null);
   const [showAddLeave, setShowAddLeave] = useState(false);
   const [showAddStandup, setShowAddStandup] = useState(false);
   const [showAddMemory, setShowAddMemory] = useState(false);
@@ -222,6 +223,10 @@ export default function Home() {
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "";
   const groupLabel = navGroupsFor({ isAdmin }).find((g) => g.items.some((i) => i.id === activeTab))?.label;
   const pageHead = pageMetaFor(activeTab, { firstName, hour: new Date().getHours(), groupLabel });
+  if (activeTab === "employees") {
+    const members = employees.length;
+    pageHead.eyebrow = [groupLabel, `${members} ${members === 1 ? "member" : "members"}`].filter(Boolean).join(" · ");
+  }
   if (activeTab === "dashboard") {
     // "Monday · Oct 19 · 3 Kartik 2083", all from today's date in Nepal.
     const todayStr = getNepalParts(new Date()).dateStr;
@@ -279,7 +284,6 @@ export default function Home() {
     {splash}
     {/* motion-off stops the CSS-only motion (card lift, banner scenes) with Animations off. */}
     <div className={`app-shell${animationsEnabled === false ? " motion-off" : ""}`}>
-      <StandupFloatingButton onOpen={() => setActiveTab("standup-form")} />
       <Sidebar
         activeTab={activeTab}
         onSelect={selectTab}
@@ -294,13 +298,22 @@ export default function Home() {
 
       {/* Content */}
       <main className="app-content">
-        <PageHead {...pageHead}>{pageActions}</PageHead>
+        {/* The standup page draws its own heading: its day switch and clock sit in it. */}
+        {activeTab !== "standup-form" && <PageHead {...pageHead}>{pageActions}</PageHead>}
         {activeTab === "dashboard" && <Dashboard />}
         {activeTab === "employees" && (
           <EmployeeList
             key={employeeRequest?.at ?? "list"}
             openEmployeeId={employeeRequest?.id}
             onEditEmployee={handleEditEmployee}
+            onRecordFine={
+              canManageFines
+                ? (name) => {
+                    setFineFor(name);
+                    setShowAddFine(true);
+                  }
+                : null
+            }
             onSelectEmployee={(emp) => {
               setSelectedEmployee(emp);
               if (emp) setActiveTab("records");
@@ -326,7 +339,7 @@ export default function Home() {
             onAddStandup={() => setShowAddStandup(true)}
           />
         )}
-        {activeTab === "standup-form" && <StandupFormPage />}
+        {activeTab === "standup-form" && <StandupFormPage head={pageHead} />}
         {activeTab === "leaves" && (
           <LeavePage
             onAddLeave={() => setShowAddLeave(true)}
@@ -366,8 +379,13 @@ export default function Home() {
         onClose={() => setShowAddEmployee(false)}
       />
       <AddFineModal
+        key={fineFor ?? "fine"}
         isOpen={showAddFine}
-        onClose={() => setShowAddFine(false)}
+        defaultName={fineFor ?? ""}
+        onClose={() => {
+          setShowAddFine(false);
+          setFineFor(null);
+        }}
       />
       <AddFineSeasonModal
         isOpen={showAddFineSeason}
