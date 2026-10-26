@@ -1,0 +1,173 @@
+{
+  "features": [
+    {
+      "id": "dashboard",
+      "title": "Dashboard",
+      "summary": "The day at a glance: fine totals, pending standups, fines by person, the on-time champion and who is away.",
+      "web": { "tab": "dashboard" },
+      "mobile": { "path": "/" }
+    },
+    {
+      "id": "standup",
+      "title": "Daily standup",
+      "summary": "Write today's or the next working day's update, thank a teammate with a shout-out, and see who is in. Your open Jira tickets are attached when you submit.",
+      "web": { "tab": "standup-form" },
+      "mobile": { "path": "/standup" }
+    },
+    {
+      "id": "meeting",
+      "title": "Meeting mode",
+      "summary": "The morning sync on one screen: everyone's update with their Jira tickets, who is missing, who is on leave, shout-outs and the word of the meeting.",
+      "web": { "path": "/meeting" },
+      "mobile": { "path": "/meeting" }
+    },
+    {
+      "id": "tasks",
+      "title": "Tasks",
+      "summary": "Jira-style issues per project: a board, backlog and sprints, releases, filters, comments and @mentions.",
+      "web": { "tab": "tasks" },
+      "mobile": { "path": "/tasks" }
+    },
+    {
+      "id": "calendar",
+      "title": "Team calendar",
+      "summary": "Everyone's meetings, leaves and holidays side by side, read from Google Calendar.",
+      "web": { "tab": "calendar", "wait": 12000 },
+      "mobile": { "path": "/calendar", "wait": 12000 }
+    },
+    {
+      "id": "late-fines",
+      "title": "Late fines",
+      "summary": "Record and settle late fines by season, with the fine fund's collected, withdrawn and remaining totals.",
+      "web": { "tab": "records" },
+      "mobile": { "path": "/fines" }
+    },
+    {
+      "id": "standup-fines",
+      "title": "Standup fines",
+      "summary": "Fines for missed standups, marked paid or pending.",
+      "web": { "tab": "standup" },
+      "mobile": { "path": "/fines" }
+    },
+    {
+      "id": "leaves",
+      "title": "Leaves",
+      "summary": "Request and track leave, see who is away, and check what is left of each yearly quota.",
+      "web": { "tab": "leaves" },
+      "mobile": { "path": "/leaves" }
+    },
+    {
+      "id": "attendance",
+      "title": "Attendance",
+      "summary": "Check in and out at the office, and see the team's attendance by day.",
+      "web": { "tab": "attendance" },
+      "mobile": { "path": "/attendance" }
+    },
+    {
+      "id": "poker",
+      "title": "Planning poker",
+      "summary": "Estimate stories together in a live session, then reveal the votes.",
+      "web": { "tab": "poker" },
+      "mobile": { "path": "/planning-poker" }
+    },
+    {
+      "id": "retro",
+      "title": "Retrospective",
+      "summary": "Sprint boards with cards, votes, themes grouped automatically, action items and kudos.",
+      "web": { "tab": "retro" },
+      "mobile": { "path": "/retrospective" }
+    },
+    {
+      "id": "words",
+      "title": "Word of the day",
+      "summary": "A new word for every meeting, with its meaning.",
+      "web": { "tab": "words" },
+      "mobile": { "path": "/words" }
+    },
+    {
+      "id": "events",
+      "title": "Events",
+      "summary": "Company events and celebrations.",
+      "web": { "tab": "events" },
+      "mobile": { "path": "/events" }
+    },
+    {
+      "id": "team",
+      "title": "Team",
+      "summary": "Everyone on the team, with their details and projects.",
+      "web": { "tab": "employees" },
+      "mobile": { "path": "/team" }
+    },
+    {
+      "id": "projects",
+      "title": "Projects",
+      "summary": "Active and archived projects and who works on them.",
+      "web": { "tab": "projects" },
+      "mobile": { "path": "/projects" }
+    },
+    {
+      "id": "withdrawals",
+      "title": "Withdrawals",
+      "summary": "What has been spent from the fine fund.",
+      "web": null,
+      "mobile": { "path": "/withdrawals" }
+    },
+    {
+      "id": "memories",
+      "title": "Team memories",
+      "summary": "Photos from team moments.",
+      "web": { "tab": "memories", "wait": 8000 },
+      "mobile": { "path": "/memories", "wait": 15000 }
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "summary": "Theme, animations and your account; admins also set leave types and quotas.",
+      "web": { "tab": "settings" },
+      "mobile": { "path": "/settings" }
+    }
+  ],
+  "releases": [
+    {
+      "date": "2026-10-26",
+      "platforms": ["web", "mobile"],
+      "title": "Jira tickets from the tracker, and What's new",
+      "notes": [
+        "Standups sent from the tracker now carry your open Jira tickets into meeting mode, like HeuBot's do. Done and Backlog tickets are left out.",
+        "Meeting mode shows where each update came from: Tracker or HeuBot.",
+        "Clear on the standup form empties every answer, even after you've submitted.",
+        "Meeting mode's ticket list no longer overflows when someone has many tickets.",
+        "Hover a bar in Fines by employee to see the paid and unpaid amounts.",
+        "Leave left in the Employees list counts personal, sick and festival leave only, not work from home, unpaid or exam leave. Admins choose which types count in Leave settings.",
+        "What's new now shows the tracker on a desktop and a phone side by side, every feature on both apps, and these release notes."
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "platforms": ["web", "mobile"],
+      "title": "Search and banners",
+      "notes": [
+        "Search people, fines or tasks from the top bar (Ctrl K).",
+        "Holiday and announcement banners on the dashboard."
+      ]
+    },
+    {
+      "date": "2026-10-21",
+      "platforms": ["web", "mobile"],
+      "title": "Tasks",
+      "notes": [
+        "Jira-style issues for every project: board, backlog, sprints and releases.",
+        "Assignment and @mention emails, and phone notifications on mobile."
+      ]
+    },
+    {
+      "date": "2026-10-08",
+      "platforms": ["web", "mobile"],
+      "title": "Retrospective themes, action items and kudos",
+      "notes": [
+        "Retro cards are grouped into themes automatically; the facilitator can rename, move, split or ungroup them.",
+        "Turn top-voted cards into action items, and give kudos on the board."
+      ]
+    }
+  ]
+}

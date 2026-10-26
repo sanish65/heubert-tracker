@@ -271,6 +271,10 @@ export default function Dashboard() {
                     <div className="bar-fill bar-unpaid" style={{ width: `${(emp.unpaid / maxTotal) * 100}%` }} />
                   </div>
                   <span className="dash-bar-total mono">Rs. {(emp.paid + emp.unpaid).toLocaleString()}</span>
+                  <span className="dash-bar-tip mono" aria-hidden="true">
+                    <span className="dash-legend-swatch paid" />Paid Rs. {emp.paid.toLocaleString()}
+                    <span className="dash-legend-swatch unpaid" />Unpaid Rs. {emp.unpaid.toLocaleString()}
+                  </span>
                 </div>
               ))}
             </div>

@@ -1,12 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { calendarConfig, listEvents } from "@/lib/googleCalendar";
+import { calendarConfig, freeBusy, listEvents } from "@/lib/googleCalendar";
 import { normalizeEvent, validRange } from "@/lib/teamCalendar";
 
 // GET /api/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD  (end exclusive, at most 14 days)
 //
 // Every active employee's meetings in that range, read from Google Calendar through the
-// Workspace service account. Only signed-in active employees may ask. The response
+// Workspace service account. With domain-wide delegation it reads everyone; without it
+// (Google answers unauthorized_client) it reads the calendars people have shared with the
+// service account, as busy blocks when only free/busy is shared, and marks the rest
+// "not-shared". Only signed-in active employees may ask. The response
 // carries times, titles (blanked for private events), a meeting kind and an attendee
 // count — never descriptions or attendee emails — and the Meet link only on the
 // caller's own events.
@@ -23,6 +26,43 @@ function fail(message, status) {
 }
 
 const escapeLike = (value) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+// Whether delegation works, re-checked every ten minutes so granting it takes effect
+// without a redeploy. null: not known yet.
+const DELEGATION_RECHECK_MS = 10 * 60 * 1000;
+let delegation = { ok: null, at: 0 };
+const delegationKnownOff = () => delegation.ok === false && Date.now() - delegation.at < DELEGATION_RECHECK_MS;
+
+// A free/busy block in the shape normalizeEvent gives: no title, so every view says Busy.
+const busyEvent = (block, i) => ({
+  id: `busy-${i}-${block.start}`,
+  title: null,
+  start: block.start,
+  end: block.end,
+  allDay: false,
+  kind: "team",
+  recurringId: null,
+  attendeeCount: 0,
+  meet: null,
+});
+
+// One shared calendar, read as the service account: its events when it's shared with
+// details, its busy blocks when only free/busy is shared.
+async function readShared(config, email, timeMin, timeMax) {
+  try {
+    const items = await listEvents(config, email, timeMin, timeMax, { asSelf: true });
+    return items
+      .map((item) => {
+        const e = normalizeEvent(item, { ownerEmail: email, domain: config.domain, isViewer: true });
+        // Free/busy-only sharing returns events without their titles: those stay Busy.
+        return e && !item.summary ? { ...e, title: null } : e;
+      })
+      .filter(Boolean);
+  } catch (err) {
+    if (err.status !== 403) throw err;
+    return (await freeBusy(config, email, timeMin, timeMax)).map(busyEvent);
+  }
+}
 
 async function callerEmployee(request) {
   const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
@@ -68,20 +108,32 @@ async function loadRange(config, start, end) {
     const email = String(emp.work_email || "").trim().toLowerCase();
     // Only Workspace accounts can be read; a personal Gmail on file can't.
     if (!email.endsWith(`@${config.domain}`)) return { employeeId: emp.id, status: "no-workspace-email", events: [] };
+    if (!delegationKnownOff()) {
+      try {
+        const items = await listEvents(config, email, timeMin, timeMax);
+        delegation = { ok: true, at: Date.now() };
+        // isViewer: true keeps Meet links in the cache; the response strips them from
+        // everyone but the caller.
+        const events = items
+          .map((item) => normalizeEvent(item, { ownerEmail: email, domain: config.domain, isViewer: true }))
+          .filter(Boolean);
+        return { employeeId: emp.id, status: "ok", events };
+      } catch (err) {
+        if (err.code !== "unauthorized_client") {
+          return { employeeId: emp.id, status: "unavailable", code: err.code || null, message: err.message, events: [] };
+        }
+        delegation = { ok: false, at: Date.now() };
+      }
+    }
     try {
-      const items = await listEvents(config, email, timeMin, timeMax);
-      // isViewer: true keeps Meet links in the cache; the response strips them from
-      // everyone but the caller.
-      const events = items
-        .map((item) => normalizeEvent(item, { ownerEmail: email, domain: config.domain, isViewer: true }))
-        .filter(Boolean);
-      return { employeeId: emp.id, status: "ok", events };
+      return { employeeId: emp.id, status: "ok", events: await readShared(config, email, timeMin, timeMax) };
     } catch (err) {
+      if (err.status === 404) return { employeeId: emp.id, status: "not-shared", events: [] };
       return { employeeId: emp.id, status: "unavailable", code: err.code || null, message: err.message, events: [] };
     }
   });
 
-  const value = { fetchedAt: new Date().toISOString(), people };
+  const value = { fetchedAt: new Date().toISOString(), people, access: delegationKnownOff() ? "shared" : "delegated" };
   cache.set(key, { at: Date.now(), value });
   // Keep the cache small: ranges are a day or a week, so only a handful are ever live.
   if (cache.size > 20) cache.delete(cache.keys().next().value);
@@ -100,7 +152,7 @@ export async function GET(request) {
   if (!config) return NextResponse.json({ configured: false, people: [] });
 
   try {
-    const { fetchedAt, people } = await loadRange(config, start, end);
+    const { fetchedAt, people, access } = await loadRange(config, start, end);
     const reachable = people.filter((p) => p.status !== "no-workspace-email");
     const failed = reachable.filter((p) => p.status === "unavailable");
     // Everyone failing the same way is a setup problem (delegation not granted, wrong
@@ -111,6 +163,9 @@ export async function GET(request) {
       configured: true,
       fetchedAt,
       setupError,
+      // "shared": no delegation yet, so only calendars shared with `shareWith` show.
+      access,
+      shareWith: access === "shared" ? config.email : null,
       people: people.map((p) => ({
         employeeId: p.employeeId,
         status: p.status,

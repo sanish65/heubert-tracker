@@ -5,7 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import Icon from "@/components/Icon";
 
-const emptyForm = { name: "", annualDays: "", isUnpaid: false, isActive: true };
+const emptyForm = { name: "", annualDays: "", isUnpaid: false, isActive: true, countsInLeaveLeft: true };
 
 function initialFormFor(editing) {
   return editing
@@ -14,6 +14,7 @@ function initialFormFor(editing) {
         annualDays: String(editing.annual_days),
         isUnpaid: editing.is_unpaid,
         isActive: editing.is_active,
+        countsInLeaveLeft: editing.counts_in_leave_left !== false,
       }
     : emptyForm;
 }
@@ -37,7 +38,7 @@ function LeaveTypeFormModal({ isOpen, onClose, editing }) {
     );
     if (duplicate) { setError("A leave type with this name already exists"); return; }
 
-    const payload = { name, annualDays, isUnpaid: form.isUnpaid, isActive: form.isActive };
+    const payload = { name, annualDays, isUnpaid: form.isUnpaid, isActive: form.isActive, countsInLeaveLeft: form.countsInLeaveLeft };
     const { error: dbError } = editing
       ? await updateLeaveType(editing.id, payload)
       : await addLeaveType(payload);
@@ -96,6 +97,16 @@ function LeaveTypeFormModal({ isOpen, onClose, editing }) {
                 onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
               />
               <span>Active (visible when recording leave)</span>
+            </label>
+          </div>
+          <div className="form-group-interactive">
+            <label className="leave-multiday-toggle">
+              <input
+                type="checkbox"
+                checked={form.countsInLeaveLeft}
+                onChange={(e) => setForm((prev) => ({ ...prev, countsInLeaveLeft: e.target.checked }))}
+              />
+              <span>Counts in leave left (the Employees list&apos;s total, e.g. personal, sick, festival)</span>
             </label>
           </div>
 

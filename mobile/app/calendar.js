@@ -258,6 +258,11 @@ export default function CalendarScreen() {
             ? "A Google Workspace admin grants the tracker read-only access once; then everyone's meetings appear here. The steps are in docs/team-calendar/setup.md. Until then this shows leaves and holidays only."
             : "Ask an admin to connect it. Until then this shows leaves and holidays only."}
         </Notice>
+      ) : cal.access === "shared" && cal.shareWith ? (
+        // Without domain-wide delegation, only calendars shared with the service account show.
+        <Notice icon="calendar" title={`Showing calendars shared with the tracker (${okCount} of ${reachable}).`}>
+          {`To add yours: in Google Calendar open Settings → your calendar → Share with specific people, add ${cal.shareWith} and choose See all event details (or free/busy, which shows your meetings as Busy). Private events always show as Busy.`}
+        </Notice>
       ) : null}
       {cal.error ? (
         <Notice tone="error" icon="alert" title="Couldn't load calendars." action={<Button title="Retry" variant="secondary" small onPress={cal.reload} style={styles.retry} />}>
@@ -301,7 +306,9 @@ export default function CalendarScreen() {
             <SectionTitle style={styles.noMargin}>Up next for you</SectionTitle>
             <Text style={[styles.mono, { color: t.text3 }]}>{shortDay(today)}</Text>
           </View>
-          {upNext.length === 0 ? (
+          {cal.pending ? (
+            <Text style={[styles.body, { color: t.text3 }]}>Loading your meetings…</Text>
+          ) : upNext.length === 0 ? (
             <Text style={[styles.body, { color: t.text3 }]}>Nothing else on your calendar today.</Text>
           ) : (
             upNext.map((b, i) => {
@@ -314,7 +321,7 @@ export default function CalendarScreen() {
                       {b.title || "Busy"}
                     </Text>
                     <Text style={[styles.small, { color: t.text3 }]}>
-                      {b.meet ? "Google Meet" : "No video link"}
+                      {b.meet ? "Google Meet" : b.title == null ? "Details not shared" : "No video link"}
                       {b.attendeeCount > 1 ? ` · ${b.attendeeCount} people` : ""}
                     </Text>
                   </View>
@@ -339,7 +346,7 @@ export default function CalendarScreen() {
         </View>
       ) : null}
 
-      {cal.isLoading && !cal.fetchedAt && cal.configured == null ? (
+      {cal.pending ? (
         <Card>
           <SkeletonList count={4} avatar />
         </Card>
@@ -353,8 +360,13 @@ export default function CalendarScreen() {
           const blocks = dayBlocks(events, date);
           const allDay = allDayOn(events, date);
           const leave = leaveOn(leaves, emp.name, date);
-          const status = statusAt({ blocks, allDay, leave, nowHour, isToday });
           const calStatus = calById.get(emp.id)?.status;
+          // With no calendar to read, "Free" would be a guess: say why instead (leave still shows).
+          const rawStatus = statusAt({ blocks, allDay, leave, nowHour, isToday });
+          const status =
+            connected && calStatus && calStatus !== "ok" && rawStatus.tone === "green"
+              ? { tone: "gray", text: calStatus === "not-shared" ? "Not shared" : calStatus === "no-workspace-email" ? "No calendar" : "Unavailable" }
+              : rawStatus;
           const ooo = allDay.find((e) => e.kind === "ooo");
           const partLeave = leave && leave.part !== "full" ? leaveHours(leave.part) : null;
 
@@ -393,7 +405,11 @@ export default function CalendarScreen() {
                 </View>
               ) : connected && calStatus && calStatus !== "ok" ? (
                 <Text style={[styles.small, styles.personNote, { color: t.text3 }]}>
-                  {calStatus === "no-workspace-email" ? "No Workspace email on file" : "Calendar unavailable"}
+                  {calStatus === "no-workspace-email"
+                    ? "No Workspace email on file"
+                    : calStatus === "not-shared"
+                      ? "Calendar not shared with the tracker"
+                      : "Calendar unavailable"}
                 </Text>
               ) : connected && !holiday ? (
                 <Text style={[styles.small, styles.personNote, { color: t.text3 }]}>
@@ -407,6 +423,7 @@ export default function CalendarScreen() {
 
       <CalendarFindTime
         connected={connected}
+        pending={cal.pending}
         people={people}
         picked={picked}
         setPicked={setPicked}

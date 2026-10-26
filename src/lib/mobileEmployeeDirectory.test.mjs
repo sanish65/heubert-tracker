@@ -52,3 +52,16 @@ test('sortRows', () => {
   ];
   same('sortRows', [[rows, 'name'], [rows, 'joined'], [rows, 'unpaid'], [rows, 'other'], [[], 'name']]);
 });
+
+test('inLeaveLeft', () => {
+  same('inLeaveLeft', [
+    [[
+      { name: 'Personal Leave', is_unpaid: false, counts_in_leave_left: true },
+      { name: 'Exam leave', is_unpaid: false, counts_in_leave_left: false },
+      { name: 'Unpaid Leave', is_unpaid: true, counts_in_leave_left: true },
+    ]],
+    [[{ name: 'Work From Home', is_unpaid: false }, { name: 'Sick Leave', is_unpaid: false }, { name: 'Unpaid Leave', is_unpaid: true }]],
+    [undefined],
+    [[]],
+  ]);
+});

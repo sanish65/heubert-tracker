@@ -90,3 +90,14 @@ export function sortRows(rows, sort) {
   if (sort === "unpaid") return list.sort((a, b) => (b.stats?.unpaid || 0) - (a.stats?.unpaid || 0) || byName(a, b));
   return list.sort(byName);
 }
+
+// The leave balances "Leave left" adds up: the types set to count in it (personal, sick,
+// festival), not work from home, unpaid or exam leave. A type saved before that setting
+// existed (counts_in_leave_left missing) follows the rule its migration applies.
+export function inLeaveLeft(balances) {
+  return (balances || []).filter((b) =>
+    typeof b.counts_in_leave_left === "boolean"
+      ? b.counts_in_leave_left
+      : !b.is_unpaid && !/work from home|exam/i.test(b.name || "")
+  );
+}

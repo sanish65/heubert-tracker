@@ -221,9 +221,12 @@ function SubmissionRow({ submission, questions, isMe, open, onToggle }) {
   const t = useThemeColors();
   const tickets = visibleTickets(submission).map(ticketLabel).filter(Boolean);
   const time = submittedAt(submission.responded_at);
+  // Saved from the tracker's form, or by the HeuBot Google Chat bot (which leaves source empty).
+  const fromTracker = submission.source === "tracker";
   const expandable = questions.length > 0;
   const label = [
     submission.name,
+    fromTracker ? "from the tracker" : "from HeuBot",
     time && `submitted at ${time}`,
     tickets.length > 0 && `tickets ${tickets.join(", ")}`,
     expandable && (open ? "hide answers" : "show answers"),
@@ -250,6 +253,7 @@ function SubmissionRow({ submission, questions, isMe, open, onToggle }) {
           </View>
         ) : null}
       </View>
+      <Pill tone={fromTracker ? "violet" : "blue"}>{fromTracker ? "Tracker" : "HeuBot"}</Pill>
       {time ? <Text style={[styles.rowMono, { color: t.text3 }]}>{time}</Text> : null}
       {expandable ? <Icon name="chevron-down" size={18} strokeWidth={2} color={t.text3} style={open ? styles.flipped : null} /> : null}
     </>

@@ -45,7 +45,10 @@ const GROUPS = [
   },
   {
     title: "App",
-    rows: [{ label: "Settings", sub: "Theme, animations, account", href: "/settings", icon: "gear", tone: "gray" }],
+    rows: [
+      { label: "What's new", sub: "Every feature, and the latest updates", href: "/whats-new", icon: "gift", tone: "violet" },
+      { label: "Settings", sub: "Theme, animations, account", href: "/settings", icon: "gear", tone: "gray" },
+    ],
   },
 ];
 

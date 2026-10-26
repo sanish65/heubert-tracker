@@ -74,6 +74,26 @@ function inLabel(fromHour, nowHour) {
   return h ? `in ${h}h ${m}m` : `in ${m}m`;
 }
 
+// Without domain-wide delegation the tracker reads only calendars shared with the service
+// account, so the page says how to add yours.
+function SharedNotice({ shareWith, sharedCount, reachable }) {
+  return (
+    <div className="cal-notice" role="status">
+      <Icon name="calendar" />
+      <div>
+        <strong>
+          Showing calendars shared with the tracker ({sharedCount} of {reachable}).
+        </strong>
+        <p>
+          To add yours: in Google Calendar open <strong>Settings → your calendar → Share with specific people</strong>, add{" "}
+          <code>{shareWith}</code> and choose <strong>See all event details</strong> (or free/busy, which shows your
+          meetings as Busy). Private events always show as Busy.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function SetupNotice({ isAdmin, setupError }) {
   if (setupError) {
     return (
@@ -176,6 +196,8 @@ export default function CalendarPage() {
   const holidayOn = (d) => publicHolidays.find((h) => String(h.date).slice(0, 10) === d) || null;
   const isMe = (emp) => emp.id === currentEmployee?.id;
   const connected = cal.configured && !cal.setupError;
+  // Until this range's answer arrives, nothing reads as free: placeholders instead.
+  const pending = cal.pending;
   const okCount = cal.people.filter((p) => p.status === "ok").length;
   const reachable = cal.people.filter((p) => p.status !== "no-workspace-email").length;
   const teamProjects = projects.filter((p) => p.status !== "archived" && projectMembers.some((m) => m.project_id === p.id));
@@ -209,7 +231,14 @@ export default function CalendarPage() {
     <section className="cal-page fade-in">
       {/* The tab's title and subtitle come from page.js (src/lib/pageMeta.js). */}
       <div className="cal-controls">
-        <span className="page-eyebrow cal-date-label">{eyebrow}</span>
+        <span className="page-eyebrow cal-date-label">
+          {eyebrow}
+          {pending && (
+            <span className="cal-loading-label" role="status">
+              <span className="cal-loading-dot" aria-hidden="true" /> Loading calendars…
+            </span>
+          )}
+        </span>
         <div className="status-tabs" role="group" aria-label="View">
           <button type="button" className={`tab ${view === "day" ? "tab-active" : ""}`} aria-pressed={view === "day"} onClick={() => setView("day")}>
             Day
@@ -231,7 +260,11 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {cal.configured === false || cal.setupError ? <SetupNotice isAdmin={isAdmin} setupError={cal.setupError} /> : null}
+      {cal.configured === false || cal.setupError ? (
+        <SetupNotice isAdmin={isAdmin} setupError={cal.setupError} />
+      ) : cal.access === "shared" && cal.shareWith ? (
+        <SharedNotice shareWith={cal.shareWith} sharedCount={okCount} reachable={reachable} />
+      ) : null}
       {cal.error && (
         <div className="cal-notice cal-notice-error" role="alert">
           <Icon name="alert" />
@@ -310,8 +343,15 @@ export default function CalendarPage() {
               const blocks = dayBlocks(events, date);
               const allDay = allDayOn(events, date);
               const leave = leaveOn(leaves, emp.name, date);
-              const status = statusAt({ blocks, allDay, leave, nowHour, isToday: date === today });
               const calStatus = calById.get(emp.id)?.status;
+              // With no calendar to read, "Free" would be a guess: say why instead (leave still shows).
+              const rawStatus = statusAt({ blocks, allDay, leave, nowHour, isToday: date === today });
+              const status =
+                pending && rawStatus.tone === "green"
+                  ? { tone: "gray", text: "Loading…" }
+                  : connected && calStatus && calStatus !== "ok" && rawStatus.tone === "green"
+                  ? { tone: "gray", text: calStatus === "not-shared" ? "Not shared" : calStatus === "no-workspace-email" ? "No calendar" : "Unavailable" }
+                  : rawStatus;
               const ooo = allDay.find((e) => e.kind === "ooo");
               const partLeave = leave && leave.part !== "full" ? leaveHours(leave.part) : null;
               return (
@@ -328,9 +368,15 @@ export default function CalendarPage() {
                       <div className="cal-away">On leave</div>
                     ) : ooo ? (
                       <div className="cal-away">{ooo.title && !(busyOnly && !isMe(emp)) ? ooo.title : "Out of office"}</div>
+                    ) : pending ? (
+                      <div className="cal-loading-bar" aria-hidden="true" />
                     ) : connected && calStatus && calStatus !== "ok" ? (
                       <div className="cal-missing">
-                        {calStatus === "no-workspace-email" ? "No Workspace email on file" : "Calendar unavailable"}
+                        {calStatus === "no-workspace-email"
+                          ? "No Workspace email on file"
+                          : calStatus === "not-shared"
+                            ? "Calendar not shared with the tracker"
+                            : "Calendar unavailable"}
                       </div>
                     ) : null}
                     {partLeave && (
@@ -364,7 +410,7 @@ export default function CalendarPage() {
         </div>
       ) : (
         <div className="glass-card cal-grid-card">
-          <div className="cal-grid cal-week">
+          <div className="cal-grid cal-team-week">
             <div className="cal-week-row cal-head-row">
               <div className="cal-person-head eyebrow">Teammate</div>
               {week.map((d) => {
@@ -372,7 +418,7 @@ export default function CalendarPage() {
                 return (
                   <div key={d} className={`cal-day-head ${d === today ? "is-today" : ""} ${h ? "is-holiday" : ""}`}>
                     <span className="eyebrow">{formatDay(d, { weekday: "short" })}</span>
-                    <span className="cal-day-num">{Number(d.slice(8))}</span>
+                    <span className="cal-team-day-num">{Number(d.slice(8))}</span>
                     {h && <span className="cal-day-holiday">{h.title}</span>}
                   </div>
                 );
@@ -406,6 +452,7 @@ export default function CalendarPage() {
                           );
                         })}
                         {cell.more > 0 && <span className="cal-more">+{cell.more} more</span>}
+                        {pending && !leave && <div className="cal-loading-chip" aria-hidden="true" />}
                       </div>
                     );
                   })}
@@ -423,7 +470,9 @@ export default function CalendarPage() {
             <h2 className="section-title">Up next for you</h2>
             <span className="mono cal-card-date">{formatDay(today, { weekday: "short", month: "short", day: "numeric" })}</span>
           </div>
-          {!connected ? (
+          {pending ? (
+            <p className="cal-muted">Loading your meetings…</p>
+          ) : !connected ? (
             <p className="cal-muted">Your meetings appear here once Google Calendar is connected.</p>
           ) : date !== today ? (
             <p className="cal-muted">Go back to today to see what&apos;s next.</p>
@@ -439,7 +488,7 @@ export default function CalendarPage() {
                     <div className="cal-agenda-text">
                       <span className="cal-agenda-title">{b.title || "Busy"}</span>
                       <span className="cal-muted">
-                        {b.meet ? "Google Meet" : "No video link"}
+                        {b.meet ? "Google Meet" : b.title == null ? "Details not shared" : "No video link"}
                         {b.attendeeCount > 1 ? ` · ${b.attendeeCount} people` : ""}
                       </span>
                     </div>
@@ -494,7 +543,9 @@ export default function CalendarPage() {
               </select>
             </label>
           </div>
-          {!connected ? (
+          {pending ? (
+            <p className="cal-muted">Checking everyone&apos;s calendars…</p>
+          ) : !connected ? (
             <p className="cal-muted">Needs Google Calendar connected.</p>
           ) : pickedPeople.length === 0 ? (
             <p className="cal-muted">Pick at least one person.</p>

@@ -12,7 +12,7 @@ import { formatBs } from "../lib/nepaliDate";
 import { parseTimestamp } from "../lib/dates";
 import { getNepalParts, findSubmissionFor, standupDays } from "../lib/standupWindow";
 import { answerFor, answeredProgress, teamProgress, waitingLabel, recentStandups } from "../lib/standupProgress";
-import { useStandupLog } from "../lib/standupSave";
+import { useStandupLog, fetchStandupTickets } from "../lib/standupSave";
 
 // The Daily standup, as the web's Standup tab (src/components/StandupFormPage.js): your update for
 // today or the next working day, the shout-outs for that day's meeting, who on the team is in, and
@@ -169,12 +169,18 @@ export default function StandupScreen() {
   // what has been typed since; another day, or a first submission, shows that form's saved answers.
   const formKey = `${targetDate}|${targetSubmission?.id ?? "new"}`;
   const answers = draft.key === formKey ? draft.values : saved;
-  const isDirty = sortedQuestions.some((q) => (answers[q.id] || "") !== (saved[q.id] || ""));
+  const hasText = sortedQuestions.some((q) => (answers[q.id] || "").trim());
 
   const setAnswer = (id, value) => {
     // Typing pins the day, so the 10:00 switch can't move the form from under you.
     if (picked !== targetDate) setPicked(targetDate);
     setDraft({ key: formKey, values: { ...answers, [id]: value } });
+  };
+
+  // Empties every box, saved answers included; nothing is saved until you submit again.
+  const clearAnswers = () => {
+    if (picked !== targetDate) setPicked(targetDate);
+    setDraft({ key: formKey, values: {} });
   };
 
   const progress = answeredProgress(sortedQuestions, answers);
@@ -201,7 +207,10 @@ export default function StandupScreen() {
       name: currentEmployee?.name || user?.user_metadata?.full_name || user?.email || "",
       responded_at: new Date().toISOString(),
       answers: Object.fromEntries(sortedQuestions.map((q) => [`question_${q.id}`, (answers[q.id] || "").trim()])),
+      source: "tracker", // the HeuBot Google Chat bot leaves it empty; the meeting labels each
     };
+    const tickets = await fetchStandupTickets();
+    if (tickets) payload.jira_tickets = tickets;
     const { error: dbError } = wasEditing ? await update(targetSubmission.id, payload) : await submit(payload);
     setSubmitting(false);
     if (dbError) {
@@ -280,7 +289,7 @@ export default function StandupScreen() {
         ) : null}
 
         <View style={styles.actions}>
-          <Button title="Clear" variant="secondary" onPress={() => setDraft({ key: null, values: {} })} disabled={!isDirty || submitting} style={styles.actionBtn} />
+          <Button title="Clear" variant="secondary" onPress={clearAnswers} disabled={!hasText || submitting} style={styles.actionBtn} />
           <Button
             title={submitting ? "Saving…" : isEditing ? "Update standup" : "Submit standup"}
             icon="check"
