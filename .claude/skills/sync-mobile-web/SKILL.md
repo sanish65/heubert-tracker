@@ -73,7 +73,20 @@ the screens, logic and styles are not, and are kept equal by hand and by tests.
 8. **Update `docs/mobile-web-parity.md`**: the feature's row (files on both sides, status), and the
    Open gaps list (remove what's closed, add what's left, largest first).
 
-9. **Ship in this order**, and ask the user before each one (publishing is theirs to approve):
+9. **Update What's new** (`whats-new/`, shown by the web's What's new modal and the app's More →
+   What's new, both through `/api/whats-new`), when the change is something the team would notice:
+   - Add a release to the top of `releases` in `whats-new/content.json`: today's date, the
+     platforms it reached (`"web"`, `"mobile"`), a short title, and one plain-words note per change.
+     Same day and same work: extend that release instead of adding another.
+   - A new feature or screen gets an entry in `features` (`web: { "tab": "<navigation.js id>" }` or
+     `{ "path": "/meeting" }`, `mobile: { "path": "/<route>" }`, `null` on a side that lacks it).
+   - Recapture the screens that changed, with `npm run dev` running:
+     `npm run whats-new:shots -- --only=<feature ids>` (`--platform=web|mobile` for one side).
+     Open each image before keeping it; a blank, error or still-loading screen means retake it
+     (slow screens take `"wait": <ms>` in content.json).
+   - It goes live with the web deploy (step 10.2), for both apps.
+
+10. **Ship in this order**, and ask the user before each one (publishing is theirs to approve):
    1. Database: the migration goes through `npm run db:check` then `db:push`, or the manual
       Bitbucket step. Never push production yourself.
    2. Web: merge to `main` (Vercel deploys), so any API route the mobile app calls is live.

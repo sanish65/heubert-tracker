@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { StatusBar } from "react-native";
+import { Platform, StatusBar } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import * as Notifications from "expo-notifications";
@@ -82,7 +82,8 @@ function AuthGate({ children, fontsReady }) {
 
   return (
     <>
-      {user && isAuthorized ? <NotificationTaps /> : null}
+      {/* Not on web, where the What's new screenshots are taken: it has no notifications. */}
+      {user && isAuthorized && Platform.OS !== "web" ? <NotificationTaps /> : null}
       {children}
     </>
   );

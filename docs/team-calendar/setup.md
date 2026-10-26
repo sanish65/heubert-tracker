@@ -36,6 +36,19 @@ admins see a notice pointing here.
    `https://www.googleapis.com/auth/calendar.readonly`
 4. **Authorize**. It can take a few minutes to start working.
 
+### Without an admin: people share their calendars
+
+Until step 2 is done, Google refuses delegation (`unauthorized_client`) and the tracker
+falls back to reading, as the service account itself, the calendars people have shared
+with it. Each person, in Google Calendar: **Settings → (their calendar) → Share with
+specific people or groups → Add people and groups**, the service account's email, and
+**See all event details** (titles show) or **See only free/busy** (meetings show as Busy).
+Workspace may only allow free/busy for addresses outside the domain. The tab then says
+"Showing calendars shared with the tracker (N of M)", and anyone who hasn't shared shows
+"Calendar not shared with the tracker". Once step 2 is done, the tracker switches to
+delegation on its own within ten minutes. The **Google Calendar API** must be enabled in
+the service account's project either way (APIs & Services → Library).
+
 ## 3. Give the tracker the key
 
 Add these environment variables in Vercel (Project → Settings → Environment Variables,

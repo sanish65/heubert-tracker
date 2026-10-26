@@ -17,6 +17,7 @@ export function LeaveTypeForm({ isOpen = true, onClose, editing, inline = false 
   const [annualDays, setAnnualDays] = useState("");
   const [isUnpaid, setIsUnpaid] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [countsInLeaveLeft, setCountsInLeaveLeft] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -27,11 +28,13 @@ export function LeaveTypeForm({ isOpen = true, onClose, editing, inline = false 
       setAnnualDays(String(editing.annual_days));
       setIsUnpaid(editing.is_unpaid);
       setIsActive(editing.is_active);
+      setCountsInLeaveLeft(editing.counts_in_leave_left !== false);
     } else {
       setName("");
       setAnnualDays("");
       setIsUnpaid(false);
       setIsActive(true);
+      setCountsInLeaveLeft(true);
     }
     setError("");
   }, [isOpen, editing]);
@@ -48,7 +51,7 @@ export function LeaveTypeForm({ isOpen = true, onClose, editing, inline = false 
     if (duplicate) return setError("A leave type with this name already exists");
 
     setLoading(true);
-    const payload = { name: trimmedName, annualDays: days, isUnpaid, isActive };
+    const payload = { name: trimmedName, annualDays: days, isUnpaid, isActive, countsInLeaveLeft };
     const { error: dbError } = editing
       ? await updateLeaveType(editing.id, payload)
       : await addLeaveType(payload);
@@ -94,7 +97,14 @@ export function LeaveTypeForm({ isOpen = true, onClose, editing, inline = false 
 
       <View style={[styles.switches, { borderTopColor: t.line }]}>
         <SheetSwitch label="Active" description="Visible when recording leave" value={isActive} onValueChange={setIsActive} />
-        <SheetSwitch label="Unpaid leave (fallback once other balances run out)" value={isUnpaid} onValueChange={setIsUnpaid} last />
+        <SheetSwitch label="Unpaid leave (fallback once other balances run out)" value={isUnpaid} onValueChange={setIsUnpaid} />
+        <SheetSwitch
+          label="Counts in leave left"
+          description="The team list's leave total, e.g. personal, sick, festival"
+          value={countsInLeaveLeft}
+          onValueChange={setCountsInLeaveLeft}
+          last
+        />
       </View>
 
       {error ? <SheetNote>{error}</SheetNote> : null}

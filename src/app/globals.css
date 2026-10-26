@@ -4628,6 +4628,7 @@ code, kbd, .mono { font-family: var(--f-mono); }
 }
 
 .dash-bar-row {
+  position: relative;
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr) 84px;
   align-items: center;
@@ -4649,6 +4650,35 @@ code, kbd, .mono { font-family: var(--f-mono); }
   color: var(--text-1);
   text-align: right;
   white-space: nowrap;
+}
+
+/* Hovering a row shows its paid and unpaid split above the bar, at once (no title delay). */
+.dash-bar-tip {
+  position: absolute;
+  left: 96px; /* past the name column and its gap */
+  bottom: calc(100% + 4px);
+  z-index: 2;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  color: var(--text-1);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.dash-bar-tip .dash-legend-swatch.unpaid {
+  margin-left: 6px;
+}
+
+.dash-bar-row:hover .dash-bar-tip {
+  opacity: 1;
 }
 
 .dash-legend {
@@ -6603,6 +6633,11 @@ code, kbd, .mono { font-family: var(--f-mono); }
   overflow-wrap: anywhere;
 }
 
+/* Where the update came from: the tracker's form, or the HeuBot Google Chat bot. */
+.submission-source {
+  flex-shrink: 0;
+}
+
 .submission-time {
   flex-shrink: 0;
   font: 14px var(--f-mono);
@@ -6681,10 +6716,10 @@ code, kbd, .mono { font-family: var(--f-mono); }
   gap: 6px;
 }
 
-/* More than five tickets: two even columns. */
+/* More than five tickets: two even columns when the card is wide enough, else one. */
 .jira-tags--multi-col {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
 }
 
 /* A ticket: mono key and status pill, its summary underneath when it has one. */
@@ -6702,11 +6737,13 @@ code, kbd, .mono { font-family: var(--f-mono); }
   background: var(--surface);
 }
 
+/* A long status ("Exploration & Feasibility") drops under the key instead of overflowing. */
 .jira-tag-row {
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px 6px;
 }
 
 .jira-tag-key {
@@ -6732,15 +6769,18 @@ a.jira-tag-key:hover {
 /* Ticket status in the canvas pill set; anything unlisted reads as To Do, gray. */
 .jira-status {
   height: 20px;
+  max-width: 100%;
   padding: 0 7px;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
+  line-height: 20px;
   border-radius: 9999px;
   background: var(--pb-gray);
   color: var(--pf-gray);
   font: 600 12px var(--f-body);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .jira-status--in-progress { background: var(--pb-blue);   color: var(--pf-blue); }
@@ -12409,15 +12449,25 @@ label.pref-row {
   overflow-wrap: anywhere;
 }
 
-/* ===== CHANGELOG RELEASE UPDATES ===== */
-/* What's new (ReleaseUpdatesModal). The frame is a MODAL dialog; its body scrolls under
-   the header. Each day is a mono date over a list of glass rows: a pill tag, the short
-   commit hash in mono, the subject and any body text. Rows take the glass fill and
-   hairline without a second backdrop blur inside the already blurred panel. */
+/* ===== WHAT'S NEW ===== */
+/* What's new (ReleaseUpdatesModal), a wide MODAL whose body scrolls under the header and
+   tabs. Features: the device showcase, a screen enlarged on click. Updates: one glass row per
+   release, with platform pills and its notes. Rows take the glass fill and hairline without
+   a second blur inside the panel. */
 .changelog-modal {
-  max-width: 650px;
+  width: min(1200px, calc(100vw - 32px));
+  max-width: none;
   display: flex;
   flex-direction: column;
+}
+
+.whatsnew-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .changelog-body {
@@ -12442,32 +12492,219 @@ label.pref-row {
   border-width: 2px;
 }
 
-.changelog-days,
-.changelog-rows {
-  list-style: none;
+/* The Features tab: the tracker on a desktop monitor with a phone in front of it, the same
+   feature on both. The frames are device hardware, so they keep a dark bezel in both themes. */
+.whatsnew-showcase {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 24px;
+  padding: 28px 28px 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, var(--primary-soft), transparent 60%),
+    radial-gradient(90% 80% at 100% 100%, rgba(45, 212, 239, 0.08), transparent 60%),
+    var(--raised);
+  box-shadow: var(--glass-hi);
+}
+
+.whatsnew-devices {
+  position: relative;
+  padding: 0 9% 18px 0;
+}
+
+/* A screen is a button that enlarges its screenshot, or a note when the app lacks the feature. */
+.whatsnew-screen-btn {
+  width: 100%;
+  padding: 0;
+  cursor: zoom-in;
+}
+
+.whatsnew-desktop-screen.whatsnew-screen-empty,
+.whatsnew-phone-screen.whatsnew-screen-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  font-size: 13px;
+  color: #8E98AC; /* on the dark screen in both themes */
+  text-align: center;
+}
+
+.whatsnew-desktop {
+  width: 100%;
+}
+
+.whatsnew-desktop-screen {
+  display: block;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 10px solid #0B0F1A;
+  border-bottom-width: 14px;
+  border-radius: 14px;
+  background: #070A12;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), var(--shadow-lift);
+}
+
+/* Neck and foot of the monitor. */
+.whatsnew-desktop-stand {
+  position: relative;
+  display: block;
+  width: 16%;
+  height: 22px;
+  margin: 0 auto;
+  background: linear-gradient(#141a2a, #0B0F1A);
+}
+
+.whatsnew-desktop-stand::after {
+  content: "";
+  position: absolute;
+  left: -60%;
+  right: -60%;
+  bottom: -6px;
+  height: 6px;
+  border-radius: 6px 6px 2px 2px;
+  background: #141a2a;
+}
+
+.whatsnew-phone {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 25%;
+}
+
+.whatsnew-phone-screen {
+  display: block;
+  aspect-ratio: 390 / 844;
+  overflow: hidden;
+  border: 6px solid #0B0F1A;
+  border-radius: 28px;
+  background: #070A12;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), var(--shadow-lift);
+}
+
+.whatsnew-desktop-screen img,
+.whatsnew-phone-screen img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+  animation: whatsnew-fade 0.45s ease;
+}
+
+@keyframes whatsnew-fade {
+  from { opacity: 0; transform: scale(1.015); }
+  to { opacity: 1; transform: none; }
+}
+
+.whatsnew-showcase-text {
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.whatsnew-showcase-text h3 {
+  margin: 0;
+  font: 700 26px/1.2 var(--f-display);
+  color: var(--text-1);
+}
+
+.whatsnew-showcase-text p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.whatsnew-showcase-chips {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.whatsnew-chip {
+  padding: 5px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9999px;
+  background: transparent;
+  font: 500 12px var(--f-body);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.whatsnew-chip:hover {
+  background: var(--raised);
+  color: var(--text-1);
+}
+
+.whatsnew-chip.is-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+@media (max-width: 900px) {
+  .whatsnew-showcase {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsnew-desktop-screen img,
+  .whatsnew-phone-screen img {
+    animation: none;
+  }
+}
+
+/* An enlarged screenshot over everything, closed by a click or Escape. */
+.whatsnew-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 16px;
+  background: rgba(4, 6, 12, 0.88);
+  cursor: zoom-out;
+}
+
+.whatsnew-zoom img {
+  max-width: 100%;
+  max-height: calc(100vh - 80px);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lift);
+}
+
+.whatsnew-zoom-caption {
+  font-size: 13px;
+  color: var(--text-2);
 }
 
 .changelog-days {
-  gap: 22px;
-}
-
-.changelog-day {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.changelog-rows {
-  gap: 8px;
+  gap: 12px;
 }
 
 .changelog-row {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--raised);
@@ -12476,30 +12713,34 @@ label.pref-row {
 
 .changelog-row-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
 
-.changelog-hash {
+.whatsnew-platforms {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--text-3);
+  display: flex;
+  gap: 6px;
 }
 
 .changelog-subject {
   margin: 0;
-  font: 600 14px/1.45 var(--f-body);
+  font: 600 15px/1.45 var(--f-body);
   letter-spacing: normal;
   color: var(--text-1);
   overflow-wrap: anywhere;
 }
 
-.changelog-body-text {
+.whatsnew-notes {
   margin: 0;
-  font: 13px/1.5 var(--f-body);
-  color: var(--text-3);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
 }
 
 /* ===== LOGIN ===== */
@@ -15918,7 +16159,8 @@ a.project-env-url:hover {
   gap: 20px;
 }
 
-.cal-nav {
+/* Scoped to the team calendar (.cal-page): the Leaves calendar shares these names. */
+.cal-page .cal-nav {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -15988,7 +16230,7 @@ a.project-env-url:hover {
   box-shadow: var(--glow);
 }
 
-.cal-filter {
+.cal-page .cal-filter {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -15996,7 +16238,7 @@ a.project-env-url:hover {
   color: var(--text-3);
 }
 
-.cal-filter select,
+.cal-page .cal-filter select,
 .cal-pick-add {
   height: 34px;
   padding: 0 10px;
@@ -16054,7 +16296,7 @@ a.project-env-url:hover {
   left: 17px;
 }
 
-.cal-legend {
+.cal-page .cal-legend {
   margin-left: auto;
   display: flex;
   flex-wrap: wrap;
@@ -16063,13 +16305,13 @@ a.project-env-url:hover {
   color: var(--text-3);
 }
 
-.cal-legend-item {
+.cal-page .cal-legend-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.cal-swatch {
+.cal-page .cal-swatch {
   width: 10px;
   height: 10px;
   border-radius: 3px;
@@ -16272,7 +16514,8 @@ a.project-env-url:hover {
   border-left: 1px solid var(--line);
 }
 
-.cal-day-num {
+/* The team calendar's own name: .cal-day-num belongs to the Leaves month calendar. */
+.cal-team-day-num {
   font: 700 18px var(--f-display);
   color: var(--text-1);
 }
@@ -17646,4 +17889,68 @@ a.project-env-url:hover {
   .wf-add input { width: 100%; }
 
   .filter-saved-select { max-width: none; flex: 1 1 100%; }
+}
+
+/* Team calendar while a day or week loads: a quiet label and pulsing placeholders, so
+   no row reads as free before its calendar has answered. */
+.cal-loading-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
+  font: 500 13px var(--f-body);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-3);
+  vertical-align: middle;
+}
+
+.cal-loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--cyan);
+  animation: cal-pulse 1.1s ease-in-out infinite;
+}
+
+.cal-loading-bar,
+.cal-loading-chip {
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--raised) 0%, var(--line-strong) 50%, var(--raised) 100%);
+  background-size: 200% 100%;
+  animation: cal-shimmer 1.4s ease-in-out infinite;
+}
+
+.cal-loading-bar {
+  position: absolute;
+  inset: 14px 8px;
+}
+
+.cal-loading-chip {
+  height: 22px;
+  margin-top: 6px;
+}
+
+@keyframes cal-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@keyframes cal-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-loading-dot,
+  .cal-loading-bar,
+  .cal-loading-chip {
+    animation: none;
+  }
+}
+
+.motion-off .cal-loading-dot,
+.motion-off .cal-loading-bar,
+.motion-off .cal-loading-chip {
+  animation: none;
 }

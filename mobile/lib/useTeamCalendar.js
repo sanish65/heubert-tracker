@@ -13,7 +13,7 @@ const POLL_MS = 5 * 60 * 1000;
 // Meet link only on the caller's own events. Leaves and holidays are not here: the screen has them
 // from AppContext. Polls only while the screen is in front.
 export function useTeamCalendar(start, end) {
-  const [state, setState] = useState({ isLoading: true, configured: null, setupError: null, people: [], fetchedAt: null, error: null });
+  const [state, setState] = useState({ isLoading: true, range: null, configured: null, setupError: null, access: null, shareWith: null, people: [], fetchedAt: null, error: null });
   const requestSeq = useRef(0);
 
   const load = useCallback(() => {
@@ -43,8 +43,11 @@ export function useTeamCalendar(start, end) {
         if (seq !== requestSeq.current) return;
         setState({
           isLoading: false,
+          range: `${start}|${end}`,
           configured: json.configured,
           setupError: json.setupError || null,
+          access: json.access || null,
+          shareWith: json.shareWith || null,
           people: json.people || [],
           fetchedAt: json.fetchedAt || null,
           error: null,
@@ -64,5 +67,8 @@ export function useTeamCalendar(start, end) {
     }, [load])
   );
 
-  return { ...state, reload: load };
+  // `pending`: what's on screen isn't for this week yet (the first load, or a week just switched
+  // to), so the screen shows placeholders rather than a calendar that looks free.
+  const pending = state.range !== `${start}|${end}` && !state.error;
+  return { ...state, pending, reload: load };
 }

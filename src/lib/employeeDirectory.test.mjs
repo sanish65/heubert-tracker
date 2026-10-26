@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tenureLabel, recentRecords, sortRows } from './employeeDirectory.js';
+import { tenureLabel, recentRecords, sortRows, inLeaveLeft } from './employeeDirectory.js';
 
 test('tenure counts whole months', () => {
   assert.equal(tenureLabel('2024-03-02', '2026-10-22'), '2 yrs 7 mos');
@@ -50,4 +50,29 @@ test('sorting by name, joined date and unpaid fines', () => {
   assert.deepEqual(names('name'), ['Anisha', 'Bikash', 'Sita']);
   assert.deepEqual(names('joined'), ['Bikash', 'Sita', 'Anisha']);
   assert.deepEqual(names('unpaid'), ['Anisha', 'Bikash', 'Sita']);
+});
+
+test('leave left counts only the types set to count in it', () => {
+  const types = [
+    { name: 'Personal Leave', annual_days: 15, is_unpaid: false, counts_in_leave_left: true },
+    { name: 'Sick Leave', annual_days: 4, is_unpaid: false, counts_in_leave_left: true },
+    { name: 'Exam leave', annual_days: 7, is_unpaid: false, counts_in_leave_left: false },
+    { name: 'Unpaid Leave', annual_days: 30, is_unpaid: true, counts_in_leave_left: false },
+  ];
+  assert.deepEqual(inLeaveLeft(types).map((t) => t.name), ['Personal Leave', 'Sick Leave']);
+  // An admin can switch any type in or out.
+  assert.equal(inLeaveLeft([{ name: 'Exam leave', counts_in_leave_left: true }]).length, 1);
+});
+
+test('before the setting exists, work from home, exam and unpaid leave are left out', () => {
+  const types = [
+    { name: 'Personal Leave', annual_days: 15, is_unpaid: false },
+    { name: 'Sick Leave', annual_days: 4, is_unpaid: false },
+    { name: 'Festival Leave', annual_days: 1, is_unpaid: false },
+    { name: 'Work From Home', annual_days: 20, is_unpaid: false },
+    { name: 'Unpaid Leave', annual_days: 30, is_unpaid: true },
+    { name: 'Exam leave', annual_days: 7, is_unpaid: false },
+  ];
+  assert.equal(inLeaveLeft(types).reduce((sum, t) => sum + t.annual_days, 0), 20);
+  assert.deepEqual(inLeaveLeft(undefined), []);
 });

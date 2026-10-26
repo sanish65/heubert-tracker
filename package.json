@@ -11,7 +11,8 @@
     "db:new": "supabase migration new",
     "db:status": "supabase migration list",
     "db:check": "supabase db push --dry-run",
-    "db:push": "supabase db push"
+    "db:push": "supabase db push",
+    "whats-new:shots": "node scripts/capture-whats-new.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.2",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "puppeteer-core": "^24.43.1",
     "supabase": "^2.121.0"
   }
 }

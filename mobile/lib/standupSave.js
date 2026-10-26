@@ -1,6 +1,24 @@
 import { useCallback, useMemo, useState } from "react";
-import { supabaseStandup } from "./supabase";
+import { supabase, supabaseStandup, API_BASE_URL } from "./supabase";
 import { useApp } from "../context/AppContext";
+
+// Your Jira tickets from the web's /api/standup-jira, to save with your standup as jira_tickets
+// so the meeting shows them, as the web's fetchStandupTickets (src/lib/standupJira.js). null when
+// they couldn't be read: the standup then saves without touching the tickets it already has.
+export async function fetchStandupTickets() {
+  if (!API_BASE_URL) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token) return null;
+    const res = await fetch(`${API_BASE_URL}/api/standup-jira`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return Array.isArray(body.tickets) ? body.tickets : null;
+  } catch {
+    return null;
+  }
+}
 
 // Saving your Daily standup, as the web's submitStandupResponse and updateStandupResponse
 // (src/context/AppContext.js): the same standup project, the same standup_responses table, the same

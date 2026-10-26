@@ -786,6 +786,11 @@ export default function MeetingPage() {
                         <MeetingAvatar name={s.name} isMe={isMe(s.name, s.email)} />
                         <h3 className="submission-user">{s.name}</h3>
                         {s.isMissing && <span className="pill pill-red">Not submitted</span>}
+                        {!s.isMissing && (
+                          <span className={`pill ${s.source === "tracker" ? "pill-violet" : "pill-blue"} submission-source`}>
+                            {s.source === "tracker" ? "Tracker" : "HeuBot"}
+                          </span>
+                        )}
                         {!s.isMissing && s.responded_at && (
                           <span className="submission-time">
                             {new Date(s.responded_at).toLocaleTimeString("en-US", { timeZone: "Asia/Kathmandu", hour: '2-digit', minute: '2-digit' })}

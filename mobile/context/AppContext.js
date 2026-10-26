@@ -568,6 +568,7 @@ export function AppProvider({ children }) {
       annual_days: leaveType.annualDays,
       is_unpaid: leaveType.isUnpaid || false,
       is_active: leaveType.isActive !== undefined ? leaveType.isActive : true,
+      counts_in_leave_left: leaveType.countsInLeaveLeft !== false,
       sort_order: leaveType.sortOrder ?? leaveTypes.length,
     };
     const { data, error } = await supabase.from("leave_types").insert([payload]).select();
@@ -582,6 +583,7 @@ export function AppProvider({ children }) {
       annual_days: updatedData.annualDays,
       is_unpaid: updatedData.isUnpaid || false,
       is_active: updatedData.isActive !== undefined ? updatedData.isActive : true,
+      counts_in_leave_left: updatedData.countsInLeaveLeft !== false,
       sort_order: updatedData.sortOrder ?? 0,
     };
     const { data, error } = await supabase.from("leave_types").update(payload).eq("id", id).select();

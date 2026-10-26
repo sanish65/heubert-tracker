@@ -11,7 +11,7 @@ const DURATIONS = [30, 45, 60];
 // The web Calendar tab's "Find a time": the first free slots everyone picked shares this week,
 // inside working hours, each with a pre-filled Google Calendar link (booking happens in Google, so
 // the tracker never writes to anyone's calendar). The slots come from findFreeSlots on the screen.
-export default function CalendarFindTime({ connected, people, picked, setPicked, duration, setDuration, slots, dayLabel, today, isMe }) {
+export default function CalendarFindTime({ connected, pending = false, people, picked, setPicked, duration, setDuration, slots, dayLabel, today, isMe }) {
   const t = useThemeColors();
   const [adding, setAdding] = useState(false);
   const pickedPeople = people.filter((p) => picked.includes(p.id));
@@ -55,7 +55,9 @@ export default function CalendarFindTime({ connected, people, picked, setPicked,
         ))}
       </View>
 
-      {!connected ? (
+      {pending ? (
+        <Text style={[styles.muted, { color: t.text3 }]}>Checking everyone's calendars…</Text>
+      ) : !connected ? (
         <Text style={[styles.muted, { color: t.text3 }]}>Needs Google Calendar connected.</Text>
       ) : pickedPeople.length === 0 ? (
         <Text style={[styles.muted, { color: t.text3 }]}>Pick at least one person.</Text>

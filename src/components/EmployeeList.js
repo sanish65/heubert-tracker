@@ -5,7 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import { computeLeaveBalances } from "@/lib/utils";
 import { getNepalDateStr } from "@/lib/attendanceTime";
-import { SORTS, recentRecords, sortRows } from "@/lib/employeeDirectory";
+import { SORTS, inLeaveLeft, recentRecords, sortRows } from "@/lib/employeeDirectory";
 import Avatar from "./Avatar";
 import Icon from "./Icon";
 import EmployeeDetailPanel, { EMPLOYEE_STATUSES, employeeStatus } from "./EmployeeDetailPanel";
@@ -52,7 +52,8 @@ export default function EmployeeList({ onEditEmployee, onRecordFine, openEmploye
     [publicHolidays]
   );
 
-  // Leave left is counted in the latest leave season, as on the Leaves page.
+  // Leave left is counted in the latest leave season, as on the Leaves page, over the types
+  // that count in it (personal, sick, festival; not work from home, unpaid or exam).
   const leaveSeason = useMemo(() => {
     if (!leaveSeasons || leaveSeasons.length === 0) return null;
     return [...leaveSeasons].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0];
@@ -83,8 +84,8 @@ export default function EmployeeList({ onEditEmployee, onRecordFine, openEmploye
           status: employeeStatus(emp),
           stats: getEmployeeStats(emp.name),
           balances,
-          leaveLeft: balances.reduce((sum, b) => sum + b.remaining, 0),
-          leaveTotal: balances.reduce((sum, b) => sum + b.annual_days, 0),
+          leaveLeft: inLeaveLeft(balances).reduce((sum, b) => sum + b.remaining, 0),
+          leaveTotal: inLeaveLeft(balances).reduce((sum, b) => sum + b.annual_days, 0),
         };
       }),
     [employees, leavesByName, leaveTypes, leaveSeason, holidaySet, getEmployeeStats]
