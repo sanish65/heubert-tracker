@@ -9,6 +9,7 @@ import StandupShoutouts from "./StandupShoutouts";
 import { formatBs } from "@/lib/nepaliDate";
 import { getNepalParts, findSubmissionFor, standupDays } from "@/lib/standupWindow";
 import { answerFor, answeredProgress, teamProgress, waitingLabel, recentStandups } from "@/lib/standupProgress";
+import { continueList } from "@/lib/standupText";
 import { fetchStandupTickets } from "@/lib/standupJira";
 
 // The page itself only needs the date and whether it is past 10:00, so it re-reads the
@@ -141,6 +142,19 @@ export default function StandupFormPage({ head }) {
     // Typing pins the day, so the 10:00 switch can't move the form from under you.
     if (picked !== targetDate) setPicked(targetDate);
     setDraft({ key: formKey, values: { ...answers, [id]: value } });
+  };
+
+  // Enter on a "* " or "1. " line starts the next bullet; on an empty one it ends the list
+  // (src/lib/standupText.js). Shift+Enter is always a plain new line.
+  const onAnswerKeyDown = (e, id) => {
+    if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || e.nativeEvent.isComposing) return;
+    const el = e.currentTarget;
+    if (el.selectionStart !== el.selectionEnd) return;
+    const next = continueList(el.value, el.selectionStart);
+    if (!next) return;
+    e.preventDefault();
+    setAnswer(id, next.value);
+    requestAnimationFrame(() => el.setSelectionRange(next.caret, next.caret));
   };
 
   // Empties every box, saved answers included; nothing is saved until you submit again.
@@ -293,7 +307,8 @@ export default function StandupFormPage({ head }) {
                       rows={3}
                       value={answers[q.id] || ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
-                      placeholder="Type your answer…"
+                      onKeyDown={(e) => onAnswerKeyDown(e, q.id)}
+                      placeholder="Type your answer… Start a line with * or - for a bullet list."
                     />
                   </div>
                 ))}

@@ -8,8 +8,10 @@ import {
   PRIORITIES,
   ESTIMATE_OPTIONS,
   LABELS_MAX,
+  LINK_CHOICES,
   allowedParentTypes,
   issueKey,
+  linkRow,
 } from "@/lib/taskBoard";
 import { isDone } from "@/lib/taskWorkflow";
 
@@ -27,6 +29,9 @@ function emptyForm(defaults) {
     due_date: "",
     external_url: "",
     fix_version_id: null,
+    // Jira's "Linked issues" on create: e.g. a bug that "relates to" the story it was found in.
+    link_choice: "relates:out",
+    link_target_id: null,
   };
 }
 
@@ -56,6 +61,9 @@ export default function TaskCreateModal({ isOpen, onClose, project, tasks, sprin
     return tasks.filter((t) => types.includes(t.type) && !isDone(t));
   }, [tasks, form.type]);
 
+  // Any issue can be linked, newest first.
+  const linkOptions = useMemo(() => [...tasks].sort((a, b) => (b.number || 0) - (a.number || 0)), [tasks]);
+
   const openSprints = sprints.filter((s) => s.state !== "closed");
   const assignees = employees.filter((e) => e.status === "active");
   const isEpic = form.type === "epic";
@@ -74,8 +82,9 @@ export default function TaskCreateModal({ isOpen, onClose, project, tasks, sprin
     }
     setIsSaving(true);
     try {
+      const { link_choice, link_target_id, ...issueFields } = form;
       const fields = {
-        ...form,
+        ...issueFields,
         parent_id: isEpic ? null : form.parent_id,
         // Epics never sit in a sprint, and the database puts sub-tasks in their parent's.
         sprint_id: isEpic || isSubtask ? null : form.sprint_id,
@@ -85,6 +94,15 @@ export default function TaskCreateModal({ isOpen, onClose, project, tasks, sprin
       if (dbError) {
         setError(dbError.message || "Something went wrong");
         return;
+      }
+      if (link_target_id && data?.id) {
+        const { error: linkError } = await board.linkIssues(linkRow(link_choice, data.id, link_target_id));
+        if (linkError) {
+          // The issue exists; only the link is missing, and it can be added from the issue.
+          setError(`${issueKey(project, data)} was created, but the link wasn't saved: ${linkError.message}`);
+          onCreated?.(data);
+          return;
+        }
       }
       onCreated?.(data);
       if (createAnother) {
@@ -160,6 +178,26 @@ export default function TaskCreateModal({ isOpen, onClose, project, tasks, sprin
               </select>
             </div>
           )}
+          <div className="form-group-interactive issue-form-link">
+            <label htmlFor="create-link-target">Linked issue</label>
+            <div className="issue-form-link-row">
+              <select aria-label="Link type" value={form.link_choice} onChange={(e) => setField("link_choice", e.target.value)}>
+                {LINK_CHOICES.map((c) => (
+                  <option key={c.id} value={c.id}>{c.phrase}</option>
+                ))}
+              </select>
+              <select
+                id="create-link-target"
+                value={form.link_target_id ?? ""}
+                onChange={(e) => setField("link_target_id", e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">None</option>
+                {linkOptions.map((t) => (
+                  <option key={t.id} value={t.id}>{issueKey(project, t)} {t.title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           {!isEpic && !isSubtask && (
             <div className="form-group-interactive">
               <label>Sprint</label>

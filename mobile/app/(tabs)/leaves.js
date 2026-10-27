@@ -357,7 +357,7 @@ function RecordButton({ onPress }) {
 }
 
 export default function LeavesScreen() {
-  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, canManageLeave, currentEmployee, publicHolidays, deletePublicHoliday, leaveTypes } = useApp();
+  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, canManageLeave, currentEmployee, publicHolidays, companyEvents, deletePublicHoliday, leaveTypes } = useApp();
   const leaves = useMemo(() => allLeaves.filter(l => l.employee_name !== "Developers"), [allLeaves]);
   const t = useThemeColors();
   const myName = currentEmployee?.name;
@@ -505,7 +505,7 @@ export default function LeavesScreen() {
           {isAdmin ? <AddSeasonChip onPress={() => setShowAddSeason(true)} /> : null}
         </ScrollView>
 
-        <LeaveCalendar leaves={seasonLeaves} selectedEmployee={filterEmployee || null} publicHolidays={publicHolidays} onClearEmployee={() => setFilterEmployee("")} />
+        <LeaveCalendar leaves={seasonLeaves} selectedEmployee={filterEmployee || null} publicHolidays={publicHolidays} companyEvents={companyEvents} onClearEmployee={() => setFilterEmployee("")} />
 
         {myBalances.length > 0 ? (
           <Card style={[styles.panel, styles.balancePanel]}>

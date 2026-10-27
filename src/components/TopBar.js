@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import Icon from "@/components/Icon";
 import ThemeToggle from "@/components/ThemeToggle";
 import AnimationToggle from "@/components/AnimationToggle";
+import NotificationPrefs from "@/components/NotificationPrefs";
 import { StatusLozenge } from "@/components/TaskBits";
 import { TaskWorkflowProvider } from "@/components/TaskWorkflowContext";
 import { employeeStatus } from "@/components/EmployeeDetailPanel";
@@ -15,6 +16,8 @@ import { formatBs } from "@/lib/nepaliDate";
 import { issueKey } from "@/lib/taskBoard";
 import { normalizeQuery, matchPeople, matchFineRows, taskQuery, searchExamples, noMatchNote } from "@/lib/globalSearch";
 import { NOTIFY_DAYS, myFineNotifications, unseenCount, taskNotificationItem, mergeNotifications } from "@/lib/notifications";
+import { useNotificationAlerts } from "@/lib/notifyAlerts";
+import { useStandupReminders } from "@/lib/useStandupReminders";
 import { useTaskNotifications } from "@/lib/useTasks";
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -100,6 +103,19 @@ async function searchTasks(request, projects, signal) {
 }
 
 // An issue opens as a shared link does: page.js and the Tasks tab follow #issue=KEY.
+// A bell item as a desktop notification (and the reminder rows' own wording).
+function describeNotification(item) {
+  if (item.kind === "task") return { title: item.text, body: item.sub || "" };
+  if (item.kind === "standup-reminder") {
+    const day = fineDate(item.date);
+    return item.reminder === "final"
+      ? { title: "Last call: your standup isn't in", body: `${day} · due at 10:00. Fill it in now.` }
+      : { title: "Your next standup isn't in yet", body: `${day} · due by 10:00 that morning.` };
+  }
+  if (item.kind === "late") return { title: `Late fine · ${rs(item.amount)}`, body: fineDate(item.date) };
+  return { title: "Standup contribution", body: fineDate(item.date) };
+}
+
 function openIssueLink(key) {
   const hash = `#issue=${key}`;
   // Setting the hash the page already has fires no hashchange, so clear it first.
@@ -126,7 +142,7 @@ function useOutsideClose(ref, open, setOpen) {
 // onNavigate({ tab: "records" | "standup", employeeName, seasonId? }) is page.js's to carry
 // out; a bell row about a late fine adds the fine's season (null: none).
 export default function TopBar({ onOpenMenu, onNavigate }) {
-  const { user, theme, toggleTheme, employees, fines, standupFines, projects, currentEmployee } = useApp();
+  const { user, theme, toggleTheme, employees, fines, standupFines, projects, currentEmployee, leaves, publicHolidays, standupSubmissions } = useApp();
   const [showPrefs, setShowPrefs] = useState(false);
   const accountRef = useRef(null);
   useOutsideClose(accountRef, showPrefs, setShowPrefs);
@@ -404,22 +420,24 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
   // Task notifications (assigned, mentioned, comments and status changes on issues you
   // watch) come from the database; fines are worked out from AppContext as before.
   const taskNotes = useTaskNotifications(Boolean(me));
+  // Standup not in yet: 17:00 the working day before, then 09:00 on the day.
+  const standupReminders = useStandupReminders({ me, user, leaves, publicHolidays, standupSubmissions });
   const notifications = useMemo(
     () =>
       mergeNotifications(
-        myFineNotifications({
+        [...standupReminders, ...myFineNotifications({
           fines,
           standupFines,
           name: me?.name,
           now: new Date(),
           lateExcluded: Boolean(me?.late_fine_excluded),
           standupExcluded: Boolean(me?.standup_fine_excluded),
-        }),
+        })],
         taskNotes.items
           .filter((n) => n.task && projectById.get(n.task.project_id)?.issue_key)
           .map((n) => taskNotificationItem(n, issueKey(projectById.get(n.task.project_id), n.task)))
       ),
-    [fines, standupFines, me, taskNotes.items, projectById]
+    [fines, standupFines, me, taskNotes.items, projectById, standupReminders]
   );
   const unseen = unseenCount(notifications, seenAt);
 
@@ -444,9 +462,14 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
       openIssueLink(item.issueKey);
       return;
     }
-    if (item.kind === "late") onNavigate?.({ tab: "records", employeeName: me?.name, seasonId: item.seasonId });
+    if (item.kind === "standup-reminder") onNavigate?.({ tab: "standup-form" });
+    else if (item.kind === "late") onNavigate?.({ tab: "records", employeeName: me?.name, seasonId: item.seasonId });
     else onNavigate?.({ tab: "standup", employeeName: me?.name });
   };
+
+  // A chime for anything new, and a desktop notification when the tab is in the background
+  // (both switched in the account menu).
+  useNotificationAlerts(notifications, { seenAt, describe: describeNotification, onOpen: openNotification, enabled: Boolean(me) });
 
   const handleNotifyKeyDown = (e) => {
     if (e.key !== "Escape" || !notifyOpen) return;
@@ -639,6 +662,28 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
                       </li>
                     );
                   }
+                  if (item.kind === "standup-reminder") {
+                    const { title, body } = describeNotification(item);
+                    return (
+                      <li key={item.id}>
+                        <button type="button" className="topbar-row topbar-notify-row" onClick={() => openNotification(item)}>
+                          <span className="topbar-row-icon" aria-hidden="true">
+                            <Icon name="message" size={16} />
+                          </span>
+                          <span className="topbar-row-text">
+                            <span className="topbar-row-title">{title}</span>
+                            <span className="topbar-row-sub">{body}</span>
+                          </span>
+                          {unseenCount([item], openedSeenAt) > 0 && (
+                            <span className="topbar-notify-new">
+                              <span className="topbar-hidden-label">New</span>
+                            </span>
+                          )}
+                          <span className={`pill ${item.reminder === "final" ? "pill-red" : "pill-amber"}`}>Due 10:00</span>
+                        </button>
+                      </li>
+                    );
+                  }
                   const late = item.kind === "late";
                   const paid = item.status === "paid";
                   return (
@@ -695,6 +740,7 @@ export default function TopBar({ onOpenMenu, onNavigate }) {
                 <div className="settings-dropdown-title">Preferences</div>
                 <ThemeToggle />
                 <AnimationToggle />
+                <NotificationPrefs />
               </div>
             )}
           </div>

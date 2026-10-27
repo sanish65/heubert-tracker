@@ -13,6 +13,24 @@ import Icon from "../components/Icon";
 // The web app's logo (public/logo.png); the same file as the Android adaptive icon's foreground.
 const LOGO = require("../assets/android-icon-foreground.png");
 
+// What the tracker does, one line per area of the app; the web's login page lists the same.
+const FEATURES = [
+  { icon: "wallet", text: "Late fines, seasons & fund withdrawals" },
+  { icon: "clipboard", text: "Daily standups & standup fines" },
+  { icon: "calendar", text: "Leaves, balances & public holidays" },
+  { icon: "pin", text: "Attendance punch-in & monthly logs" },
+  { icon: "kanban", text: "Task boards, backlog, sprints & releases" },
+  { icon: "video", text: "Meeting mode with Jira blockers & shoutouts" },
+  { icon: "clock", text: "Team calendar & availability" },
+  { icon: "layers", text: "Planning poker estimates" },
+  { icon: "refresh", text: "Retrospectives, action items & kudos" },
+  { icon: "book", text: "Words of the season" },
+  { icon: "flag", text: "Company events, birthdays & anniversaries" },
+  { icon: "image", text: "Team memories gallery" },
+  { icon: "users", text: "Employee profiles, projects & history" },
+  { icon: "bell", text: "Email & push notifications" },
+];
+
 // Sign-in, as the canvas's MobileLogin.dc.html: the logo, the badge, the title and the line under
 // it in the middle of the page; the error, the Google button and its footnote at the bottom. The
 // sign-in itself (Google, then Supabase) and its messages are the ones the screen had before.
@@ -95,6 +113,18 @@ export default function LoginScreen() {
             Internal Team Accountability & Record System.{"\n"}Sign in with your Google account to continue.
           </Text>
         </View>
+
+        <View style={styles.features}>
+          <Text style={[styles.featuresTitle, { color: t.text2 }]}>{"What's inside"}</Text>
+          {FEATURES.map((f) => (
+            <View key={f.icon} style={styles.feature}>
+              <View style={[styles.featureIcon, { backgroundColor: t.primarySoft }]}>
+                <Icon name={f.icon} size={16} color={t.primaryText} />
+              </View>
+              <Text style={[styles.featureText, { color: t.text2 }]}>{f.text}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       <View style={styles.signIn}>
@@ -138,7 +168,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   page: { flexGrow: 1, paddingHorizontal: 24 },
-  main: { flexGrow: 1, alignItems: "center", justifyContent: "center", gap: 18, paddingTop: 96 },
+  main: { flexGrow: 1, alignItems: "center", justifyContent: "center", gap: 18, paddingTop: 64 },
   logo: { width: 72, height: 72, borderRadius: 18 },
   logoImage: { width: 72, height: 72, borderRadius: 18 },
   // The artboard's `0 0 0 1px` ring: a hairline just outside the logo.
@@ -151,6 +181,12 @@ const styles = StyleSheet.create({
   // -0.02em at 34px.
   title: { fontFamily: fonts.display, fontSize: 34, lineHeight: 37, letterSpacing: -0.68, textAlign: "center" },
   subtitle: { maxWidth: 300, fontFamily: fonts.body, fontSize: 16, lineHeight: 24, textAlign: "center" },
+  // The web card's feature list, one column.
+  features: { alignSelf: "stretch", gap: 10, paddingTop: 10 },
+  featuresTitle: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.88, textTransform: "uppercase" },
+  feature: { flexDirection: "row", alignItems: "center", gap: 12 },
+  featureIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  featureText: { flex: 1, fontFamily: fonts.body, fontSize: 14, lineHeight: 20 },
   signIn: { gap: 14, paddingTop: 24 },
   error: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1 },
   errorIcon: { marginTop: 1 },

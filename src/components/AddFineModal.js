@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useSubmitOnce } from "@/lib/useSubmitOnce";
 import { findExistingLateFine, fineToday } from "@/lib/utils";
 import Icon from "@/components/Icon";
 
 // defaultName: the person to fine, when opened from someone's details (page.js gives
 // each such opening its own key, so the form starts fresh).
 export default function AddFineModal({ isOpen, onClose, defaultName = "" }) {
+  const [saving, submitOnce] = useSubmitOnce();
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
   const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && !emp.late_fine_excluded);
   const today = fineToday();
@@ -47,26 +49,28 @@ export default function AddFineModal({ isOpen, onClose, defaultName = "" }) {
   // Someone can only have been late on a day that has already happened.
   const isFutureDate = form.date > today;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name) { setError("Please select an employee"); return; }
-    if (!form.amount) { setError("Please fill all required fields"); return; }
-    if (isFutureDate) { setError("A late fine can only be recorded for today or an earlier day."); return; }
+    return submitOnce(async () => {
+      if (!form.name) { setError("Please select an employee"); return; }
+      if (!form.amount) { setError("Please fill all required fields"); return; }
+      if (isFutureDate) { setError("A late fine can only be recorded for today or an earlier day."); return; }
 
-    const { error: submitError } = await addFine({
-      ...form,
-      amount: Number(form.amount),
-      seasonId: currentSeasonId,
-      createdAt: new Date().toISOString(),
+      const { error: submitError } = await addFine({
+        ...form,
+        amount: Number(form.amount),
+        seasonId: currentSeasonId,
+        createdAt: new Date().toISOString(),
+      });
+
+      if (submitError) {
+        setError(submitError.message || "Failed to save the fine. Please try again.");
+        return;
+      }
+
+      setForm({ name: "", date: today, amount: 25, status: "unpaid" });
+      onClose();
     });
-
-    if (submitError) {
-      setError(submitError.message || "Failed to save the fine. Please try again.");
-      return;
-    }
-
-    setForm({ name: "", date: today, amount: 25, status: "unpaid" });
-    onClose();
   };
 
   return (
@@ -172,8 +176,8 @@ export default function AddFineModal({ isOpen, onClose, defaultName = "" }) {
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={!!existingFine || isFutureDate}>
-              Add Fine
+            <button type="submit" className="btn btn-primary" disabled={saving || !!existingFine || isFutureDate}>
+              {saving ? "Saving…" : "Add Fine"}
             </button>
           </div>
         </form>

@@ -10,7 +10,7 @@ import {
   ISSUE_TYPES,
   PRIORITIES,
   ESTIMATE_OPTIONS,
-  LINK_TYPES,
+  LINK_CHOICES,
   EPIC_COLORS,
   issueKey,
   parseIssueKey,
@@ -31,15 +31,6 @@ import { mentionedIds, sortVersions } from "@/lib/taskExtras";
 import { isDone, nextStatuses, statusMeta } from "@/lib/taskWorkflow";
 import { useWorkflow } from "@/components/TaskWorkflowContext";
 
-// Every way a link can read from this issue. Inward ones are stored reversed.
-const LINK_CHOICES = LINK_TYPES.flatMap((t) =>
-  t.outward === t.inward
-    ? [{ id: `${t.value}:out`, type: t.value, phrase: t.outward, inward: false }]
-    : [
-        { id: `${t.value}:out`, type: t.value, phrase: t.outward, inward: false },
-        { id: `${t.value}:in`, type: t.value, phrase: t.inward, inward: true },
-      ]
-);
 
 function InlineCreate({ placeholder, typeOptions, onCreate }) {
   const [open, setOpen] = useState(false);
@@ -109,6 +100,64 @@ function ChildRow({ child, project, employeesById, onOpen }) {
   );
 }
 
+// Jira's Move: pick another project. The dialog says what changes, as Jira's move screen
+// does; the database does the move (move_task_to_project) and hands back the new key.
+function MoveIssueModal({ issue, issueKeyText, project, projects, subtaskCount, childCount, board, onMoved, onClose }) {
+  const { alertDialog } = useDialog();
+  const targets = projects.filter((p) => p.id !== project.id && p.issue_key && p.status !== "archived");
+  const [projectId, setProjectId] = useState(targets[0]?.id ?? "");
+  const [saving, setSaving] = useState(false);
+  const target = targets.find((p) => p.id === Number(projectId));
+  const isEpic = issue.type === "epic";
+
+  const move = async () => {
+    if (!target) return;
+    setSaving(true);
+    const { data, error } = await board.moveToProject(issue.id, target.id);
+    setSaving(false);
+    if (error) {
+      await alertDialog(`Couldn't move ${issueKeyText}: ${error.message}`, { tone: "error" });
+      return;
+    }
+    onMoved(data);
+  };
+
+  return (
+    <Modal isOpen onClose={onClose}>
+      <div className="modal-header">
+        <h2>Move {issueKeyText}</h2>
+        <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
+      </div>
+      {targets.length === 0 ? (
+        <p className="form-error">There&apos;s no other project with an issue key to move it to.</p>
+      ) : (
+        <>
+          <div className="form-group-interactive">
+            <label htmlFor="move-project">Move to project</label>
+            <select id="move-project" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              {targets.map((p) => (
+                <option key={p.id} value={p.id}>{p.issue_key} · {p.name}</option>
+              ))}
+            </select>
+          </div>
+          <ul className="move-issue-notes">
+            <li>It gets {target?.issue_key || "the project"}&apos;s next number; links to {issueKeyText} keep working.</li>
+            <li>Its status goes to {target?.name || "that project"}&apos;s matching column (to do, in progress or done).</li>
+            <li>It leaves its sprint{isEpic ? "" : ", epic"} and fix version, and lands at the bottom of the backlog.</li>
+            {subtaskCount > 0 && <li>Its {subtaskCount} sub-task{subtaskCount === 1 ? " moves" : "s move"} with it.</li>}
+            {isEpic && childCount > 0 && <li>The {childCount} issue{childCount === 1 ? "" : "s"} in this epic stay here, without an epic.</li>}
+            <li>Comments, history, work logs, attachments and watchers come along.</li>
+          </ul>
+        </>
+      )}
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" onClick={move} disabled={saving || !target}>{saving ? "Moving..." : "Move"}</button>
+      </div>
+    </Modal>
+  );
+}
+
 export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project, tasks, sprints, versions = [], employees, board, today }) {
   const { user, isAdmin, currentEmployee, projects } = useApp();
   const { confirmDialog, alertDialog } = useDialog();
@@ -134,6 +183,7 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
   const [linkChoice, setLinkChoice] = useState(LINK_CHOICES[0].id);
   const [linkTarget, setLinkTarget] = useState("");
   const [copied, setCopied] = useState(false);
+  const [moving, setMoving] = useState(false);
 
   const linkGroups = useMemo(() => {
     const groups = new Map();
@@ -212,6 +262,13 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
       return;
     }
     onClose();
+  };
+
+  // Moved: open it under its new key, in its new project (TasksPage follows the link).
+  const afterMove = (newKey) => {
+    setMoving(false);
+    onClose();
+    if (newKey) window.location.hash = `issue=${newKey}`;
   };
 
   const copyLink = async () => {
@@ -389,6 +446,11 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
           <button type="button" className="btn btn-ghost btn-sm" onClick={copyLink}>
             <Icon name={copied ? "check" : "link"} size={16} /> {copied ? "Copied" : "Copy link"}
           </button>
+          {canDelete && !isSubtask && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMoving(true)} title="Move this issue to another project">
+              <Icon name="arrow-right" size={16} /> Move
+            </button>
+          )}
           {canDelete && (
             <button type="button" className="btn btn-ghost btn-sm issue-delete-btn" onClick={handleDelete}>
               <Icon name="trash" size={16} /> Delete
@@ -840,6 +902,20 @@ export default function TaskIssueModal({ issueId, onClose, onOpenIssue, project,
           </div>
         </aside>
       </div>
+
+      {moving && (
+        <MoveIssueModal
+          issue={issue}
+          issueKeyText={key}
+          project={project}
+          projects={projects}
+          subtaskCount={children.filter((c) => c.type === "subtask").length}
+          childCount={children.length}
+          board={board}
+          onMoved={afterMove}
+          onClose={() => setMoving(false)}
+        />
+      )}
     </Modal>
   );
 }

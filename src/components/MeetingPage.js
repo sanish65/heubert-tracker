@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
+import { useSubmitOnce } from "@/lib/useSubmitOnce";
+import StandupAnswer from "@/components/StandupAnswer";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -816,7 +818,7 @@ export default function MeetingPage() {
                                     <dt className="qa-label">{q.question}</dt>
                                     <dd className="ans-text">
                                       {answer && String(answer).trim() ? (
-                                        typeof answer === 'object' ? JSON.stringify(answer) : formatText(String(answer))
+                                        typeof answer === 'object' ? JSON.stringify(answer) : <StandupAnswer text={String(answer)} format={formatText} />
                                       ) : (
                                         <span className="ans-empty">No answer provided</span>
                                       )}
@@ -830,7 +832,7 @@ export default function MeetingPage() {
                                 <div key={`submission-${index}-ans-${ansIdx}`} className="submission-qa">
                                   <dt className="qa-label">{key}</dt>
                                   <dd className="ans-text">
-                                    {typeof value === 'object' ? JSON.stringify(value) : formatText(String(value || ""))}
+                                    {typeof value === 'object' ? JSON.stringify(value) : <StandupAnswer text={String(value || "")} format={formatText} />}
                                   </dd>
                                 </div>
                               ))
@@ -1244,6 +1246,7 @@ function MeetingClock({ today }) {
 
 // COMPACT INLINE MODALS FOR MEETING MODE
 function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, fineSeasons }) {
+  const [saving, submitOnce] = useSubmitOnce();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState(25);
   const [error, setError] = useState("");
@@ -1256,24 +1259,26 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, 
   // A late fine is one per person per day, whatever the amount.
   const existingFine = findExistingLateFine(fines, name, today);
 
-  const hSubmit = async (e) => {
+  const hSubmit = (e) => {
     e.preventDefault();
-    if (!name) return;
+    return submitOnce(async () => {
+      if (!name) return;
 
-    const { error: submitError } = await addFine({
-      name,
-      amount: parseFloat(amount),
-      date: today,
-      status: "unpaid",
-      seasonId: latestFineSeasonId,
+      const { error: submitError } = await addFine({
+        name,
+        amount: parseFloat(amount),
+        date: today,
+        status: "unpaid",
+        seasonId: latestFineSeasonId,
+      });
+
+      if (submitError) {
+        setError(submitError.message || "Failed to save the fine. Please try again.");
+        return;
+      }
+
+      onClose();
     });
-
-    if (submitError) {
-      setError(submitError.message || "Failed to save the fine. Please try again.");
-      return;
-    }
-
-    onClose();
   };
 
   return (
@@ -1324,7 +1329,7 @@ function QuickAddFineModal({ isOpen, onClose, addFine, employees, today, fines, 
           {error && <div className="form-error" role="alert"><Icon name="alert" size={16} />{error}</div>}
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={!!existingFine}>Save Fine</button>
+            <button type="submit" className="btn btn-primary" disabled={saving || !!existingFine}>{saving ? "Saving…" : "Save Fine"}</button>
           </div>
         </form>
       </div>
@@ -1511,6 +1516,7 @@ function IdleNudge({ phrases }) {
 }
 
 function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leaves, leaveSeasons, leaveTypes, publicHolidays, isAdmin, currentEmployee }) {
+  const [saving, submitOnce] = useSubmitOnce();
   const { alertDialog } = useDialog();
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("full");   // full | half | early
@@ -1545,45 +1551,47 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
   const defaultLeaveType = activeLeaveTypes.find((t) => !t.is_unpaid) || activeLeaveTypes[0];
   const effectiveLeaveTypeId = leaveTypeId || (defaultLeaveType ? String(defaultLeaveType.id) : "");
 
-  const hSubmit = async (e) => {
+  const hSubmit = (e) => {
     e.preventDefault();
-    if (!name || !name.trim()) return;
+    return submitOnce(async () => {
+      if (!name || !name.trim()) return;
 
-    const isDuplicate = leaves.some(l =>
-      l.employee_name === name &&
-      l.start_date === today
-    );
+      const isDuplicate = leaves.some(l =>
+        l.employee_name === name &&
+        l.start_date === today
+      );
 
-    if (isDuplicate && !duplicateWarning) {
-      setDuplicateWarning(true);
-      return;
-    }
+      if (isDuplicate && !duplicateWarning) {
+        setDuplicateWarning(true);
+        return;
+      }
 
-    const requestedDays = duration === "half" ? 0.5 : 1;
-    const selectedBalance = balances.find((b) => String(b.id) === String(effectiveLeaveTypeId));
-    if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
-      await alertDialog(`Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`, { tone: "error" });
-      return;
-    }
+      const requestedDays = duration === "half" ? 0.5 : 1;
+      const selectedBalance = balances.find((b) => String(b.id) === String(effectiveLeaveTypeId));
+      if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
+        await alertDialog(`Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`, { tone: "error" });
+        return;
+      }
 
-    let finalReason = duration === "half" ? (segment === "first" ? "[First Half]" : "[Second Half]") : "";
+      let finalReason = duration === "half" ? (segment === "first" ? "[First Half]" : "[Second Half]") : "";
 
-    const { error: submitError } = await addLeave({
-      name,
-      type: duration,
-      startDate: today,
-      endDate: today,
-      reason: finalReason,
-      leaveTypeId: effectiveLeaveTypeId ? Number(effectiveLeaveTypeId) : null,
-      seasonId: latestSeasonId,
+      const { error: submitError } = await addLeave({
+        name,
+        type: duration,
+        startDate: today,
+        endDate: today,
+        reason: finalReason,
+        leaveTypeId: effectiveLeaveTypeId ? Number(effectiveLeaveTypeId) : null,
+        seasonId: latestSeasonId,
+      });
+
+      if (submitError) {
+        await alertDialog(`Failed to save the leave: ${submitError.message || "please try again."}`, { tone: "error" });
+        return;
+      }
+
+      onClose();
     });
-
-    if (submitError) {
-      await alertDialog(`Failed to save the leave: ${submitError.message || "please try again."}`, { tone: "error" });
-      return;
-    }
-
-    onClose();
   };
 
   return (
@@ -1686,9 +1694,9 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
             {duplicateWarning ? (
-              <button type="submit" className="btn btn-warning">Add Anyway</button>
+              <button type="submit" className="btn btn-warning" disabled={saving}>{saving ? "Saving…" : "Add Anyway"}</button>
             ) : (
-              <button type="submit" className="btn btn-primary">Save Leave</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving…" : "Save Leave"}</button>
             )}
           </div>
         </form>
@@ -1697,32 +1705,35 @@ function QuickAddLeaveModal({ isOpen, onClose, addLeave, employees, today, leave
   );
 }
 function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, today, standupFines, initialName = "" }) {
+  const [saving, submitOnce] = useSubmitOnce();
   // Opened from a Missing submissions row, the person comes picked — when they are someone
   // this dialog may fine.
   const [name, setName] = useState(() => (employees.some((e) => e.name === initialName) ? initialName : ""));
   const [duplicateWarning, setDuplicateWarning] = useState(false);
   const [error, setError] = useState("");
 
-  const hSubmit = async (e) => {
+  const hSubmit = (e) => {
     e.preventDefault();
-    if (!name) return;
+    return submitOnce(async () => {
+      if (!name) return;
 
-    const isDuplicate = standupFines.some(s =>
-      s.employee_name === name &&
-      s.date === today
-    );
+      const isDuplicate = standupFines.some(s =>
+        s.employee_name === name &&
+        s.date === today
+      );
 
-    if (isDuplicate && !duplicateWarning) {
-      setDuplicateWarning(true);
-      return;
-    }
+      if (isDuplicate && !duplicateWarning) {
+        setDuplicateWarning(true);
+        return;
+      }
 
-    const { error: submitError } = await addStandupFine({ name, date: today, status: "unpaid" });
-    if (submitError) {
-      setError(submitError.message || "Failed to save the record. Please try again.");
-      return;
-    }
-    onClose();
+      const { error: submitError } = await addStandupFine({ name, date: today, status: "unpaid" });
+      if (submitError) {
+        setError(submitError.message || "Failed to save the record. Please try again.");
+        return;
+      }
+      onClose();
+    });
   };
 
   return (
@@ -1755,9 +1766,9 @@ function QuickAddStandupModal({ isOpen, onClose, addStandupFine, employees, toda
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={() => { setDuplicateWarning(false); onClose(); }}>Cancel</button>
             {duplicateWarning ? (
-              <button type="submit" className="btn btn-warning">Add Anyway</button>
+              <button type="submit" className="btn btn-warning" disabled={saving}>{saving ? "Saving…" : "Add Anyway"}</button>
             ) : (
-              <button type="submit" className="btn btn-primary">Save Standup Fine</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving…" : "Save Standup Fine"}</button>
             )}
           </div>
         </form>

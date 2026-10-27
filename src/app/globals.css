@@ -3682,6 +3682,13 @@ code, kbd, .mono { font-family: var(--f-mono); }
   color: var(--text-1);
 }
 
+/* A company event (Events tab), one day long. */
+.cal-bar-event {
+  background: var(--pb-violet);
+  border: 1px solid var(--pf-violet);
+  color: var(--pf-violet);
+}
+
 .cal-bar-more {
   background: var(--raised);
   border: 1px solid var(--line);
@@ -3716,6 +3723,11 @@ code, kbd, .mono { font-family: var(--f-mono); }
 .cal-swatch-holiday {
   background: var(--orange-soft);
   border: 1px solid rgba(255, 106, 31, 0.55);
+}
+
+.cal-swatch-event {
+  background: var(--pb-violet);
+  border: 1px solid var(--pf-violet);
 }
 
 .cal-legend-note {
@@ -6683,6 +6695,45 @@ code, kbd, .mono { font-family: var(--f-mono); }
   color: var(--text-1);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* An answer's parts (StandupAnswer): text paragraphs, and the lists people bullet with
+   *, -, • or 1. */
+.ans-text .ans-p {
+  display: block;
+}
+
+.ans-text .ans-p + .ans-p,
+.ans-text .ans-p + .ans-list,
+.ans-text .ans-list + .ans-p,
+.ans-text .ans-list + .ans-list {
+  margin-top: 6px;
+}
+
+.ans-text .ans-list {
+  margin: 0;
+  padding-left: 22px;
+  white-space: normal;
+}
+
+.ans-text ul.ans-list {
+  list-style: disc;
+}
+
+.ans-text ol.ans-list {
+  list-style: decimal;
+}
+
+.ans-text .ans-list li {
+  white-space: pre-wrap;
+}
+
+.ans-text .ans-list li + li {
+  margin-top: 2px;
+}
+
+.ans-text .ans-list li::marker {
+  color: var(--text-3);
 }
 
 .ans-empty {
@@ -12779,7 +12830,7 @@ label.pref-row {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 440px;
+  max-width: 560px;
 }
 
 /* .glass gives the blur; the card takes the stronger fill, edge and lift shadow. */
@@ -12868,22 +12919,41 @@ label.pref-row {
   color: var(--text-3);
 }
 
-.login-features {
+.login-features-title {
   width: 100%;
   margin-top: 32px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--text-3);
+}
+
+/* Two columns on the card; one on a phone. */
+.login-features {
+  width: 100%;
+  margin-top: 12px;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
   text-align: left;
 }
 
 .login-feature {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 13px;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.35;
   color: var(--text-2);
+}
+
+@media (max-width: 560px) {
+  .login-features {
+    grid-template-columns: 1fr;
+  }
 }
 
 .login-feature-icon {
@@ -14821,6 +14891,60 @@ a.project-env-url:hover {
   border: 1px dashed var(--line-strong);
 }
 
+/* The assignee avatars over the board (TaskFilterBar's AssigneeFilter), overlapping as in
+   Jira. Each sits in a solid ring so the overlap reads; a hovered one lifts above its
+   neighbours, a picked one wears the primary ring. */
+.assignee-filter {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 6px;
+}
+
+.assignee-filter-btn {
+  position: relative;
+  margin-left: -6px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  box-shadow: 0 0 0 2px var(--surface-solid);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.assignee-filter-btn .avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.assignee-filter-btn:hover {
+  z-index: 2;
+  transform: translateY(-2px);
+}
+
+.assignee-filter-btn.is-active {
+  z-index: 1;
+  box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--primary);
+}
+
+.assignee-filter-btn:focus-visible {
+  z-index: 2;
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+.assignee-filter-more .avatar {
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assignee-filter-btn:hover {
+    transform: none;
+  }
+}
+
 .issue-epic-chip {
   max-width: 160px;
   height: 20px;
@@ -15856,6 +15980,26 @@ a.project-env-url:hover {
   gap: 0 12px;
 }
 
+/* Create dialog's "Linked issue": the phrase, then the issue, across the whole row. */
+.issue-form-link {
+  grid-column: 1 / -1;
+}
+
+.issue-form-link-row {
+  display: flex;
+  gap: 8px;
+}
+
+.issue-form-link-row select:first-child {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.issue-form-link-row select:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
 .issue-create-actions .issue-create-another {
   display: inline-flex;
   align-items: center;
@@ -15869,6 +16013,18 @@ a.project-env-url:hover {
 .sprint-modal-note {
   margin: 0 0 16px;
   font-size: 14px;
+  color: var(--text-2);
+}
+
+/* What a move changes (TaskIssueModal's MoveIssueModal). */
+.move-issue-notes {
+  margin: 4px 0 16px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--text-2);
 }
 
@@ -16525,6 +16681,16 @@ a.project-env-url:hover {
   font-size: 12px;
   font-weight: 600;
   color: var(--pf-amber);
+}
+
+/* Company events (Events tab): the holiday band and day-head line, in violet. */
+.cal-event-band {
+  background: var(--pb-violet);
+  color: var(--pf-violet);
+}
+
+.cal-day-event {
+  color: var(--pf-violet);
 }
 
 .cal-day-head.is-today .eyebrow {

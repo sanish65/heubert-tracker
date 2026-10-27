@@ -106,6 +106,22 @@ export function taskNotificationItem(row, key) {
   };
 }
 
+// ── Standup reminders ───────────────────────────────────────────────────────
+
+// The bell's "you haven't filled in your standup" rows, from standupWindow's
+// standupReminders(). None once it's submitted, or for someone who skips standups or is on
+// a full-day leave that day.
+export function standupReminderItems(reminders, { submitted = false, skip = false } = {}) {
+  if (submitted || skip) return [];
+  return (reminders || []).map((r) => ({
+    id: `standup-reminder-${r.date}-${r.kind}`,
+    kind: "standup-reminder",
+    reminder: r.kind,
+    date: r.date,
+    at: r.at,
+  }));
+}
+
 // Fines and task notifications in one list, newest first.
 export function mergeNotifications(fineItems, taskItems, limit = 15) {
   return [...(fineItems || []), ...(taskItems || [])]

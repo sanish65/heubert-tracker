@@ -21,6 +21,9 @@ import {
   defaultSprintDates,
   nextSprintName,
   filterIssues,
+  assigneesOf,
+  LINK_CHOICES,
+  linkRow,
   activeSprintOf,
   boardIssues,
   groupByStatus,
@@ -186,6 +189,33 @@ test('filters: mine, recent, type, epic and search by key', () => {
   assert.deepEqual(ids(filterIssues(issues, { epicId: 1 })), [1, 2]);
   assert.deepEqual(ids(filterIssues(issues, { search: 'htt-3' }, { keyOf })), [3]);
   assert.deepEqual(ids(filterIssues(issues, { search: 'PAYMENTS' })), [2]);
+});
+
+test('a link made on create is stored from the right side', () => {
+  // New bug 9 "relates to" story 4; "is blocked by" 4 is stored as 4 blocks 9.
+  assert.deepEqual(linkRow('relates:out', 9, 4), { source_id: 9, target_id: 4, link_type: 'relates' });
+  assert.deepEqual(linkRow('blocks:in', 9, 4), { source_id: 4, target_id: 9, link_type: 'blocks' });
+  assert.deepEqual(linkRow('duplicates:out', 9, 4), { source_id: 9, target_id: 4, link_type: 'duplicates' });
+  assert.equal(linkRow('nonsense', 9, 4).link_type, 'relates');
+  assert.deepEqual(LINK_CHOICES.map((c) => c.phrase), ['blocks', 'is blocked by', 'relates to', 'duplicates', 'is duplicated by']);
+});
+
+test('the assignee avatars filter by any of the people picked, null being unassigned', () => {
+  assert.deepEqual(ids(filterIssues(issues, { assignees: [5, 6] })), [2, 4]);
+  assert.deepEqual(ids(filterIssues(issues, { assignees: [null] })), [1, 3, 5, 6]);
+  assert.deepEqual(ids(filterIssues(issues, { assignees: [6, null] })), [1, 3, 4, 5, 6]);
+  assert.deepEqual(ids(filterIssues(issues, { assignees: [] })), ids(issues));
+});
+
+test('the avatar row lists who has work, you first, then by name, unassigned flagged', () => {
+  const byId = new Map([[5, { id: 5, name: 'Zed' }], [6, { id: 6, name: 'Amy' }], [7, { id: 7, name: 'Bob' }]]);
+  const row = assigneesOf(issues, byId, 5);
+  assert.deepEqual(row.people.map((e) => e.id), [5, 6]);
+  assert.equal(row.unassigned, true);
+  assert.deepEqual(assigneesOf(issues, byId).people.map((e) => e.id), [6, 5]);
+  // An epic's owner isn't on the board; a deleted employee has no avatar to show.
+  const more = [{ id: 9, type: 'epic', assignee_id: 7 }, { id: 10, type: 'task', assignee_id: 42 }];
+  assert.deepEqual(assigneesOf(more, byId), { people: [], unassigned: false });
 });
 
 test('the board shows the active sprint without epics; no sprint means an empty board', () => {

@@ -13,6 +13,18 @@ export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 // Assignment and @mention emails go out from /api/task-notifications, which drains what
 // the database triggers just recorded. Fire-and-forget: the write already happened, and
 // a slow mail host must not hold up the board.
+// Where an issue went when it moved project: the old key's number in its old project →
+// { project_id, number } of the issue now, or null when nothing moved from there.
+export async function movedIssueOf(projectId, number) {
+  const { data, error } = await supabase
+    .from("task_key_aliases")
+    .select("task:tasks(project_id, number)")
+    .eq("project_id", projectId)
+    .eq("number", number)
+    .maybeSingle();
+  return error ? null : data?.task || null;
+}
+
 export function sendTaskEmails() {
   (async () => {
     try {
@@ -199,6 +211,21 @@ export function useTasks(projectId) {
   };
 
   const cloneIssue = (task) => createIssue(cloneFields(task, sprints));
+
+  // A link made from outside the issue view, e.g. the Create dialog's "Linked issue".
+  // `row` is taskBoard's linkRow().
+  const linkIssues = async (row) => {
+    const { error } = await supabase.from("task_links").insert([{ ...row, created_by: user?.email || null }]);
+    return { error };
+  };
+
+  // Jira's Move: to another project, with its sub-tasks (move_task_to_project in
+  // supabase/migrations/20261027104202_move_task_project.sql). Returns the new key.
+  const moveToProject = async (id, targetProjectId) => {
+    writeSeq.current++;
+    const { data, error } = await supabase.rpc("move_task_to_project", { p_task_id: id, p_project_id: targetProjectId });
+    return afterWrite({ data, error });
+  };
 
   // ── Releases ──
   const createVersion = async (fields) => {
@@ -403,6 +430,8 @@ export function useTasks(projectId) {
     updateFilter,
     deleteFilter,
     cloneIssue,
+    moveToProject,
+    linkIssues,
     createVersion,
     updateVersion,
     releaseVersion,
@@ -604,11 +633,11 @@ export function useTaskNotifications(enabled = true) {
     });
   }, [enabled]);
 
+  // Polled in a background tab too (browsers slow it to about once a minute there anyway), so
+  // a new notification can chime and raise a desktop notification while you're elsewhere.
   useEffect(() => {
     load();
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") load();
-    }, NOTIFY_POLL_MS);
+    const timer = setInterval(load, NOTIFY_POLL_MS);
     return () => clearInterval(timer);
   }, [load]);
 

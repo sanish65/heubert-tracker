@@ -32,6 +32,24 @@ export const LINK_TYPES = [
   { value: "duplicates", outward: "duplicates", inward: "is duplicated by" },
 ];
 
+// Every way a link can read from one issue ("this bug relates to POR-4"). Inward ones are
+// stored reversed: "is blocked by B" is the row (B, this, 'blocks').
+export const LINK_CHOICES = LINK_TYPES.flatMap((t) =>
+  t.outward === t.inward
+    ? [{ id: `${t.value}:out`, type: t.value, phrase: t.outward, inward: false }]
+    : [
+        { id: `${t.value}:out`, type: t.value, phrase: t.outward, inward: false },
+        { id: `${t.value}:in`, type: t.value, phrase: t.inward, inward: true },
+      ]
+);
+
+// The task_links row for "`fromId` <choice> `otherId`", as { source_id, target_id, link_type }.
+export function linkRow(choiceId, fromId, otherId) {
+  const choice = LINK_CHOICES.find((c) => c.id === choiceId) || LINK_CHOICES.find((c) => c.type === "relates");
+  const [source_id, target_id] = choice.inward ? [otherId, fromId] : [fromId, otherId];
+  return { source_id, target_id, link_type: choice.type };
+}
+
 // The planning poker scale, so an estimate agreed in a poker session can be copied
 // straight onto the issue.
 export const ESTIMATE_OPTIONS = [1, 2, 3, 5, 8, 13, 21];
@@ -256,12 +274,14 @@ export function nextSprintName(projectKey, sprints) {
 // filters: { search, onlyMine, recent, types: [], epicId, assigneeId }
 export function filterIssues(tasks, filters, { currentEmployeeId = null, nowMs = Date.now(), keyOf = () => "" } = {}) {
   // predicate: a compiled JQL query (src/lib/taskQuery.js), applied on top of the rest.
-  const { search = "", onlyMine = false, recent = false, types = [], epicId = null, assigneeId = null, predicate = null } = filters || {};
+  // assignees: the avatars picked over the board, any of them; null in it is Unassigned.
+  const { search = "", onlyMine = false, recent = false, types = [], epicId = null, assigneeId = null, assignees = [], predicate = null } = filters || {};
   const needle = search.trim().toLowerCase();
   return tasks.filter((task) => {
     if (predicate && !predicate(task)) return false;
     if (onlyMine && (currentEmployeeId == null || task.assignee_id !== currentEmployeeId)) return false;
     if (assigneeId != null && task.assignee_id !== assigneeId) return false;
+    if (assignees.length && !assignees.includes(task.assignee_id ?? null)) return false;
     if (types.length && !types.includes(task.type)) return false;
     if (epicId != null && task.parent_id !== epicId && task.id !== epicId) return false;
     if (recent) {
@@ -277,6 +297,24 @@ export function filterIssues(tasks, filters, { currentEmployeeId = null, nowMs =
     }
     return true;
   });
+}
+
+// The avatar row over the board, as in Jira: everyone with an issue in the project (epics
+// aside, as the board never shows them), you first, then by name. `unassigned` says whether
+// an Unassigned avatar belongs at the end.
+export function assigneesOf(tasks, employeesById, meId = null) {
+  const ids = new Set();
+  let unassigned = false;
+  for (const task of tasks) {
+    if (task.type === "epic") continue;
+    if (task.assignee_id == null) unassigned = true;
+    else ids.add(task.assignee_id);
+  }
+  const people = [...ids]
+    .map((id) => employeesById.get(id))
+    .filter(Boolean)
+    .sort((a, b) => (b.id === meId) - (a.id === meId) || a.name.localeCompare(b.name));
+  return { people, unassigned };
 }
 
 export function activeSprintOf(sprints) {

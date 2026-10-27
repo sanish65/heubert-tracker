@@ -117,7 +117,7 @@ function QuestionField({ index, question, value, onChangeText }) {
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder="Type your answer…"
+        placeholder="Type your answer… Start a line with * or - for a bullet list."
         placeholderTextColor={t.text3}
         multiline
         accessibilityLabel={question.question}

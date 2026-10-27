@@ -71,7 +71,7 @@ function meterState(used, quota) {
 }
 
 export default function LeavePage({ onAddHoliday, onAddSeason, onEditSeason }) {
-  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, canManageLeave, publicHolidays, deletePublicHoliday, leaveTypes, animationsEnabled } = useApp();
+  const { leaves: allLeaves, leaveSeasons, employees, deleteLeave, isAdmin, canManageLeave, publicHolidays, companyEvents, deletePublicHoliday, leaveTypes, animationsEnabled } = useApp();
   const { confirmDialog } = useDialog();
   const leaveExcludedNames = useMemo(
     () => new Set(employees.filter((e) => e.leave_excluded).map((e) => e.name)),
@@ -430,6 +430,7 @@ export default function LeavePage({ onAddHoliday, onAddSeason, onEditSeason }) {
             leaves={seasonLeaves}
             selectedEmployee={filterEmployee || null}
             publicHolidays={publicHolidays}
+            companyEvents={companyEvents}
             outOfSeasonLeaves={outOfSeasonLeaves}
             employeeOptions={empSummary.map((e) => e.name)}
             onSelectEmployee={setFilterEmployee}

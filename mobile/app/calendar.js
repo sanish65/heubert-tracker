@@ -93,7 +93,7 @@ function Notice({ tone = "info", icon, title, children, action }) {
   );
 }
 
-function WeekStrip({ week, date, today, holidayOn, onPick, onStep }) {
+function WeekStrip({ week, date, today, holidayOn, eventsOn, onPick, onStep }) {
   const t = useThemeColors();
   return (
     <View style={styles.strip}>
@@ -102,13 +102,14 @@ function WeekStrip({ week, date, today, holidayOn, onPick, onStep }) {
         const selected = d === date;
         const isToday = d === today;
         const holiday = holidayOn(d);
+        const events = eventsOn(d);
         return (
           <Pressable
             key={d}
             onPress={() => onPick(d)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
-            accessibilityLabel={`${formatDay(d)}${isToday ? ", today" : ""}${holiday ? `, ${holiday.title}` : ""}`}
+            accessibilityLabel={`${formatDay(d)}${isToday ? ", today" : ""}${holiday ? `, ${holiday.title}` : ""}${events.map((e) => `, ${e.title}`).join("")}`}
             style={({ pressed }) => [
               styles.stripDay,
               {
@@ -119,7 +120,7 @@ function WeekStrip({ week, date, today, holidayOn, onPick, onStep }) {
           >
             <Text style={[styles.stripWeekday, { color: selected ? t.text1 : t.text3 }]}>{formatDay(d, { weekday: "short" })}</Text>
             <Text style={[styles.stripNum, { color: t.text1 }]}>{Number(d.slice(8))}</Text>
-            <View style={[styles.stripDot, { backgroundColor: holiday ? t.pfAmber : isToday ? t.cyan : "transparent" }]} />
+            <View style={[styles.stripDot, { backgroundColor: holiday ? t.pfAmber : events.length ? t.pfViolet : isToday ? t.cyan : "transparent" }]} />
           </Pressable>
         );
       })}
@@ -154,7 +155,7 @@ function EventRow({ item, onPress, first }) {
 export default function CalendarScreen() {
   const t = useThemeColors();
   const goBack = useGoBack();
-  const { employees, leaves, publicHolidays, currentEmployee, isAdmin, projects, projectMembers } = useApp();
+  const { employees, leaves, publicHolidays, companyEvents, currentEmployee, isAdmin, projects, projectMembers } = useApp();
   const now = useNow(60 * 1000);
   const nepalNow = nepalParts(now.toISOString());
   const today = nepalNow?.date || now.toISOString().slice(0, 10);
@@ -186,6 +187,8 @@ export default function CalendarScreen() {
   const calById = useMemo(() => new Map(cal.people.map((p) => [p.employeeId, p])), [cal.people]);
   const eventsOf = (emp) => calById.get(emp.id)?.events || [];
   const holidayOn = (d) => (publicHolidays || []).find((h) => String(h.date).slice(0, 10) === d) || null;
+  // Company events (the Events screen) on a day; still a working day, so Find a time keeps it.
+  const eventsOn = (d) => (companyEvents || []).filter((e) => String(e.date).slice(0, 10) === d);
   const isMe = (emp) => emp.id === currentEmployee?.id;
   const connected = cal.configured && !cal.setupError;
   const okCount = cal.people.filter((p) => p.status === "ok").length;
@@ -279,7 +282,7 @@ export default function CalendarScreen() {
             </Pressable>
           ) : null}
         </View>
-        <WeekStrip week={week} date={date} today={today} holidayOn={holidayOn} onPick={setDate} onStep={step} />
+        <WeekStrip week={week} date={date} today={today} holidayOn={holidayOn} eventsOn={eventsOn} onPick={setDate} onStep={step} />
         {connected && reachable > 0 ? (
           <Pill tone={okCount === reachable ? "green" : "amber"} style={styles.connected}>
             {okCount === reachable ? `All ${reachable} connected` : `${okCount} of ${reachable} connected`}
@@ -345,6 +348,12 @@ export default function CalendarScreen() {
           <Text style={[styles.holidayText, { color: t.text1 }]}>Public holiday · {holiday.title}</Text>
         </View>
       ) : null}
+      {eventsOn(date).map((e) => (
+        <View key={e.id} style={[styles.holiday, { backgroundColor: t.pbViolet, borderColor: t.pfViolet }]}>
+          <Icon name="sparkles" size={16} color={t.pfViolet} />
+          <Text style={[styles.holidayText, { color: t.text1 }]}>Company event · {e.title}</Text>
+        </View>
+      ))}
 
       {cal.pending ? (
         <Card>

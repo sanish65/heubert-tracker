@@ -97,19 +97,20 @@ export async function POST(request) {
   }
 
   // Join session (add name to votes table without a real vote yet)
+  // Adds the person to the participant list. Someone already in it keeps their row, so
+  // joining again (a reload, the shared link, the tracker's session list) never wipes a vote.
   if (body.action === 'join') {
     const { sessionId, participantName } = body;
     const { data, error } = await supabase
       .from('poker_votes')
       .upsert(
         { session_id: sessionId, participant_name: participantName, vote: 'waiting' },
-        { onConflict: 'session_id,participant_name' }
+        { onConflict: 'session_id,participant_name', ignoreDuplicates: true }
       )
-      .select()
-      .single();
+      .select();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ vote: data });
+    return NextResponse.json({ vote: data?.[0] ?? null });
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

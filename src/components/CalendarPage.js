@@ -141,7 +141,7 @@ function Block({ block, label }) {
 }
 
 export default function CalendarPage() {
-  const { employees, leaves, publicHolidays, currentEmployee, isAdmin, projects, projectMembers } = useApp();
+  const { employees, leaves, publicHolidays, companyEvents, currentEmployee, isAdmin, projects, projectMembers } = useApp();
   const today = getNepalDateStr(new Date());
 
   const [view, setViewState] = useState(() => (readStored(VIEW_KEY, "day") === "week" ? "week" : "day"));
@@ -194,6 +194,9 @@ export default function CalendarPage() {
   const calById = useMemo(() => new Map(cal.people.map((p) => [p.employeeId, p])), [cal.people]);
   const eventsOf = (emp) => calById.get(emp.id)?.events || [];
   const holidayOn = (d) => publicHolidays.find((h) => String(h.date).slice(0, 10) === d) || null;
+  // Company events (Events tab) on a day. Unlike a holiday it is still a working day, so
+  // Find a time keeps it.
+  const eventsOn = (d) => (companyEvents || []).filter((e) => String(e.date).slice(0, 10) === d);
   const isMe = (emp) => emp.id === currentEmployee?.id;
   const connected = cal.configured && !cal.setupError;
   // Until this range's answer arrives, nothing reads as free: placeholders instead.
@@ -223,6 +226,7 @@ export default function CalendarPage() {
   const hiddenSeries = dailySeries(cal.people.map((p) => p.events), week);
 
   const holiday = holidayOn(date);
+  const dayEvents = eventsOn(date);
   const eyebrow = view === "week" ? `Week of ${formatDay(week[0], { month: "short", day: "numeric" })} – ${formatDay(week[4], { month: "short", day: "numeric" })}` : formatDay(date);
   const nowPct = ((nowHour - DAY_START) / (DAY_END - DAY_START)) * 100;
   const showNow = view === "day" && date === today && nowHour >= DAY_START && nowHour <= DAY_END;
@@ -337,6 +341,11 @@ export default function CalendarPage() {
                 <Icon name="flag" size={16} /> Public holiday · {holiday.title}
               </div>
             )}
+            {dayEvents.map((e) => (
+              <div key={e.id} className="cal-holiday-band cal-event-band">
+                <Icon name="sparkles" size={16} /> Company event · {e.title}
+              </div>
+            ))}
 
             {people.map((emp) => {
               const events = eventsOf(emp);
@@ -420,6 +429,9 @@ export default function CalendarPage() {
                     <span className="eyebrow">{formatDay(d, { weekday: "short" })}</span>
                     <span className="cal-team-day-num">{Number(d.slice(8))}</span>
                     {h && <span className="cal-day-holiday">{h.title}</span>}
+                    {eventsOn(d).map((e) => (
+                      <span key={e.id} className="cal-day-holiday cal-day-event" title={`Company event: ${e.title}`}>{e.title}</span>
+                    ))}
                   </div>
                 );
               })}

@@ -5,9 +5,9 @@ import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import Modal from "@/components/Modal";
 import Icon from "@/components/Icon";
-import { useTasks } from "@/lib/useTasks";
+import { useTasks, movedIssueOf } from "@/lib/useTasks";
 import { getNepalDateStr } from "@/lib/attendanceTime";
-import { issueKey, parseIssueKey, suggestProjectKey, validateProjectKey, activeSprintOf, boardIssues, filterIssues } from "@/lib/taskBoard";
+import { issueKey, parseIssueKey, suggestProjectKey, validateProjectKey, activeSprintOf, boardIssues, filterIssues, assigneesOf } from "@/lib/taskBoard";
 import { compileQuery } from "@/lib/taskQuery";
 import TaskBoardView from "@/components/TaskBoardView";
 import TaskIssuesView from "@/components/TaskIssuesView";
@@ -178,6 +178,8 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
   const [onlyMine, setOnlyMine] = useState(false);
   const [recent, setRecent] = useState(false);
   const [types, setTypes] = useState([]);
+  // The avatars picked over the board; null is Unassigned.
+  const [assignees, setAssignees] = useState([]);
   const [searchMode, setSearchMode] = useState("basic");
   const [jqlText, setJqlText] = useState("");
   const [activeFilterId, setActiveFilterId] = useState(null);
@@ -220,7 +222,10 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
   const filters =
     searchMode === "jql"
       ? { predicate: compiled.ok && !compiled.empty ? compiled.predicate : null }
-      : { search, onlyMine, recent, types };
+      : { search, onlyMine, recent, types, assignees };
+
+  // A link's number that isn't in this project: looked up among moved issues (below).
+  const [movedNumber, setMovedNumber] = useState(null);
 
   // A shared link names an issue by number; open it once this project's issues arrive.
   // Resolved during render rather than in an effect, so there's no extra pass.
@@ -228,7 +233,22 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
     const match = tasks.find((t) => t.number === pendingNumber);
     setPendingNumber(null);
     if (match) setOpenIssueId(match.id);
+    else setMovedNumber(pendingNumber);
   }
+
+  // Not here: the issue may have moved to another project since the link was shared. Its
+  // old key then leads to its new one, as in Jira.
+  useEffect(() => {
+    if (movedNumber == null) return;
+    let cancelled = false;
+    movedIssueOf(project.id, movedNumber).then((moved) => {
+      const home = moved && projects.find((p) => p.id === moved.project_id);
+      if (!cancelled && home?.issue_key) window.location.hash = `issue=${issueKey(home, moved)}`;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [movedNumber, project.id, projects]);
 
   // `known` is the issue itself when the caller has it before this list does (a clone
   // that was just created), so the address bar still points at the right issue.
@@ -276,13 +296,16 @@ function ProjectWorkspace({ project, projects, view, setView, issueLink }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const toggleType = (value) => setTypes((prev) => (prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]));
+  const toggleAssignee = (id) => setAssignees((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
   const basic = {
     search, setSearch, onlyMine, setOnlyMine, recent, setRecent, types, toggleType,
+    ...assigneesOf(tasks, employeesById, currentEmployee?.id ?? null), assignees, toggleAssignee,
     clear: () => {
       setSearch("");
       setOnlyMine(false);
       setRecent(false);
       setTypes([]);
+      setAssignees([]);
     },
   };
   const jql = {

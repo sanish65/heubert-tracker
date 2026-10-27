@@ -78,3 +78,34 @@ export function standupDays(nepalParts, holidayDates = new Set()) {
   const defaultDate = today && minutesNow < DEFAULT_SWITCHES_MIN ? today : next;
   return { today, next, defaultDate };
 }
+
+function previousWorkingDay(dateStr, holidayDates) {
+  let prev = addDays(dateStr, -1);
+  for (let i = 0; i < 366 && !isStandupWorkingDay(prev, holidayDates); i += 1) prev = addDays(prev, -1);
+  return prev;
+}
+
+// When someone who hasn't filled in a standup is nudged, in Nepal minutes: the evening of the
+// working day before (17:00), then a last call at 09:00 on the day, an hour before the form
+// switches to the next day at 10:00.
+export const STANDUP_REMINDER_MINUTES = { evening: 17 * 60, final: 9 * 60 };
+
+function nepalInstant(dateStr, minutes) {
+  const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const mm = String(minutes % 60).padStart(2, "0");
+  return new Date(`${dateStr}T${hh}:${mm}:00+05:45`).toISOString();
+}
+
+// The reminders that have come due by now for the standup the form opens on (standupDays'
+// defaultDate): [{ kind: "evening" | "final", date, at }], oldest first, `at` an ISO instant.
+// Whether the person has already submitted, is on leave or skips standups is the caller's to
+// check.
+export function standupReminders(nepalParts, holidayDates = new Set()) {
+  const { defaultDate } = standupDays(nepalParts, holidayDates);
+  const now = nepalInstant(nepalParts.dateStr, nepalParts.hour * 60 + nepalParts.minute);
+  const due = [
+    { kind: "evening", date: defaultDate, at: nepalInstant(previousWorkingDay(defaultDate, holidayDates), STANDUP_REMINDER_MINUTES.evening) },
+    { kind: "final", date: defaultDate, at: nepalInstant(defaultDate, STANDUP_REMINDER_MINUTES.final) },
+  ];
+  return due.filter((r) => r.at <= now);
+}

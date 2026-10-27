@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, ScrollView, Alert, StyleSheet } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGoBack } from "../lib/useGoBack";
 import { useApp } from "../context/AppContext";
@@ -8,12 +8,13 @@ import { useThemeColors, radius, fonts } from "../lib/theme";
 import { Screen, ScreenHeader, Card, Eyebrow, EmptyState, Button, IconButton, Chip, TextField, FormModal, Pill } from "../components/ui";
 import { SheetSwitch, SheetActions, SheetNote, SheetSubtitle } from "../components/SheetParts";
 import { SkeletonList } from "../components/Skeleton";
-import { IssueRow } from "../components/TaskBits";
+import { IssueRow, AssigneeAvatars } from "../components/TaskBits";
 import TaskIssueSheet from "../components/TaskIssueSheet";
 import TaskCreateSheet from "../components/TaskCreateSheet";
-import { useTasks } from "../lib/useTasks";
+import { useTasks, movedIssueOf } from "../lib/useTasks";
 import {
   activeSprintOf,
+  assigneesOf,
   backlogSections,
   boardIssues,
   filterIssues,
@@ -108,11 +109,14 @@ function SaveFilterSheet({ query, board, onClose, onSaved }) {
 
 function ProjectWorkspace({ project, link }) {
   const t = useThemeColors();
-  const { employees, currentEmployee } = useApp();
+  const router = useRouter();
+  const { employees, currentEmployee, projects } = useApp();
   const board = useTasks(project.id);
   const [view, setView] = useState("board");
   const [column, setColumn] = useState(null);
   const [onlyMine, setOnlyMine] = useState(false);
+  // The avatars picked (null is Unassigned); they filter the board and the issue list, as on the web.
+  const [assignees, setAssignees] = useState([]);
   const [search, setSearch] = useState("");
   const [jqlMode, setJqlMode] = useState(false);
   const [jql, setJql] = useState("");
@@ -145,12 +149,39 @@ function ProjectWorkspace({ project, link }) {
     }
   }
 
+  // A key that isn't here may belong to an issue that moved project since: follow it to its
+  // new key, as on the web. The note stays only if nothing moved from here.
+  useEffect(() => {
+    const number = missingKey ? Number(missingKey.split("-").pop()) : null;
+    if (!number) return;
+    let cancelled = false;
+    movedIssueOf(project.id, number).then((moved) => {
+      const home = moved && (projects || []).find((p) => p.id === moved.project_id);
+      if (cancelled || !home?.issue_key) return;
+      setMissingKey(null);
+      router.setParams({ issue: issueKey(home, moved), at: String(Date.now()) });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [missingKey, project.id, projects, router]);
+
+  const toggleAssignee = (id) => setAssignees((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+  const avatarRow = (
+    <AssigneeAvatars
+      {...assigneesOf(board.tasks, employeesById, currentEmployee?.id ?? null)}
+      picked={assignees}
+      onToggle={toggleAssignee}
+      meId={currentEmployee?.id}
+    />
+  );
+
   const rowProps = { project, tasks: board.tasks, workflow: board.workflow, employeesById, today };
   const openIssue = board.tasks.find((x) => x.id === openId) || null;
 
   // ── Board ──
   const boardList = kanban ? kanbanIssues(board.tasks, nowMs) : boardIssues(board.tasks, sprint?.id ?? null);
-  const visibleBoard = onlyMine ? boardList.filter((x) => x.assignee_id === currentEmployee?.id) : boardList;
+  const visibleBoard = filterIssues(boardList, { onlyMine, assignees }, { currentEmployeeId: currentEmployee?.id ?? null });
   const columns = groupByStatus(visibleBoard, board.workflow);
   const totals = groupByStatus(boardList, board.workflow);
   const wipLimits = normalizeWipLimits(project.wip_limits, board.workflow.filter((s) => s.category !== "done").map((s) => s.value));
@@ -170,7 +201,7 @@ function ProjectWorkspace({ project, link }) {
     nowMs,
     todayStr: today,
   });
-  const issueFilters = jqlMode ? { predicate: compiled.ok && !compiled.empty ? compiled.predicate : null } : { search, onlyMine };
+  const issueFilters = jqlMode ? { predicate: compiled.ok && !compiled.empty ? compiled.predicate : null } : { search, onlyMine, assignees };
   const searched = sortIssues(
     filterIssues(board.tasks, issueFilters, { currentEmployeeId: currentEmployee?.id ?? null, nowMs, keyOf }),
     jqlMode && compiled.ok ? compiled.order : [],
@@ -245,6 +276,7 @@ function ProjectWorkspace({ project, link }) {
             <View style={styles.chipRow}>
               <Chip label="Only my issues" active={onlyMine} onPress={() => setOnlyMine((v) => !v)} />
             </View>
+            {avatarRow}
           </Card>
 
           {kanban || sprint ? (
@@ -359,6 +391,7 @@ function ProjectWorkspace({ project, link }) {
                 <View style={styles.chipRow}>
                   <Chip label="Only my issues" active={onlyMine} onPress={() => setOnlyMine((v) => !v)} />
                 </View>
+                {avatarRow}
               </>
             )}
             <Eyebrow style={styles.filtersTitle}>Filters</Eyebrow>
@@ -398,6 +431,11 @@ function ProjectWorkspace({ project, link }) {
           employees={employees}
           onClose={() => setOpenId(null)}
           onOpenIssue={setOpenId}
+          onMoved={(newKey) => {
+            setOpenId(null);
+            // Opens it under its new key, in its new project (TasksScreen follows ?issue=).
+            if (newKey) router.setParams({ issue: newKey, at: String(Date.now()) });
+          }}
         />
       ) : null}
       {moving ? <MoveSheet issue={moving} project={project} board={board} onClose={() => setMoving(null)} /> : null}

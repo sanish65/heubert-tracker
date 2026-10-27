@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { useSubmitOnce } from "@/lib/useSubmitOnce";
 import { buildWorkingDates, computeLeaveBalances } from "@/lib/utils";
 import Icon from "@/components/Icon";
 
@@ -23,6 +24,7 @@ function parseLocalDate(str) {
 
 
 export default function AddLeaveModal({ isOpen, onClose }) {
+  const [saving, submitOnce] = useSubmitOnce();
   const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes, leaveSeasons } = useApp();
   const selectableEmployees = employees.filter(emp => emp.status !== "resigned" && !emp.leave_excluded);
   const today = toDateStr(new Date());
@@ -99,60 +101,62 @@ export default function AddLeaveModal({ isOpen, onClose }) {
   const workingDayCount =
     form.type === "half" ? previewDates.length * 0.5 : previewDates.length;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name) { setError("Please select an employee"); return; }
-    if (!form.startDate) { setError("Please select a start date"); return; }
-    if (multiDay && endDate && endDate < form.startDate) {
-      setError("End date cannot be before start date");
-      return;
-    }
+    return submitOnce(async () => {
+      if (!form.name) { setError("Please select an employee"); return; }
+      if (!form.startDate) { setError("Please select a start date"); return; }
+      if (multiDay && endDate && endDate < form.startDate) {
+        setError("End date cannot be before start date");
+        return;
+      }
 
-    const finalEnd = multiDay && endDate ? endDate : form.startDate;
-    const dates = buildWorkingDates(form.startDate, finalEnd, holidaySet);
+      const finalEnd = multiDay && endDate ? endDate : form.startDate;
+      const dates = buildWorkingDates(form.startDate, finalEnd, holidaySet);
 
-    if (dates.length === 0) {
-      setError("The selected range has no working days (all weekends or holidays).");
-      return;
-    }
+      if (dates.length === 0) {
+        setError("The selected range has no working days (all weekends or holidays).");
+        return;
+      }
 
-    const requestedDays = form.type === "half" ? dates.length * 0.5 : dates.length;
-    const selectedBalance = balances.find((b) => String(b.id) === String(form.leaveTypeId));
-    if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
-      setError(
-        `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} day${selectedBalance.remaining === 1 ? "" : "s"} remaining). Consider Unpaid Leave instead.`
-      );
-      return;
-    }
+      const requestedDays = form.type === "half" ? dates.length * 0.5 : dates.length;
+      const selectedBalance = balances.find((b) => String(b.id) === String(form.leaveTypeId));
+      if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
+        setError(
+          `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} day${selectedBalance.remaining === 1 ? "" : "s"} remaining). Consider Unpaid Leave instead.`
+        );
+        return;
+      }
 
-    let finalReason = form.reason.trim();
-    if (form.type === "half") {
-      const segmentStr = form.segment === "first" ? "[First Half]" : "[Second Half]";
-      finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
-    }
+      let finalReason = form.reason.trim();
+      if (form.type === "half") {
+        const segmentStr = form.segment === "first" ? "[First Half]" : "[Second Half]";
+        finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
+      }
 
-    const { error: submitError } = await addLeave({
-      name: form.name,
-      startDate: form.startDate,
-      endDate: finalEnd,
-      dates,
-      type: form.type,
-      reason: finalReason,
-      leaveTypeId: form.leaveTypeId ? Number(form.leaveTypeId) : null,
-      seasonId: currentSeasonId,
-      createdAt: new Date().toISOString(),
+      const { error: submitError } = await addLeave({
+        name: form.name,
+        startDate: form.startDate,
+        endDate: finalEnd,
+        dates,
+        type: form.type,
+        reason: finalReason,
+        leaveTypeId: form.leaveTypeId ? Number(form.leaveTypeId) : null,
+        seasonId: currentSeasonId,
+        createdAt: new Date().toISOString(),
+      });
+
+      if (submitError) {
+        setError(submitError.message || "Failed to save the leave. Please try again.");
+        return;
+      }
+
+      setForm({ name: "", startDate: today, type: "full", segment: "first", reason: "", leaveTypeId: "" });
+      setMultiDay(false);
+      setEndDate("");
+      setOverrideBalance(false);
+      onClose();
     });
-
-    if (submitError) {
-      setError(submitError.message || "Failed to save the leave. Please try again.");
-      return;
-    }
-
-    setForm({ name: "", startDate: today, type: "full", segment: "first", reason: "", leaveTypeId: "" });
-    setMultiDay(false);
-    setEndDate("");
-    setOverrideBalance(false);
-    onClose();
   };
 
   return (
@@ -350,7 +354,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
 
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Record Leave</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving…" : "Record Leave"}</button>
           </div>
         </form>
       </div>

@@ -210,6 +210,8 @@ export default function Home() {
     if (target.tab === "employees") {
       setActiveTab("employees");
       setEmployeeRequest({ id: target.employeeId, at: Date.now() });
+    } else if (target.tab === "standup-form") {
+      setActiveTab("standup-form");
     } else if (target.tab === "records" || target.tab === "standup") {
       setActiveTab(target.tab);
       setSelectedEmployee(target.employeeName);

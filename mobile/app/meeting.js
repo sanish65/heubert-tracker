@@ -17,6 +17,7 @@ import EditLeaveModal from "../components/EditLeaveModal";
 import AddWordModal from "../components/AddWordModal";
 import EditWordModal from "../components/EditWordModal";
 import ShoutoutsMeetingCard from "../components/ShoutoutsMeetingCard";
+import StandupAnswer from "../components/StandupAnswer";
 import { parseHalfDaySegment } from "../lib/utils";
 import { formatBs } from "../lib/nepaliDate";
 import { pad, localToday, parseTimestamp } from "../lib/dates";
@@ -285,7 +286,11 @@ function SubmissionRow({ submission, questions, isMe, open, onToggle }) {
             return (
               <View key={q.id ?? qi} style={styles.answer}>
                 <Text style={[styles.question, { color: t.text3 }]}>{q.question}</Text>
-                <Text style={[styles.answerText, { color: given ? t.text2 : t.text3 }]}>{given || "No answer provided"}</Text>
+                {given ? (
+                  <StandupAnswer text={given} style={[styles.answerText, { color: t.text2 }]} />
+                ) : (
+                  <Text style={[styles.answerText, { color: t.text3 }]}>No answer provided</Text>
+                )}
               </View>
             );
           })}

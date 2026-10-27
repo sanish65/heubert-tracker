@@ -33,6 +33,18 @@ const POLL_MS = 15000;
 
 // Assignment and @mention emails go out from the web's /api/task-notifications, which drains
 // what the database triggers recorded. Fire-and-forget, with the signed-in user's token.
+// Where an issue went when it moved project, as the web's movedIssueOf: the old key's number
+// in its old project → { project_id, number } of the issue now, or null.
+export async function movedIssueOf(projectId, number) {
+  const { data, error } = await supabase
+    .from("task_key_aliases")
+    .select("task:tasks(project_id, number)")
+    .eq("project_id", projectId)
+    .eq("number", number)
+    .maybeSingle();
+  return error ? null : data?.task || null;
+}
+
 export function sendTaskEmails() {
   (async () => {
     try {
@@ -168,6 +180,19 @@ export function useTasks(projectId) {
     return afterWrite({ error });
   };
 
+  // A link made from outside the issue sheet, e.g. Create issue's "Linked issue" (taskBoard's linkRow()).
+  const linkIssues = async (row) => {
+    const { error } = await supabase.from("task_links").insert([{ ...row, created_by: user?.email || null }]);
+    return { error };
+  };
+
+  // Jira's Move: to another project, with its sub-tasks (move_task_to_project). Returns the new key.
+  const moveToProject = async (id, targetProjectId) => {
+    writeSeq.current++;
+    const { data, error } = await supabase.rpc("move_task_to_project", { p_task_id: id, p_project_id: targetProjectId });
+    return afterWrite({ data, error });
+  };
+
   // Attachments live in storage, which the row's cascade can't reach: remove them after.
   const deleteIssue = async (id) => {
     writeSeq.current++;
@@ -211,6 +236,8 @@ export function useTasks(projectId) {
     createIssue,
     updateIssue,
     deleteIssue,
+    moveToProject,
+    linkIssues,
     createFilter,
     deleteFilter,
   };

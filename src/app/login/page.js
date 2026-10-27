@@ -15,6 +15,24 @@ const CIRCUITS = [
   "10 ── 01 ── 11\n│           │\n●── 0x2083 ──●",
 ];
 
+// What the tracker does, one line per area of the app. mobile/app/login.js lists the same.
+const FEATURES = [
+  { icon: "wallet", text: "Late fines, seasons & fund withdrawals" },
+  { icon: "clipboard", text: "Daily standups & standup fines" },
+  { icon: "calendar", text: "Leaves, balances & public holidays" },
+  { icon: "pin", text: "Attendance punch-in & monthly logs" },
+  { icon: "kanban", text: "Task boards, backlog, sprints & releases" },
+  { icon: "video", text: "Meeting mode with Jira blockers & shoutouts" },
+  { icon: "clock", text: "Team calendar & availability" },
+  { icon: "layers", text: "Planning poker estimates" },
+  { icon: "refresh", text: "Retrospectives, action items & kudos" },
+  { icon: "book", text: "Words of the season" },
+  { icon: "flag", text: "Company events, birthdays & anniversaries" },
+  { icon: "image", text: "Team memories gallery" },
+  { icon: "users", text: "Employee profiles, projects & history" },
+  { icon: "bell", text: "Email & push notifications" },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const buttonRef = useRef(null);
@@ -132,19 +150,14 @@ export default function LoginPage() {
           )}
           <span className="login-hint mono">Use the Google account your team registered</span>
 
+          <h2 className="login-features-title mono">What&apos;s inside</h2>
           <ul className="login-features">
-            <li className="login-feature">
-              <span className="login-feature-icon"><Icon name="wallet" size={16} /></span>
-              <span>Track late fines &amp; standup records</span>
-            </li>
-            <li className="login-feature">
-              <span className="login-feature-icon"><Icon name="users" size={16} /></span>
-              <span>Manage employee profiles &amp; history</span>
-            </li>
-            <li className="login-feature">
-              <span className="login-feature-icon"><Icon name="calendar" size={16} /></span>
-              <span>View and record team leaves</span>
-            </li>
+            {FEATURES.map((f) => (
+              <li key={f.icon} className="login-feature">
+                <span className="login-feature-icon"><Icon name={f.icon} size={16} /></span>
+                <span>{f.text}</span>
+              </li>
+            ))}
           </ul>
 
           <p className="login-footer">

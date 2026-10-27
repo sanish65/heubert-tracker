@@ -240,7 +240,7 @@ export default function PlanningPokerPage() {
   const [shareUrl, setShareUrl] = useState("");
   const prevRevealedRef = useRef(false);
 
-  const { isAdmin, animationsEnabled } = useApp();
+  const { isAdmin, animationsEnabled, currentEmployee } = useApp();
   const { confirmDialog } = useDialog();
 
   const playChime = () => {
@@ -346,6 +346,7 @@ export default function PlanningPokerPage() {
             }
             const myExisting = (data.votes || []).find((v) => v.participant_name === savedName);
             if (myExisting && myExisting.vote !== 'waiting') setMyVote(myExisting.vote);
+            if (!data.session.is_ended) joinParticipants(savedId, savedName);
           }
           
           setView("host");
@@ -410,6 +411,15 @@ export default function PlanningPokerPage() {
     }
   };
 
+  // Puts `name` in the session's participant list, so everyone sees them before they vote.
+  // The API leaves an existing row alone, so this is safe to repeat.
+  const joinParticipants = (sid, name) =>
+    fetch("/api/poker", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "join", sessionId: sid, participantName: name }),
+    }).catch(() => {});
+
   // ── Join session (participant) ─────────────────────────
   const handleJoinSession = async () => {
     if (!joinName.trim() || !joinSessionId.trim()) {
@@ -436,15 +446,7 @@ export default function PlanningPokerPage() {
       startPolling(joinSessionId.trim());
 
       // Ensure we are in the participants list
-      await fetch("/api/poker", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "join",
-          sessionId: joinSessionId.trim(),
-          participantName: joinName.trim(),
-        }),
-      });
+      await joinParticipants(joinSessionId.trim(), joinName.trim());
     } catch (e) {
       setError(e.message);
     } finally {
@@ -546,23 +548,33 @@ export default function PlanningPokerPage() {
     localStorage.removeItem("heubert_poker_session_id");
   };
 
-  // Rejoin one of the active sessions listed on the home view.
+  // Join one of the active sessions listed on the home view, as the name you last used
+  // here or, the first time, your own. Without a name it only fills in the Join form.
   const openRecentSession = (s) => {
+    const name = participantName || currentEmployee?.name || "";
     setJoinSessionId(s.id);
-    setJoinName(participantName || "");
-    if (participantName) {
+    setJoinName(name);
+    if (name) {
       setLoading(true);
+      setError("");
       fetch(`/api/poker?sessionId=${encodeURIComponent(s.id)}`)
         .then(res => res.json())
-        .then(data => {
+        .then(async (data) => {
           if (data.error) throw new Error(data.error);
           setSession(data.session);
           setVotes(data.votes || []);
-          setParticipantName(participantName);
+          setParticipantName(name);
+          const host = data.session.created_by === name;
+          setIsHost(host);
+          setShareUrl(host ? buildShareUrl(s.id) : "");
+          const myExisting = (data.votes || []).find((v) => v.participant_name === name);
+          setMyVote(myExisting && myExisting.vote !== "waiting" ? myExisting.vote : null);
           localStorage.setItem("heubert_poker_session_id", data.session.id);
-          localStorage.setItem("heubert_collab_name", participantName);
+          localStorage.setItem("heubert_collab_name", name);
           setView("host");
           startPolling(s.id);
+          // Without this you could watch the session but nobody saw you in it.
+          await joinParticipants(s.id, name);
         })
         .catch(e => setError(e.message))
         .finally(() => setLoading(false));

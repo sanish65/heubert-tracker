@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Text, StyleSheet } from "react-native";
 import { useApp } from "../context/AppContext";
+import { useSubmitOnce } from "../lib/useSubmitOnce";
 import { findExistingLateFine, fineToday, parseLocalDate } from "../lib/utils";
 import { FINE_AMOUNTS, LATE_FINE_STATUSES } from "../lib/options";
 import { FormModal } from "./ui";
@@ -12,6 +13,7 @@ import { useThemeColors, fonts } from "../lib/theme";
 // shares (SheetParts.js). The amounts and statuses are lib/options.js's, shared by every fine sheet.
 
 export default function AddFineModal({ isOpen, onClose }) {
+  const [saving, submitOnce] = useSubmitOnce();
   const { addFine, employees, currentEmployee, fines, fineSeasons } = useApp();
   const selectableEmployees = employees.filter(e => e.status !== "resigned" && e.name !== "Developers");
   const t = useThemeColors();
@@ -49,16 +51,17 @@ export default function AddFineModal({ isOpen, onClose }) {
   // Someone can only have been late on a day that has already happened.
   const isFutureDate = date > today;
 
-  const handleSubmit = async () => {
-    if (!name) return setError("Please select an employee");
-    if (!amount) return setError("Please fill all required fields");
-    if (isFutureDate) return setError("A late fine can only be recorded for today or an earlier day.");
+  const handleSubmit = () =>
+    submitOnce(async () => {
+      if (!name) return setError("Please select an employee");
+      if (!amount) return setError("Please fill all required fields");
+      if (isFutureDate) return setError("A late fine can only be recorded for today or an earlier day.");
 
-    const { error: submitError } = await addFine({ name, date, amount: Number(amount), status, seasonId: currentSeasonId });
-    if (submitError) return setError(submitError.message || "Failed to save the fine. Please try again.");
+      const { error: submitError } = await addFine({ name, date, amount: Number(amount), status, seasonId: currentSeasonId });
+      if (submitError) return setError(submitError.message || "Failed to save the fine. Please try again.");
 
-    onClose();
-  };
+      onClose();
+    });
 
   return (
     <FormModal visible={isOpen} onClose={onClose} title="Record a Fine">
@@ -84,7 +87,7 @@ export default function AddFineModal({ isOpen, onClose }) {
         </SheetNote>
       ) : null}
 
-      <SheetActions title="Add Fine" onPress={handleSubmit} disabled={!!existingFine || isFutureDate} onCancel={onClose} />
+      <SheetActions title={saving ? "Saving…" : "Add Fine"} onPress={handleSubmit} disabled={saving || !!existingFine || isFutureDate} onCancel={onClose} />
     </FormModal>
   );
 }

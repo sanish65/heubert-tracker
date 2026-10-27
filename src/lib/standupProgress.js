@@ -2,6 +2,7 @@
 // in for a day, and your last few working days. Pure (only the sibling standupWindow.js),
 // so it runs under `npm test`.
 import { findSubmissionFor, isStandupWorkingDay } from "./standupWindow.js";
+import { plainFirstLine } from "./standupText.js";
 
 // A stored answer is keyed `question_<id>`; older rows used the id or the question text.
 export function answerFor(answers, question) {
@@ -53,7 +54,8 @@ export function waitingLabel(names) {
 
 // The first line of an answer, whitespace collapsed, cut to `max` characters.
 export function shortNote(text, max = 48) {
-  const line = String(text || "").trim().split("\n")[0].replace(/\s+/g, " ").trim();
+  // A bulleted answer reads by its first item, without the "*".
+  const line = plainFirstLine(text).replace(/\s+/g, " ").trim();
   return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
 }
 

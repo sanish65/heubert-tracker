@@ -7,6 +7,7 @@ import { useApp } from "../context/AppContext";
 import { useThemeColors, fonts, radius } from "../lib/theme";
 import { NOTIFY_DAYS, myFineNotifications, unseenCount, taskNotificationItem, mergeNotifications } from "../lib/notifications";
 import { useTaskNotifications, markTaskNotificationsRead } from "../lib/useTaskNotifications";
+import { useStandupReminders } from "../lib/useStandupReminders";
 import { formatBs } from "../lib/nepaliDate";
 import { localToday } from "../lib/dates";
 import { Eyebrow, IconButton, FormModal, EmptyState, Pill } from "./ui";
@@ -95,6 +96,38 @@ function NotificationRow({ item, isNew, onPress }) {
   );
 }
 
+// "Your standup isn't in": the web bell's reminder row, worded the same.
+function StandupReminderRow({ item, isNew, onPress }) {
+  const t = useThemeColors();
+  const final = item.reminder === "final";
+  const title = final ? "Last call: your standup isn't in" : "Your next standup isn't in yet";
+  const date = fineDate(item.date);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={[title, date, "Due 10:00", isNew ? "New" : ""].filter(Boolean).join(", ")}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: t.pbGray }]}
+    >
+      <View style={[styles.rowIcon, { backgroundColor: t.pbGray }]}>
+        <Icon name="message" size={16} color={t.text2} />
+      </View>
+      <View style={styles.rowText}>
+        <Text numberOfLines={1} style={[styles.rowTitle, { color: t.text1 }]}>
+          {title}
+        </Text>
+        {date ? (
+          <Text numberOfLines={1} style={[styles.rowDate, { color: t.text3 }]}>
+            {date}
+          </Text>
+        ) : null}
+      </View>
+      {isNew ? <View style={[styles.newDot, { backgroundColor: t.cyan }]} /> : null}
+      <Pill tone={final ? "red" : "amber"}>Due 10:00</Pill>
+    </Pressable>
+  );
+}
+
 // "POR-4" for an issue, as the web's issueKey (src/lib/taskBoard.js).
 function issueKey(project, task) {
   if (!task) return "";
@@ -145,7 +178,9 @@ export default function TopBar({ title, eyebrow, right, bell = true, account = t
   const t = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { fines, standupFines, currentEmployee, user, projects } = useApp();
+  const { fines, standupFines, currentEmployee, user, projects, leaves, publicHolidays, standupSubmissions } = useApp();
+  // Standup not in yet: 17:00 the working day before, then 09:00 on the day, as on the web.
+  const standupReminders = useStandupReminders({ me: currentEmployee, user, leaves, publicHolidays, standupSubmissions });
   const taskRows = useTaskNotifications(Boolean(bell && currentEmployee));
   const seen = useSyncExternalStore(subscribeSeen, readSeenAt);
   const [open, setOpen] = useState(false);
@@ -161,21 +196,21 @@ export default function TopBar({ title, eyebrow, right, bell = true, account = t
   const notifications = useMemo(() => {
     const projectById = new Map((projects || []).map((p) => [p.id, p]));
     return mergeNotifications(
-      myFineNotifications({
+      [...standupReminders, ...myFineNotifications({
         fines,
         standupFines,
         name: currentEmployee?.name,
         now: new Date(),
         lateExcluded: Boolean(currentEmployee?.late_fine_excluded),
         standupExcluded: Boolean(currentEmployee?.standup_fine_excluded),
-      }),
+      })],
       taskRows
         .filter((n) => n.task && projectById.get(n.task.project_id)?.issue_key)
         .map((n) => taskNotificationItem(n, issueKey(projectById.get(n.task.project_id), n.task)))
     );
     // `today` is not read inside: it is the key that renews `now` once a day.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fines, standupFines, currentEmployee, taskRows, projects, today]);
+  }, [fines, standupFines, currentEmployee, taskRows, projects, today, standupReminders]);
   const unseen = unseenCount(notifications, seen);
 
   const openBell = () => {
@@ -195,6 +230,11 @@ export default function TopBar({ title, eyebrow, right, bell = true, account = t
   const openFines = () => {
     setOpen(false);
     router.navigate("/fines");
+  };
+
+  const openStandup = () => {
+    setOpen(false);
+    router.navigate("/standup");
   };
 
   const myName = currentEmployee?.name || user?.user_metadata?.full_name || user?.email || "";
@@ -242,6 +282,8 @@ export default function TopBar({ title, eyebrow, right, bell = true, account = t
             {notifications.map((item) =>
               item.kind === "task" ? (
                 <TaskNotificationRow key={item.id} item={item} isNew={unseenCount([item], openedSeenAt) > 0} onPress={() => openIssue(item.issueKey)} />
+              ) : item.kind === "standup-reminder" ? (
+                <StandupReminderRow key={item.id} item={item} isNew={unseenCount([item], openedSeenAt) > 0} onPress={openStandup} />
               ) : (
                 <NotificationRow key={item.id} item={item} isNew={unseenCount([item], openedSeenAt) > 0} onPress={openFines} />
               )

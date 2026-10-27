@@ -34,9 +34,9 @@ function Section({ title, children }) {
   );
 }
 
-export default function TaskIssueSheet({ issue, project, board, employees, onClose, onOpenIssue }) {
+export default function TaskIssueSheet({ issue, project, board, employees, onClose, onOpenIssue, onMoved }) {
   const t = useThemeColors();
-  const { isAdmin, user, currentEmployee } = useApp();
+  const { isAdmin, user, currentEmployee, projects } = useApp();
   const detail = useIssueDetail(issue?.id ?? null);
   const [title, setTitle] = useState(issue?.title || "");
   const [description, setDescription] = useState(issue?.description || "");
@@ -106,6 +106,31 @@ export default function TaskIssueSheet({ issue, project, board, employees, onClo
     setBusy(false);
     if (error) Alert.alert("Couldn't log the time", error.message || "");
     else setLogTime("");
+  };
+
+  // Jira's Move, as the web's Move dialog: the other open projects with a key.
+  const moveTargets = (projects || []).filter((p) => p.id !== project.id && p.issue_key && p.status !== "archived");
+  const confirmMove = (targetId) => {
+    const target = moveTargets.find((p) => p.id === Number(targetId));
+    if (!target) return;
+    const subtasks = children.length ? ` Its ${children.length} sub-task${children.length === 1 ? " moves" : "s move"} with it.` : "";
+    Alert.alert(
+      `Move ${key} to ${target.name}?`,
+      `It gets ${target.issue_key}'s next number (links to ${key} keep working), goes to the matching status, and leaves its sprint, epic and fix version.${subtasks}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Move",
+          onPress: async () => {
+            setBusy(true);
+            const { data, error } = await board.moveToProject(issue.id, target.id);
+            setBusy(false);
+            if (error) Alert.alert(`Couldn't move ${key}`, error.message || "");
+            else onMoved?.(data);
+          },
+        },
+      ]
+    );
   };
 
   const confirmDelete = () => {
@@ -276,6 +301,14 @@ export default function TaskIssueSheet({ issue, project, board, employees, onClo
       {canDelete ? (
         <View style={styles.footer}>
           <FieldLabel>Danger zone</FieldLabel>
+          {issue.type !== "subtask" && moveTargets.length ? (
+            <Select
+              label="Move to project"
+              value=""
+              options={moveTargets.map((p) => ({ value: String(p.id), label: `${p.issue_key} · ${p.name}` }))}
+              onSelect={confirmMove}
+            />
+          ) : null}
           <Button variant="danger" icon="trash" title={`Delete ${key}`} onPress={confirmDelete} />
         </View>
       ) : null}

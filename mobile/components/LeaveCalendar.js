@@ -68,7 +68,7 @@ function LegendItem({ label, swatch }) {
   );
 }
 
-export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays = [], onClearEmployee }) {
+export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays = [], companyEvents = [], onClearEmployee }) {
   const t = useThemeColors();
   const { currentEmployee } = useApp();
   const now = new Date();
@@ -76,6 +76,18 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   // The day you tapped, "YYYY-MM-DD", or null.
   const [picked, setPicked] = useState(null);
+
+  // Company events (the Events screen) by day, as the web's Leaves calendar shows them.
+  const eventsByDay = useMemo(() => {
+    const map = new Map();
+    (companyEvents || []).forEach((e) => {
+      const day = String(e.date || "").slice(0, 10);
+      if (!day || !e.title) return;
+      if (!map.has(day)) map.set(day, []);
+      map.get(day).push({ id: e.id, title: e.title });
+    });
+    return map;
+  }, [companyEvents]);
 
   // Each holiday day's title (the first, if a day has two).
   const holidayTitles = useMemo(() => {
@@ -151,6 +163,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
       dayLeaves: leaveDateMap[dateStr] || [],
       isToday: day === now.getDate() && viewMonth === now.getMonth() && viewYear === now.getFullYear(),
       holiday: holidayTitles.get(dateStr),
+      events: eventsByDay.get(dateStr) || [],
       bs: bsDay(dateStr),
     });
   }
@@ -166,6 +179,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
     if (last && last.title === cell.holiday && last.end === cell.day - 1) last.end = cell.day;
     else monthHolidays.push({ title: cell.holiday, start: cell.day, end: cell.day });
   });
+  const monthEvents = cells.flatMap((cell) => (cell ? cell.events.map((e) => ({ ...e, day: cell.day })) : []));
   const shortMonth = MONTHS[viewMonth].slice(0, 3);
 
   const pickedCell = picked ? cells.find((c) => c && c.dateStr === picked) : null;
@@ -230,6 +244,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
                 `${WEEKDAYS[cell.col]}, ${MONTHS[viewMonth]} ${cell.day}` +
                 (cell.isToday ? ", today" : "") +
                 (isHoliday ? `, ${cell.holiday} holiday` : "") +
+                cell.events.map((e) => `, ${e.title} event`).join("") +
                 (names ? `, on leave: ${names}` : ", no leaves");
               return (
                 <Pressable
@@ -252,6 +267,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
                   <Text style={[styles.cellNum, { color: tone.num, fontFamily: cell.isToday ? fonts.display : fonts.displayMedium }]}>{cell.day}</Text>
                   <Text style={[styles.cellBs, { color: tone.bs }]}>{cell.bs.text}</Text>
                   <View style={styles.dots}>
+                    {cell.events.length ? <View style={[styles.dot, { backgroundColor: t.pfViolet }]} /> : null}
                     {cell.dayLeaves.slice(0, 2).map((l, k) => (
                       <View key={k} style={[styles.dot, { backgroundColor: kindColor[l.type] || t.primary }]} />
                     ))}
@@ -274,6 +290,15 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
               </Text>
             </View>
           ) : null}
+          {pickedCell.events.map((e) => (
+            <View key={`e-${e.id}`} style={styles.detailRow}>
+              <Icon name="sparkles" size={16} strokeWidth={1.9} color={t.pfViolet} />
+              <Text numberOfLines={1} style={[styles.detailName, { color: t.text1 }]}>
+                {e.title}
+              </Text>
+              <Text style={[styles.detailKind, { color: t.text3 }]}>Event</Text>
+            </View>
+          ))}
           {pickedCell.dayLeaves.map((l) => (
             <View key={l.id} style={styles.detailRow}>
               <Avatar name={l.name} size={24} isMe={!!currentEmployee && l.name === currentEmployee.name} />
@@ -283,7 +308,7 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
               <Text style={[styles.detailKind, { color: t.text3 }]}>{TYPE_LABELS[l.type] || ""}</Text>
             </View>
           ))}
-          {pickedCell.holiday === undefined && pickedCell.dayLeaves.length === 0 ? (
+          {pickedCell.holiday === undefined && pickedCell.events.length === 0 && pickedCell.dayLeaves.length === 0 ? (
             <Text style={[styles.detailKind, { color: t.text3 }]}>No leaves</Text>
           ) : null}
         </View>
@@ -302,11 +327,24 @@ export default function LeaveCalendar({ leaves, selectedEmployee, publicHolidays
         </View>
       ))}
 
+      {monthEvents.map((e) => (
+        <View key={`e-${e.id}-${e.day}`} style={[styles.strip, { backgroundColor: t.pbViolet, borderColor: t.pfViolet }]}>
+          <Icon name="sparkles" size={18} strokeWidth={1.9} color={t.pfViolet} />
+          <Text numberOfLines={1} style={[styles.stripTitle, { color: t.text1 }]}>
+            {e.title}
+          </Text>
+          <Text style={[styles.stripDate, { color: t.text2 }]}>
+            {shortMonth} {e.day}
+          </Text>
+        </View>
+      ))}
+
       <View style={styles.legend}>
         <LegendItem label="Full Day" swatch={[styles.swatchDot, { backgroundColor: t.primary }]} />
         <LegendItem label="Half Day" swatch={[styles.swatchDot, { backgroundColor: t.unpaid }]} />
         <LegendItem label="Early Leave" swatch={[styles.swatchDot, { backgroundColor: t.cyan }]} />
         <LegendItem label="Holiday" swatch={[styles.swatchSquare, styles.swatchHoliday, { backgroundColor: strip.fill, borderColor: strip.flag }]} />
+        <LegendItem label="Event" swatch={[styles.swatchDot, { backgroundColor: t.pfViolet }]} />
         <LegendItem label="Today" swatch={[styles.swatchSquare, styles.swatchToday, { borderColor: t.cyan }]} />
       </View>
     </Card>

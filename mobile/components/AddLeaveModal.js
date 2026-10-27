@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useApp } from "../context/AppContext";
+import { useSubmitOnce } from "../lib/useSubmitOnce";
 import { buildWorkingDates, toDateStr, computeLeaveBalances } from "../lib/utils";
 import { LEAVE_TYPE_OPTIONS, SEGMENT_OPTIONS, DAY_OPTIONS } from "../lib/options";
 import { formatBs } from "../lib/nepaliDate";
@@ -91,6 +92,7 @@ export function SeasonLine({ title }) {
 }
 
 export default function AddLeaveModal({ isOpen, onClose }) {
+  const [saving, submitOnce] = useSubmitOnce();
   const { addLeave, employees, currentEmployee, isAdmin, publicHolidays, leaves, leaveTypes, leaveSeasons } = useApp();
   const selectableEmployees = employees.filter(e => e.status !== "resigned" && e.name !== "Developers");
   const today = toDateStr(new Date());
@@ -151,49 +153,50 @@ export default function AddLeaveModal({ isOpen, onClose }) {
   const previewDates = startDate ? buildWorkingDates(startDate, effectiveEnd >= startDate ? effectiveEnd : startDate, holidaySet) : [];
   const workingDayCount = type === "half" ? previewDates.length * 0.5 : previewDates.length;
 
-  const handleSubmit = async () => {
-    setError("");
-    setWarning("");
-    if (!name) return setError("Please select an employee");
-    if (!startDate) return setError("Please select a start date");
-    if (multiDay && endDate && endDate < startDate) return setError("End date cannot be before start date");
+  const handleSubmit = () =>
+    submitOnce(async () => {
+      setError("");
+      setWarning("");
+      if (!name) return setError("Please select an employee");
+      if (!startDate) return setError("Please select a start date");
+      if (multiDay && endDate && endDate < startDate) return setError("End date cannot be before start date");
 
-    const finalEnd = multiDay && endDate ? endDate : startDate;
-    const dates = buildWorkingDates(startDate, finalEnd, holidaySet);
-    if (dates.length === 0) return setError("The selected range has no working days (all weekends or holidays).");
+      const finalEnd = multiDay && endDate ? endDate : startDate;
+      const dates = buildWorkingDates(startDate, finalEnd, holidaySet);
+      if (dates.length === 0) return setError("The selected range has no working days (all weekends or holidays).");
 
-    const requestedDays = type === "half" ? dates.length * 0.5 : dates.length;
-    const selectedBalance = balances.find((b) => String(b.id) === String(leaveTypeId));
-    if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
-      return setWarning(
-        `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`
-      );
-    }
+      const requestedDays = type === "half" ? dates.length * 0.5 : dates.length;
+      const selectedBalance = balances.find((b) => String(b.id) === String(leaveTypeId));
+      if (selectedBalance && requestedDays > selectedBalance.remaining && !(isAdmin && overrideBalance)) {
+        return setWarning(
+          `Insufficient ${selectedBalance.name} balance (${selectedBalance.remaining} remaining). Consider Unpaid Leave instead.`
+        );
+      }
 
-    let finalReason = reason.trim();
-    if (type === "half") {
-      const segmentStr = segment === "first" ? "[First Half]" : "[Second Half]";
-      finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
-    }
+      let finalReason = reason.trim();
+      if (type === "half") {
+        const segmentStr = segment === "first" ? "[First Half]" : "[Second Half]";
+        finalReason = finalReason ? `${segmentStr} ${finalReason}` : segmentStr;
+      }
 
-    const { error: submitError } = await addLeave({
-      name,
-      startDate,
-      endDate: finalEnd,
-      dates,
-      type,
-      reason: finalReason,
-      leaveTypeId: leaveTypeId ? Number(leaveTypeId) : null,
-      seasonId: currentSeasonId,
+      const { error: submitError } = await addLeave({
+        name,
+        startDate,
+        endDate: finalEnd,
+        dates,
+        type,
+        reason: finalReason,
+        leaveTypeId: leaveTypeId ? Number(leaveTypeId) : null,
+        seasonId: currentSeasonId,
+      });
+
+      if (submitError) {
+        setError(submitError.message || "Failed to save the leave. Please try again.");
+        return;
+      }
+
+      onClose();
     });
-
-    if (submitError) {
-      setError(submitError.message || "Failed to save the leave. Please try again.");
-      return;
-    }
-
-    onClose();
-  };
 
   return (
     <FormModal visible={isOpen} onClose={onClose} title="Record Leave">
@@ -243,7 +246,7 @@ export default function AddLeaveModal({ isOpen, onClose }) {
       {warning ? <SheetNote tone="warning">{warning}</SheetNote> : null}
       {error ? <SheetNote>{error}</SheetNote> : null}
 
-      <SheetActions title="Record Leave" onPress={handleSubmit} onCancel={onClose} />
+      <SheetActions title={saving ? "Saving…" : "Record Leave"} onPress={handleSubmit} disabled={saving} onCancel={onClose} />
     </FormModal>
   );
 }

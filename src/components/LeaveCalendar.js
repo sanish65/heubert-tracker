@@ -34,10 +34,13 @@ function pad(n) {
   return String(n).padStart(2, "0");
 }
 
-// Lowest free lane for each bar, holidays first so they keep the top lane.
+// Holidays take the top lane, then company events, then leaves.
+const barRank = (bar) => (bar.holiday ? 2 : bar.event ? 1 : 0);
+
+// Lowest free lane for each bar, in barRank order.
 function assignLanes(bars) {
   const sorted = [...bars].sort(
-    (a, b) => (b.holiday ? 1 : 0) - (a.holiday ? 1 : 0) || a.start - b.start || b.span - a.span
+    (a, b) => barRank(b) - barRank(a) || a.start - b.start || b.span - a.span
   );
   const laneEnds = [];
   for (const bar of sorted) {
@@ -53,6 +56,7 @@ export default function LeaveCalendar({
   leaves,
   selectedEmployee,
   publicHolidays = [],
+  companyEvents = [],
   outOfSeasonLeaves = [],
   employeeOptions = [],
   onSelectEmployee,
@@ -76,6 +80,18 @@ export default function LeaveCalendar({
     });
     return map;
   }, [publicHolidays]);
+
+  // date-string → [event titles], for the company events (Events tab) on the calendar.
+  const eventsByDay = useMemo(() => {
+    const map = new Map();
+    (companyEvents || []).forEach((e) => {
+      const day = String(e.date || "").slice(0, 10);
+      if (!day || !e.title) return;
+      if (!map.has(day)) map.set(day, []);
+      map.get(day).push({ id: e.id, title: e.title });
+    });
+    return map;
+  }, [companyEvents]);
 
   // Helper to generate dates between start and end (legacy fallback)
   const getDatesInRange = useCallback((start, end) => {
@@ -206,6 +222,14 @@ export default function LeaveCalendar({
       pushRuns(slots, (run) => ({ ...run, holiday: title, key: `h-${title}-${run.week}-${run.start}` }))
     );
 
+    // Company events are one day each.
+    grid.days.forEach((day) => {
+      const { week, col } = slotOf.get(day.dateStr);
+      (eventsByDay.get(day.dateStr) || []).forEach((event) =>
+        out[week].bars.push({ week, start: col, span: 1, event, key: `e-${event.id}-${day.dateStr}` })
+      );
+    });
+
     out.forEach((w) => {
       const laid = assignLanes(w.bars);
       const overflowing = laid.some((b) => b.lane >= LANES);
@@ -216,12 +240,12 @@ export default function LeaveCalendar({
       if (overflowing) {
         for (let col = 0; col < 7; col++) {
           const hidden = laid.filter((b) => b.lane >= shown && b.start <= col && col < b.start + b.span);
-          if (hidden.length) w.more.push({ col, names: hidden.map((b) => b.holiday || b.leave.employee_name) });
+          if (hidden.length) w.more.push({ col, names: hidden.map((b) => b.holiday || b.event?.title || b.leave.employee_name) });
         }
       }
     });
     return out;
-  }, [grid, slotOf, leaveDates, holidayTitles]);
+  }, [grid, slotOf, leaveDates, holidayTitles, eventsByDay]);
 
   const monthDates = useMemo(() => new Set(grid.days.map((d) => d.dateStr)), [grid]);
 
@@ -363,6 +387,7 @@ export default function LeaveCalendar({
     // One tooltip for the whole cell, one line per person.
     const tooltipLines = [];
     if (isHoliday) tooltipLines.push(`Holiday: ${holidayTitle}`);
+    (eventsByDay.get(dateStr) || []).forEach((e) => tooltipLines.push(`Event: ${e.title}`));
     dayLeaves.forEach((l) => tooltipLines.push(`${l.name} — ${describeLeave(l)}`));
     const tooltip = tooltipLines.join("\n");
 
@@ -393,6 +418,14 @@ export default function LeaveCalendar({
         <div key={bar.key} className="cal-bar cal-bar-holiday" style={style} title={`Public holiday: ${bar.holiday}`}>
           <span className="cal-bar-label">{bar.holiday}</span>
           <span className="cal-bar-tag mono">Holiday</span>
+        </div>
+      );
+    }
+    if (bar.event) {
+      return (
+        <div key={bar.key} className="cal-bar cal-bar-event" style={style} title={`Company event: ${bar.event.title}`}>
+          <Icon name="flag" size={12} strokeWidth={2.2} />
+          <span className="cal-bar-label">{bar.event.title}</span>
         </div>
       );
     }
@@ -516,6 +549,7 @@ export default function LeaveCalendar({
         <span className="cal-legend-item"><span className="cal-swatch cal-swatch-half" aria-hidden="true" />Half day (½)</span>
         <span className="cal-legend-item"><span className="cal-swatch cal-swatch-early" aria-hidden="true" />Early leave</span>
         <span className="cal-legend-item"><span className="cal-swatch cal-swatch-holiday" aria-hidden="true" />Public holiday</span>
+        <span className="cal-legend-item"><span className="cal-swatch cal-swatch-event" aria-hidden="true" />Company event</span>
         <span className="cal-legend-note">Bar colour = person · weekends and holidays are never counted</span>
       </div>
     </section>

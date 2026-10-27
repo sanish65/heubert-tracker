@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NOTIFY_DAYS, NOTIFY_LIMIT, myFineNotifications, unseenCount } from './notifications.js';
+import { NOTIFY_DAYS, NOTIFY_LIMIT, myFineNotifications, unseenCount, standupReminderItems } from './notifications.js';
 
 const now = new Date('2026-10-20T01:00:00Z');
 
@@ -99,4 +99,20 @@ test('task notifications read like Jira and merge with fines by time', async () 
   assert.deepEqual([mention.sub, mention.read, mention.id], ['@Alice look', true, 'task-7']);
   const merged = mergeNotifications([{ id: 'late-1', at: '2026-10-20T00:00:00Z' }], [mention], 15);
   assert.deepEqual(merged.map((i) => i.id), ['task-7', 'late-1']);
+});
+
+test('standup reminders become bell rows until the standup is in', () => {
+  const due = [
+    { kind: 'evening', date: '2026-10-27', at: '2026-10-26T11:15:00.000Z' },
+    { kind: 'final', date: '2026-10-27', at: '2026-10-27T03:15:00.000Z' },
+  ];
+  assert.deepEqual(standupReminderItems(due).map((i) => [i.id, i.kind, i.reminder, i.at]), [
+    ['standup-reminder-2026-10-27-evening', 'standup-reminder', 'evening', '2026-10-26T11:15:00.000Z'],
+    ['standup-reminder-2026-10-27-final', 'standup-reminder', 'final', '2026-10-27T03:15:00.000Z'],
+  ]);
+  assert.deepEqual(standupReminderItems(due, { submitted: true }), []);
+  assert.deepEqual(standupReminderItems(due, { skip: true }), []);
+  assert.deepEqual(standupReminderItems(undefined), []);
+  // A new reminder counts as unseen until the bell is opened after it.
+  assert.equal(unseenCount(standupReminderItems(due), '2026-10-27T00:00:00Z'), 1);
 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { standupDays, findSubmissionFor, findTodaysSubmission } from './standupWindow.js';
+import { standupDays, standupReminders, findSubmissionFor, findTodaysSubmission } from './standupWindow.js';
 
 // 2026-10-19 is a Monday.
 const at = (dateStr, hour, minute = 0, second = 0) => ({ dateStr, hour, minute, second });
@@ -67,4 +67,30 @@ test('findSubmissionFor matches the given date by email, falling back to first n
 
 test('findTodaysSubmission still answers the same way', () => {
   assert.equal(findTodaysSubmission(rows, '2026-10-19', asha, null)?.id, 1);
+});
+
+// ── Reminders ──
+const npt = (dateStr, hour, minute = 0) => ({ dateStr, hour, minute, second: 0 });
+const kinds = (list) => list.map((r) => `${r.kind} ${r.date}`);
+
+test('reminders: the evening before at 17:00, then a last call at 09:00 on the day', () => {
+  assert.deepEqual(standupReminders(npt('2026-10-26', 16, 59)), []);
+  assert.deepEqual(standupReminders(npt('2026-10-26', 17, 0)), [
+    { kind: 'evening', date: '2026-10-27', at: '2026-10-26T11:15:00.000Z' },
+  ]);
+  assert.deepEqual(kinds(standupReminders(npt('2026-10-27', 8, 59))), ['evening 2026-10-27']);
+  assert.deepEqual(standupReminders(npt('2026-10-27', 9, 0)), [
+    { kind: 'evening', date: '2026-10-27', at: '2026-10-26T11:15:00.000Z' },
+    { kind: 'final', date: '2026-10-27', at: '2026-10-27T03:15:00.000Z' },
+  ]);
+});
+
+test('reminders: from 10:00 they are about the next working day, across weekends and holidays', () => {
+  // 10:00 Tuesday: the form is on Wednesday now, and its evening reminder is still to come.
+  assert.deepEqual(standupReminders(npt('2026-10-27', 10, 0)), []);
+  // Friday evening and the weekend: Monday's standup.
+  assert.deepEqual(kinds(standupReminders(npt('2026-10-30', 18, 0))), ['evening 2026-11-02']);
+  assert.deepEqual(kinds(standupReminders(npt('2026-10-31', 12, 0))), ['evening 2026-11-02']);
+  // Monday a holiday: Tuesday's standup is reminded on Friday evening.
+  assert.deepEqual(kinds(standupReminders(npt('2026-10-30', 17, 30), new Set(['2026-11-02']))), ['evening 2026-11-03']);
 });

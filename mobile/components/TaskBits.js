@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { useThemeColors, radius, fonts } from "../lib/theme";
 import { issueKey, issueType, priorityInfo, childProgress, isOverdue } from "../lib/taskBoard.js";
 import { statusMeta } from "../lib/taskWorkflow.js";
@@ -102,7 +102,56 @@ export function IssueRow({ task, project, tasks, workflow, employeesById, today,
   );
 }
 
+// The web's assignee avatars over the board (TaskFilterBar's AssigneeFilter): everyone with work
+// in the project, overlapping, then an Unassigned disc. Each toggles; picking several shows any of
+// their issues. On a phone the row scrolls sideways rather than folding into "+N".
+export function AssigneeAvatars({ people, unassigned, picked, onToggle, meId }) {
+  const t = useThemeColors();
+  if (!people.length && !unassigned) return null;
+  const ring = (on) => ({ borderColor: on ? t.primary : t.surfaceSolid });
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarRow} accessibilityLabel="Filter by assignee">
+      {people.map((e, i) => {
+        const on = picked.includes(e.id);
+        return (
+          <Pressable
+            key={e.id}
+            onPress={() => onToggle(e.id)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={e.id === meId ? `${e.name} (you)` : e.name}
+            hitSlop={4}
+            style={[styles.avatarBtn, ring(on), i > 0 && styles.avatarOverlap, on && styles.avatarOn]}
+          >
+            <Avatar name={e.name} size={32} />
+          </Pressable>
+        );
+      })}
+      {unassigned ? (
+        <Pressable
+          onPress={() => onToggle(null)}
+          accessibilityRole="button"
+          accessibilityState={{ selected: picked.includes(null) }}
+          accessibilityLabel="Unassigned"
+          hitSlop={4}
+          style={[styles.avatarBtn, ring(picked.includes(null)), people.length > 0 && styles.avatarOverlap, picked.includes(null) && styles.avatarOn]}
+        >
+          <View style={[styles.avatarNone, { backgroundColor: t.raised, borderColor: t.lineStrong }]}>
+            <Text style={[styles.meta, { color: t.text3 }]}>?</Text>
+          </View>
+        </Pressable>
+      ) : null}
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
+  avatarRow: { alignItems: "center", paddingVertical: 4, paddingHorizontal: 2 },
+  // A 2px ring in the card's colour so the overlap reads; the primary colour when picked.
+  avatarBtn: { borderRadius: radius.pill, borderWidth: 2 },
+  avatarOverlap: { marginLeft: -8 },
+  avatarOn: { zIndex: 1 },
+  avatarNone: { width: 32, height: 32, borderRadius: radius.pill, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
   typeTile: { borderRadius: 6, alignItems: "center", justifyContent: "center" },
   selfStart: { alignSelf: "flex-start" },
   points: { minWidth: 24, height: 22, paddingHorizontal: 6, borderRadius: 6, borderWidth: 1, alignItems: "center", justifyContent: "center" },

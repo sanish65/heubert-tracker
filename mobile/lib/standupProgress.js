@@ -3,6 +3,7 @@
 // import from src/; src/lib/mobileStandup.test.mjs holds the two equal. Pure (only the sibling
 // standupWindow.js).
 import { findSubmissionFor, isStandupWorkingDay } from "./standupWindow.js";
+import { plainFirstLine } from "./standupText.js";
 
 // A stored answer is keyed `question_<id>`; older rows used the id or the question text.
 export function answerFor(answers, question) {
@@ -54,7 +55,8 @@ export function waitingLabel(names) {
 
 // The first line of an answer, whitespace collapsed, cut to `max` characters.
 export function shortNote(text, max = 48) {
-  const line = String(text || "").trim().split("\n")[0].replace(/\s+/g, " ").trim();
+  // A bulleted answer reads by its first item, without the "*".
+  const line = plainFirstLine(text).replace(/\s+/g, " ").trim();
   return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
 }
 

@@ -166,3 +166,11 @@ test('mergeNotifications gives what the web gives', () => {
   const fineItems = web.myFineNotifications({ fines, standupFines, name: 'Sanish', now });
   sameOnEvery('mergeNotifications', [[fineItems, tasks], [fineItems, tasks, 3], [null, tasks], [fineItems, undefined], [[], []]]);
 });
+
+test('standupReminderItems gives what the web gives', () => {
+  const due = [{ kind: 'evening', date: '2026-10-27', at: '2026-10-26T11:15:00.000Z' }];
+  for (const opts of [{}, { submitted: true }, { skip: true }]) {
+    assert.deepEqual(phone.standupReminderItems(due, opts), web.standupReminderItems(due, opts));
+  }
+  assert.deepEqual(phone.standupReminderItems(undefined), web.standupReminderItems(undefined));
+});

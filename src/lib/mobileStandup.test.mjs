@@ -46,6 +46,12 @@ test('the open days and the 10:00 switch, around weekends and holidays', () => {
   assert.deepEqual(webWindow.standupDays(at('2026-10-24', 12), holidays), { today: null, next: '2026-10-26', defaultDate: '2026-10-26' });
 });
 
+test('standup reminders', () => {
+  for (const [d, h, m] of [['2026-10-21', 16, 59], ['2026-10-21', 17, 0], ['2026-10-22', 9, 0], ['2026-10-22', 10, 0], ['2026-10-24', 12, 0]]) {
+    both(`standupReminders ${d} ${h}:${m}`, (w) => w.standupReminders({ dateStr: d, hour: h, minute: m, second: 0 }, holidays));
+  }
+});
+
 test('Nepal wall-clock parts', () => {
   const instant = new Date('2026-10-22T04:14:30Z'); // 09:59:30 in Kathmandu
   const parts = both('getNepalParts', (w) => w.getNepalParts(instant));

@@ -5,10 +5,54 @@ import { useApp } from "@/context/AppContext";
 import { useDialog } from "@/context/DialogContext";
 import Modal from "@/components/Modal";
 import Icon from "@/components/Icon";
+import PersonAvatar from "@/components/Avatar";
 import { ISSUE_TYPES } from "@/lib/taskBoard";
 import { BUILT_IN_FILTERS } from "@/lib/taskQuery";
 
 const FILTER_TYPES = ISSUE_TYPES.filter((t) => t.value !== "epic");
+
+// Avatars shown before the rest fold into "+N".
+const AVATARS_SHOWN = 6;
+
+// Jira's quick filter: an overlapping row of everyone with work in the project, and an
+// Unassigned disc. Each one toggles; picking several shows any of their issues. "+N"
+// opens the rest, and stays lit while one of the hidden avatars is picked.
+function AssigneeFilter({ people, unassigned, picked, onToggle, meId }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!people.length && !unassigned) return null;
+  const shown = expanded ? people : people.slice(0, AVATARS_SHOWN);
+  const hidden = people.length - shown.length;
+  const hiddenPicked = people.slice(AVATARS_SHOWN).some((e) => picked.includes(e.id));
+
+  return (
+    <div className="assignee-filter" role="group" aria-label="Filter by assignee">
+      {shown.map((e) => {
+        const on = picked.includes(e.id);
+        const label = e.id === meId ? `${e.name} (you)` : e.name;
+        return (
+          <button key={e.id} type="button" className={`assignee-filter-btn ${on ? "is-active" : ""}`} aria-pressed={on} aria-label={label} title={label} onClick={() => onToggle(e.id)}>
+            <PersonAvatar name={e.name} className="avatar avatar-sm" aria-hidden="true" />
+          </button>
+        );
+      })}
+      {hidden > 0 && (
+        <button type="button" className={`assignee-filter-btn assignee-filter-more ${hiddenPicked ? "is-active" : ""}`} aria-expanded={false} aria-label={`Show ${hidden} more`} title={`Show ${hidden} more`} onClick={() => setExpanded(true)}>
+          <span className="avatar avatar-sm">+{hidden}</span>
+        </button>
+      )}
+      {expanded && people.length > AVATARS_SHOWN && (
+        <button type="button" className="assignee-filter-btn assignee-filter-more" aria-expanded aria-label="Show fewer" title="Show fewer" onClick={() => setExpanded(false)}>
+          <span className="avatar avatar-sm"><Icon name="chevron-left" size={14} strokeWidth={2.2} /></span>
+        </button>
+      )}
+      {unassigned && (
+        <button type="button" className={`assignee-filter-btn ${picked.includes(null) ? "is-active" : ""}`} aria-pressed={picked.includes(null)} aria-label="Unassigned" title="Unassigned" onClick={() => onToggle(null)}>
+          <span className="avatar avatar-sm issue-avatar-none" aria-hidden="true">?</span>
+        </button>
+      )}
+    </div>
+  );
+}
 
 function SaveFilterModal({ initialName = "", onSave, onClose }) {
   const [name, setName] = useState(initialName);
@@ -95,7 +139,7 @@ export default function TaskFilterBar({ project, board, basic, jql, compiled, ma
     else setActiveId(null);
   };
 
-  const basicOn = basic.search.trim() || basic.onlyMine || basic.recent || basic.types.length;
+  const basicOn = basic.search.trim() || basic.onlyMine || basic.recent || basic.types.length || basic.assignees.length;
 
   return (
     <div className="tasks-filter-area">
@@ -126,6 +170,13 @@ export default function TaskFilterBar({ project, board, basic, jql, compiled, ma
                 onChange={(e) => basic.setSearch(e.target.value)}
               />
             </label>
+            <AssigneeFilter
+              people={basic.people}
+              unassigned={basic.unassigned}
+              picked={basic.assignees}
+              onToggle={basic.toggleAssignee}
+              meId={currentEmployee?.id}
+            />
             <button className={`project-filter-chip ${basic.onlyMine ? "active" : ""}`} onClick={() => basic.setOnlyMine((v) => !v)}>
               Only my issues
             </button>

@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useSubmitOnce } from "@/lib/useSubmitOnce";
 import { findExistingPublicHoliday, expandDateRange } from "@/lib/utils";
 import Icon from "@/components/Icon";
 
 export default function AddPublicHolidayModal({ isOpen, onClose }) {
+  const [saving, submitOnce] = useSubmitOnce();
   const { addPublicHoliday, publicHolidays } = useApp();
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -27,18 +29,20 @@ export default function AddPublicHolidayModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!date || !title || backwards || clashes.length) return;
+    return submitOnce(async () => {
+      if (!date || !title || backwards || clashes.length) return;
 
-    const { error: submitError } = await addPublicHoliday(date, title, endDate || undefined);
-    if (submitError) {
-      setError(submitError.message || "Failed to add the holiday. Please try again.");
-      return;
-    }
+      const { error: submitError } = await addPublicHoliday(date, title, endDate || undefined);
+      if (submitError) {
+        setError(submitError.message || "Failed to add the holiday. Please try again.");
+        return;
+      }
 
-    onClose();
-    reset();
+      onClose();
+      reset();
+    });
   };
 
   const handleClose = () => {
@@ -112,9 +116,9 @@ export default function AddPublicHolidayModal({ isOpen, onClose }) {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={backwards || clashes.length > 0}
+              disabled={saving || backwards || clashes.length > 0}
             >
-              {days.length > 1 ? `Add ${days.length}-Day Holiday` : "Add Holiday"}
+              {saving ? "Saving…" : days.length > 1 ? `Add ${days.length}-Day Holiday` : "Add Holiday"}
             </button>
           </div>
         </form>
